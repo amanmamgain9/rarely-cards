@@ -22,8 +22,8 @@ export default function PrivacyPage() {
         <p>
           We process your account identifier, email, the pet name and pronouns
           you provide, payment status, analysis status, and the result shown on the card.
-          Paddle handles payment details; Rarely does not store full payment
-          card data.
+          Google Play, Lemon Squeezy, or Paddle handles payment details; Rarely
+          does not store full payment card data.
         </p>
 
         <h2>Photo handling</h2>
@@ -31,24 +31,24 @@ export default function PrivacyPage() {
           Before sign-in, the selected photo may be stored in this browser for
           up to 24 hours. After sign-in it is uploaded to a private Supabase
           Storage bucket, sent to Google Gemini to read the visible pet and
-          scene, and deleted from server storage after an accepted or rejected
-          analysis. For a completed card, we replace the raw upload with a
-          smaller optimized copy kept in private storage so you can reopen,
-          download, and share the card from your account. Rejected, invalid,
-          abandoned, or cleanup-pending photos are deleted or expire within 24
-          hours.
+          scene, and retained privately in your account. Completed cards may
+          also have an optimized copy for faster reopening, downloading, and
+          sharing. Valid uploaded photos remain until you delete them or request
+          account deletion. Files that are malformed or cannot be stored safely
+          may be discarded.
         </p>
 
         <h2>Sharing and retention</h2>
         <p>
           Supabase provides authentication, database, and private storage;
-          Google processes the temporary image for AI output; Paddle processes
-          checkout and refunds; Vercel hosts the app; and Sentry may receive
-          redacted technical errors. We retain card results and transaction
-          state for account access, support, fraud prevention, and legal
-          obligations. Saved card photos remain until you delete the photo or
-          request account deletion. Error logs never intentionally include photos, auth
-          tokens, payment secrets, or full model prompts and responses.
+          Google processes the image for AI output; Google Play, Lemon Squeezy,
+          or Paddle processes checkout and refunds; Vercel hosts the app; and
+          Sentry may receive redacted technical errors. We retain card results
+          and transaction state for account access, support, fraud prevention,
+          and legal obligations. Saved card photos remain until you delete the
+          photo or request account deletion. Error logs never intentionally
+          include photos, auth tokens, payment secrets, or full model prompts
+          and responses.
         </p>
 
         <h2>Your choices</h2>
@@ -64,8 +64,8 @@ export default function PrivacyPage() {
         <h2>Age and changes</h2>
         <p>
           Rarely is for adults aged 18 or older. Material policy changes will
-          be posted here with a new effective date. This plain-language policy
-          Contact amanmamgain9@gmail.com with privacy requests or questions.
+          be posted here with a new effective date. Contact
+          amanmamgain9@gmail.com with privacy requests or questions.
         </p>
       </article>
       <PublicFooter />

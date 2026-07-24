@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { startCreditPurchaseRefund } from "@/lib/paddle";
+import { startCreditPurchaseRefund } from "@/lib/payments/refunds";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -30,7 +30,7 @@ export async function POST(request: Request, context: RouteContext) {
       message:
         refund.status === "refunded"
           ? "Your full refund was approved."
-          : "Your full refund was requested. Paddle will email you when it is approved.",
+          : "Your full refund was requested. Your payment provider will email you when it is approved.",
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "refund_failed";

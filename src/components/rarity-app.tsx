@@ -26,14 +26,22 @@ import type {
   PetPronouns,
   PublicAnalysis,
 } from "@/lib/analysis/types";
+import { PENDING_PHOTO_COOKIE } from "@/lib/analysis/resume";
+import {
+  getGooglePlayProduct,
+  restoreGooglePlayPurchases,
+  startGooglePlayPurchase,
+} from "@/lib/payments/google-play-client";
+import { openLemonSqueezyCheckout } from "@/lib/payments/lemon-squeezy-client";
+import { usePaymentChannel } from "@/lib/payments/use-payment-channel";
+import { createZazzlePrintCheckout } from "@/lib/printing/zazzle-client";
 import { PET_DEMO_RESULT } from "@/lib/rarity/pet-config";
 
 type IconProps = { className?: string };
 type FlowState =
   | "idle"
-  | "validating"
+  | "restoring"
   | "auth"
-  | "uploading"
   | "checkout"
   | "verifying"
   | "naming"
@@ -47,8 +55,12 @@ type FlowState =
 type AppProps = {
   initialUser: { id: string; email: string | null } | null;
   initialCreditBalance: number;
+  initialAnalysis: PublicAnalysis | null;
+  shouldRestorePendingPhoto: boolean;
   supabaseConfigured: boolean;
+  lemonSqueezyConfigured: boolean;
   paddleConfigured: boolean;
+  zazzlePrintEnabled: boolean;
   paddleEnvironment: "sandbox" | "production";
 };
 
@@ -86,6 +98,21 @@ function Upload() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function Printer() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M7 8V3.5h10V8M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v6.5H7V14Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="17.5" cy="11.5" r=".8" fill="currentColor" />
     </svg>
   );
 }
@@ -182,19 +209,78 @@ function readPhoto(file: File) {
   });
 }
 
+function flowForAnalysis(analysis: PublicAnalysis): FlowState {
+  switch (analysis.status) {
+    case "awaiting_upload":
+      return "restoring";
+    case "awaiting_payment":
+      return "checkout";
+    case "payment_pending":
+      return "verifying";
+    case "awaiting_name":
+      return "naming";
+    case "paid":
+    case "processing":
+      return "processing";
+    case "photo_rejected":
+      return "retry";
+    case "completed":
+      return "completed";
+    case "refund_pending":
+      return "refund_pending";
+    case "refunded":
+      return "refunded";
+    case "failed":
+    case "disputed":
+      return "error";
+  }
+}
+
+function setPendingPhotoHint(pending: boolean) {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${PENDING_PHOTO_COOKIE}=${pending ? "1" : ""}; Path=/; SameSite=Lax; Max-Age=${pending ? 86400 : 0}${secure}`;
+}
+
+function clearResumeQuery() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("resume")) return;
+  url.searchParams.delete("resume");
+  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 export function RarityApp({
   initialUser,
   initialCreditBalance,
+  initialAnalysis,
+  shouldRestorePendingPhoto,
   supabaseConfigured,
+  lemonSqueezyConfigured,
   paddleConfigured,
+  zazzlePrintEnabled,
   paddleEnvironment,
 }: AppProps) {
-  const [flow, setFlow] = useState<FlowState>("idle");
-  const [checkoutPromptOpen, setCheckoutPromptOpen] = useState(false);
-  const [photo, setPhoto] = useState<string | null>(null);
+  const paymentChannel = usePaymentChannel();
+  const [flow, setFlow] = useState<FlowState>(() =>
+    initialAnalysis
+      ? flowForAnalysis(initialAnalysis)
+      : shouldRestorePendingPhoto
+        ? "restoring"
+        : "idle",
+  );
+  const [checkoutPromptOpen, setCheckoutPromptOpen] = useState(
+    initialAnalysis?.status === "awaiting_payment",
+  );
+  const [playPrice, setPlayPrice] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<string | null>(
+    initialAnalysis?.photoUrl ?? null,
+  );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [analysisId, setAnalysisId] = useState<string | null>(null);
-  const [result, setResult] = useState<AcceptedAnalysis | null>(null);
+  const [analysisId, setAnalysisId] = useState<string | null>(
+    initialAnalysis?.id ?? null,
+  );
+  const [result, setResult] = useState<AcceptedAnalysis | null>(
+    initialAnalysis?.result ?? null,
+  );
   const [petName, setPetName] = useState("");
   const [petPronouns, setPetPronouns] = useState<PetPronouns>("they");
   const [message, setMessage] = useState<string | null>(null);
@@ -203,6 +289,8 @@ export function RarityApp({
   const [authSent, setAuthSent] = useState(false);
   const [shareReady, setShareReady] = useState(false);
   const [shareLabel, setShareLabel] = useState("Preparing share...");
+  const [printLabel, setPrintLabel] = useState("Order a printed card");
+  const [printBusy, setPrintBusy] = useState(false);
   const [heroDemoIndex, setHeroDemoIndex] = useState(0);
   const [creditBalance, setCreditBalance] = useState(initialCreditBalance);
   const uploadInput = useRef<HTMLInputElement>(null);
@@ -210,10 +298,19 @@ export function RarityApp({
   const petNameInput = useRef<HTMLInputElement>(null);
   const exportCardRef = useRef<HTMLElement>(null);
   const cachedShareAsset = useRef<ShareAsset | null>(null);
+  const playRestoreAttempted = useRef(false);
   const heroDemo = HERO_CARD_DEMOS[heroDemoIndex];
 
   const applyStatus = useCallback((analysis: PublicAnalysis) => {
     if (analysis.photoUrl) setPhoto(analysis.photoUrl);
+    if (
+      ["completed", "photo_rejected", "failed", "refunded"].includes(
+        analysis.status,
+      )
+    ) {
+      setPendingPhotoHint(false);
+      void clearPendingPhoto().catch(() => undefined);
+    }
     if (analysis.status === "completed" && analysis.result) {
       setResult(analysis.result);
       setFlow("completed");
@@ -226,7 +323,7 @@ export function RarityApp({
       );
     } else if (analysis.status === "refund_pending") {
       setFlow("refund_pending");
-      setMessage("Refund started. Paddle may need to approve it.");
+      setMessage("Refund started. Your payment provider may need to approve it.");
     } else if (analysis.status === "refunded") {
       setFlow("refunded");
       setMessage("Your refund was approved.");
@@ -240,6 +337,7 @@ export function RarityApp({
       setFlow("verifying");
     } else if (analysis.status === "awaiting_payment") {
       setFlow("checkout");
+      setCheckoutPromptOpen(true);
     } else if (analysis.status === "failed") {
       setFlow("error");
       setMessage("A technical failure stopped this card. Your credit was returned.");
@@ -278,11 +376,52 @@ export function RarityApp({
     }
     setFlow("checkout");
     setCheckoutPromptOpen(true);
-    setMessage("Payment is complete. Paddle is still adding your credits; try again shortly.");
+    setMessage("Payment is complete. Your credits are still being confirmed; try again shortly.");
   }, [applyStatus, refreshCreditBalance]);
 
+  useEffect(() => {
+    if (paymentChannel !== "google_play") return;
+    let cancelled = false;
+    void getGooglePlayProduct()
+      .then((product) => {
+        if (!cancelled) setPlayPrice(product.formattedPrice);
+      })
+      .catch(() => {
+        if (!cancelled) setPlayPrice(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentChannel]);
+
+  useEffect(() => {
+    if (
+      paymentChannel !== "google_play" ||
+      !initialUser ||
+      playRestoreAttempted.current
+    ) {
+      return;
+    }
+    playRestoreAttempted.current = true;
+    void restoreGooglePlayPurchases()
+      .then((restored) => {
+        const resumed = restored.find((purchase) => purchase.analysisId);
+        if (resumed?.analysisId) {
+          setFlow("verifying");
+          void confirmCreditPurchase(resumed.analysisId);
+        } else if (restored.length > 0) {
+          void refreshCreditBalance();
+        }
+      })
+      .catch(() => undefined);
+  }, [
+    confirmCreditPurchase,
+    initialUser,
+    paymentChannel,
+    refreshCreditBalance,
+  ]);
+
   const uploadNewAnalysis = useCallback(async (file: File) => {
-    setFlow("uploading");
     setMessage(null);
     const response = await fetch("/api/analyses", {
       method: "POST",
@@ -315,7 +454,9 @@ export function RarityApp({
     }
 
     setAnalysisId(payload.id);
-    localStorage.setItem("rarely-analysis-id", payload.id);
+    await clearPendingPhoto().catch(() => undefined);
+    setPendingPhotoHint(false);
+    clearResumeQuery();
     const nextFlow =
       confirmedPayload.status === "paid"
         ? "processing"
@@ -331,7 +472,6 @@ export function RarityApp({
       setMessage("Choose a JPEG, PNG, or WebP photo.");
       return;
     }
-    setFlow("validating");
     setMessage(null);
 
     const preview = await readPhoto(file);
@@ -340,15 +480,23 @@ export function RarityApp({
     setAnalysisId(null);
     setResult(null);
     setCheckoutPromptOpen(false);
-    localStorage.removeItem("rarely-analysis-id");
+    cachedShareAsset.current = null;
+    setShareReady(false);
+    setShareLabel("Preparing share...");
+    setPrintBusy(false);
+    setPrintLabel("Order a printed card");
     await savePendingPhoto(file, AUTOMATIC_CARD_STYLE);
+    setPendingPhotoHint(true);
 
     if (!initialUser) {
       setFlow("auth");
       return;
     }
+    const hasCredit = creditBalance > 0;
+    setFlow(hasCredit ? "naming" : "checkout");
+    setCheckoutPromptOpen(!hasCredit);
     await uploadNewAnalysis(file);
-  }, [initialUser, uploadNewAnalysis]);
+  }, [creditBalance, initialUser, uploadNewAnalysis]);
 
   useEffect(() => {
     if (
@@ -365,31 +513,48 @@ export function RarityApp({
   }, [photo, result]);
 
   useEffect(() => {
+    localStorage.removeItem("rarely-analysis-id");
     if (!initialUser || !supabaseConfigured) return;
+
+    if (initialAnalysis) {
+      setPendingPhotoHint(false);
+      clearResumeQuery();
+      void clearPendingPhoto().catch(() => undefined);
+      return;
+    }
+    if (!shouldRestorePendingPhoto) return;
+
+    let cancelled = false;
     void loadPendingPhoto()
       .then(async (pending) => {
-        const savedId = localStorage.getItem("rarely-analysis-id");
-        if (savedId) {
-          setAnalysisId(savedId);
-          const restored = await refreshAnalysis(savedId);
-          const pendingIsNewer =
-            pending &&
-            restored &&
-            pending.savedAt > new Date(restored.updatedAt).getTime() + 1000;
-          if (restored && !pendingIsNewer) return;
-          if (!restored || pendingIsNewer) {
-            localStorage.removeItem("rarely-analysis-id");
-            setAnalysisId(null);
-            setResult(null);
-          }
+        if (cancelled) return;
+        if (!pending) {
+          setPendingPhotoHint(false);
+          clearResumeQuery();
+          setFlow("idle");
+          return;
         }
-        if (!pending) return;
         setSelectedFile(pending.file);
         setPhoto(await readPhoto(pending.file));
+        if (cancelled) return;
         await uploadNewAnalysis(pending.file);
       })
-      .catch(() => setMessage("Your saved photo could not be restored."));
-  }, [initialUser, refreshAnalysis, supabaseConfigured, uploadNewAnalysis]);
+      .catch(() => {
+        if (cancelled) return;
+        setFlow("error");
+        setMessage("Your saved photo could not be restored. Please add it again.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    initialAnalysis,
+    initialUser,
+    shouldRestorePendingPhoto,
+    supabaseConfigured,
+    uploadNewAnalysis,
+  ]);
 
   useEffect(() => {
     if (
@@ -405,14 +570,14 @@ export function RarityApp({
   }, [analysisId, flow, refreshAnalysis]);
 
   useEffect(() => {
-    document.body.style.overflow =
-      ["auth", "checkout", "uploading", "validating", "verifying", "naming", "processing", "completed", "retry", "refund_pending", "refunded"].includes(flow)
-        ? "hidden"
-        : "";
+    const modalOpen =
+      ["restoring", "auth", "verifying", "naming", "processing", "completed", "retry", "refund_pending", "refunded"].includes(flow) ||
+      (flow === "checkout" && checkoutPromptOpen);
+    document.body.style.overflow = modalOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [flow]);
+  }, [checkoutPromptOpen, flow]);
 
   useEffect(() => {
     if (flow !== "completed" || !photo || !result) return;
@@ -435,8 +600,15 @@ export function RarityApp({
     };
   }, [flow, photo, result]);
 
-  async function startCheckout() {
-    if (!analysisId || !paddleConfigured) {
+  async function startCheckout(
+    provider: "lemon_squeezy" | "paddle" | "google_play",
+  ) {
+    if (
+      !analysisId ||
+      (provider === "lemon_squeezy" && !lemonSqueezyConfigured) ||
+      (provider === "paddle" && !paddleConfigured) ||
+      (provider === "google_play" && paymentChannel !== "google_play")
+    ) {
       setMessage("Checkout is not configured yet.");
       return;
     }
@@ -444,11 +616,40 @@ export function RarityApp({
     const response = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analysisId }),
+      body: JSON.stringify({ analysisId, provider }),
     });
-    const payload = await response.json();
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       setMessage(payload.error || "Checkout could not be opened.");
+      return;
+    }
+    if (provider === "google_play") {
+      try {
+        await startGooglePlayPurchase({
+          purchaseId: payload.purchaseId,
+          analysisId,
+        });
+        setFlow("verifying");
+        void confirmCreditPurchase(analysisId);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Google Play checkout could not be completed.",
+        );
+      }
+      return;
+    }
+    if (provider === "lemon_squeezy") {
+      if (typeof payload.checkoutUrl !== "string") {
+        setMessage("Checkout could not be opened.");
+        return;
+      }
+      openLemonSqueezyCheckout(payload.checkoutUrl, () => {
+        setFlow("verifying");
+        void confirmCreditPurchase(analysisId);
+      });
       return;
     }
     const paddle = await initializePaddle({
@@ -489,7 +690,7 @@ export function RarityApp({
       setMessage("Could not sign out. Please try again.");
       return;
     }
-    localStorage.removeItem("rarely-analysis-id");
+    setPendingPhotoHint(false);
     await clearPendingPhoto().catch(() => undefined);
     window.location.replace("/");
   }
@@ -570,6 +771,36 @@ export function RarityApp({
     }
   }
 
+  async function orderPrint() {
+    const asset = cachedShareAsset.current;
+    if (!analysisId || !asset || !zazzlePrintEnabled) return;
+
+    setPrintBusy(true);
+    setPrintLabel("Preparing Zazzle checkout…");
+    try {
+      const checkoutUrl = await createZazzlePrintCheckout(analysisId, asset.file);
+      window.location.assign(checkoutUrl);
+    } catch (error) {
+      setPrintLabel(
+        error instanceof Error ? error.message : "Try print checkout again",
+      );
+      setPrintBusy(false);
+    }
+  }
+
+  function returnToHomepage() {
+    setPendingPhotoHint(false);
+    void clearPendingPhoto().catch(() => undefined);
+    cachedShareAsset.current = null;
+    setAnalysisId(null);
+    setSelectedFile(null);
+    setPhoto(null);
+    setResult(null);
+    setMessage(null);
+    setFlow("idle");
+    window.history.replaceState(null, "", window.location.pathname);
+  }
+
   function reportClientError(error: unknown) {
     setFlow("error");
     setMessage(
@@ -591,35 +822,44 @@ export function RarityApp({
   }
 
   const busyLabel =
-    flow === "uploading"
-      ? analysisId
-        ? "Checking their new photo"
-        : "Preparing their photo"
-      : flow === "verifying"
-        ? "Confirming your payment"
-        : flow === "validating"
-          ? "Checking their photo"
-          : "Making their card";
+    flow === "verifying" ? "Confirming your payment" : "Making their card";
   const busyCopy =
-    flow === "uploading"
-      ? analysisId
-        ? "We will check this photo before using a card credit."
-        : "We check the file first. No credit is used until the AI analysis begins."
-      : flow === "verifying"
-        ? "Payment is complete. We are confirming it before their card begins."
-        : flow === "validating"
-          ? "A quick file check before sign-in or payment."
-          : "One credit is reserved. A technical failure returns it automatically.";
-  const progressStage =
-    flow === "verifying" ? 1 : flow === "processing" ? 2 : 0;
+    flow === "verifying"
+      ? "Payment is complete. We are confirming it before their card begins."
+      : "One credit is reserved. A technical failure returns it automatically.";
+  const progressStage = flow === "processing" ? 1 : 0;
   const heroCardResult = result || (photo ? PENDING_CARD_RESULT : heroDemo.result);
   const heroCardPhoto = photo || heroDemo.image;
+  const checkoutAvailable =
+    paymentChannel === "google_play" ||
+    (paymentChannel === "web" &&
+      (lemonSqueezyConfigured || paddleConfigured));
+  const primaryProvider =
+    paymentChannel === "google_play"
+      ? ("google_play" as const)
+      : lemonSqueezyConfigured
+        ? ("lemon_squeezy" as const)
+        : ("paddle" as const);
+  const checkoutPrice =
+    paymentChannel === "google_play" ? playPrice : paymentChannel === "web" ? "$5" : null;
 
   return (
     <main className="app">
       <div className="dot-field" aria-hidden="true" />
 
-      {["validating", "uploading", "verifying", "processing"].includes(flow) && photo && (
+      {flow === "restoring" && (
+        <section className="flow-overlay" aria-live="polite">
+          <div className="flow-dialog">
+            <span className="pixel-label">YOUR PHOTO IS SAFE</span>
+            <h2>PICKING UP<br /><em>WHERE YOU LEFT OFF.</em></h2>
+            <p>
+              Restoring their photo and the next step of their card.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {["verifying", "processing"].includes(flow) && photo && (
         <section className="analysis-overlay" aria-live="polite">
           <div className="analysis-noise" />
           <div className="analysis-shell">
@@ -628,9 +868,7 @@ export function RarityApp({
               <span>
                 {flow === "processing"
                   ? "1 CREDIT RESERVED · MAKING THEIRS"
-                  : flow === "verifying"
-                    ? "PAYMENT COMPLETE · ADDING 5 CREDITS"
-                    : "NO CREDIT USED YET"}
+                  : "PAYMENT COMPLETE · ADDING 5 CREDITS"}
               </span>
             </div>
             <div className="scan-portrait">
@@ -641,12 +879,12 @@ export function RarityApp({
             </div>
             <div className="analysis-copy">
               <span className="analysis-kicker">
-                {flow === "processing" ? "THEIR CARD IS UNDERWAY" : "BEFORE WE BEGIN"}
+                {flow === "processing" ? "THEIR CARD IS UNDERWAY" : "PAYMENT RECEIVED"}
               </span>
               <h2>{busyLabel}<i>...</i></h2>
               <p>{busyCopy}</p>
               <div className="analysis-progress">
-                {["Check photo", "Use 1 credit", "Make their card"].map((step, index) => (
+                {["Confirm credit", "Make their card"].map((step, index) => (
                   <div
                     className={
                       index < progressStage
@@ -714,17 +952,53 @@ export function RarityApp({
               <figcaption>THIS IS THE ONE <span>★</span></figcaption>
             </figure>
             <div className="photo-flow-copy checkout-flow-copy">
-              <span className="pixel-label">PHOTO READY · FIVE CREDITS FOR $5</span>
+              <span className="pixel-label">
+                PHOTO READY · FIVE CREDITS
+                {checkoutPrice ? ` FOR ${checkoutPrice.toUpperCase()}` : ""}
+              </span>
               <h2>THEY GAVE YOU<br /><em>THIS MOMENT.</em></h2>
               <p>
-                Buy five AI card attempts once, then use them whenever you want.
-                Accepted and rejected AI responses each use one credit; technical
-                failures return it.
+                Five chances to turn the looks only you understand into cards
+                you&apos;ll want to keep and share.
               </p>
-              <button type="button" className="checkout-button" onClick={() => void startCheckout()}>
-                Pay $5 · Get 5 card credits
+              <button
+                type="button"
+                className="checkout-button"
+                disabled={!analysisId || !checkoutAvailable}
+                onClick={() => void startCheckout(primaryProvider)}
+              >
+                {!analysisId || paymentChannel === "loading"
+                  ? "Preparing secure checkout…"
+                  : paymentChannel === "play_unavailable"
+                    ? "Google Play Billing unavailable"
+                    : `Pay${checkoutPrice ? ` ${checkoutPrice}` : ""} · Get 5 card credits`}
               </button>
+              {paymentChannel === "web" &&
+                lemonSqueezyConfigured &&
+                paddleConfigured && (
+                <button
+                  type="button"
+                  className="text-button"
+                  disabled={!analysisId}
+                  onClick={() => void startCheckout("paddle")}
+                >
+                  Pay with Paddle instead
+                </button>
+                )}
+              {paymentChannel === "play_unavailable" && (
+                <small>
+                  Update Chrome or reopen Rarely from Google Play. Web checkout
+                  is disabled inside the Android app.
+                </small>
+              )}
               <small>One-time payment · No subscription · Buy another pack anytime</small>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setCheckoutPromptOpen(false)}
+              >
+                Not now
+              </button>
               {message && <strong role="alert">{message}</strong>}
             </div>
           </div>
@@ -776,7 +1050,9 @@ export function RarityApp({
                   </label>
                 ))}
               </fieldset>
-              <button type="submit">Make their card →</button>
+              <button type="submit" disabled={!analysisId}>
+                {analysisId ? "Make their card →" : "Preparing their photo…"}
+              </button>
             </form>
             {message && <strong>{message}</strong>}
           </div>
@@ -809,19 +1085,39 @@ export function RarityApp({
         <section className="result-screen" aria-label="Your rarity card result">
           <div className="story-result">
             <ShareCard photo={photo} result={result} ref={exportCardRef} />
-            <button
-              className="share-only-button"
-              type="button"
-              onClick={shareResult}
-              disabled={!shareReady}
-            >
-              <span>{shareLabel}</span><i><Upload /></i>
-            </button>
+            <div className="result-primary-actions">
+              <button
+                className="share-only-button"
+                type="button"
+                onClick={shareResult}
+                disabled={!shareReady}
+              >
+                <span>{shareLabel}</span><i><Upload /></i>
+              </button>
+              {zazzlePrintEnabled && (
+                <button
+                  className="share-only-button print-order-button"
+                  type="button"
+                  onClick={() => void orderPrint()}
+                  disabled={!shareReady || printBusy}
+                >
+                  <span>{printLabel}</span><i><Printer /></i>
+                </button>
+              )}
+              {zazzlePrintEnabled && (
+                <small className="print-provider-note">
+                  Printing, payment, and delivery by Zazzle
+                </small>
+              )}
+            </div>
             <div className="result-account-actions">
               <button type="button" onClick={() => uploadInput.current?.click()}>
                 Make another · {creditBalance} left
               </button>
               <a href="/account">View all my cards</a>
+              <button type="button" onClick={returnToHomepage}>
+                Back to homepage
+              </button>
             </div>
           </div>
         </section>
@@ -885,7 +1181,7 @@ export function RarityApp({
             </button>
           </div>
           <p className="upload-consent">
-            By adding a photo, you confirm you may use it and consent to temporary AI
+            By adding a photo, you confirm you may use it and consent to private AI
             processing under our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.
           </p>
           <button
@@ -896,7 +1192,7 @@ export function RarityApp({
           >
             <span>
               {flow === "checkout"
-                ? "Get 5 card credits — $5"
+                ? `Get 5 card credits${checkoutPrice ? ` — ${checkoutPrice}` : ""}`
                 : selectedFile
                   ? initialUser
                     ? "Preparing secure checkout"

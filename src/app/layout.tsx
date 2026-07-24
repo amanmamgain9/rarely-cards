@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bungee, DM_Mono, Nunito } from "next/font/google";
 import "./globals.css";
-import { PaddleDefaultCheckout } from "@/components/paddle-default-checkout";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { WebPaymentScripts } from "@/components/web-payment-scripts";
 
 const nunito = Nunito({
   variable: "--font-nunito",
@@ -61,6 +62,18 @@ export const metadata: Metadata = {
     description: "Make the one-of-one card only your pet could carry.",
     images: ["/social/rarely-pets.jpg"],
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Rarely",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ff62a5",
 };
 
 export default function RootLayout({
@@ -75,9 +88,10 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         {children}
-        <PaddleDefaultCheckout
-          token={process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN ?? null}
-          environment={
+        <ServiceWorkerRegistration />
+        <WebPaymentScripts
+          paddleToken={process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN ?? null}
+          paddleEnvironment={
             process.env.PADDLE_ENVIRONMENT === "production"
               ? "production"
               : "sandbox"

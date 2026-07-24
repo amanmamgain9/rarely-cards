@@ -27,6 +27,7 @@
 *-card-preview.png
 /rarity-tier-preview.png
 /supabase/.temp/
+/private-tax/
 
 # debug
 npm-debug.log*

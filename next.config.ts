@@ -16,12 +16,12 @@ const contentSecurityPolicy = [
   "form-action 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.paddle.com https://*.paddle.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.paddle.com https://*.paddle.com https://app.lemonsqueezy.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.paddle.com https://*.paddlecdn.com",
+  `img-src 'self' data: blob: ${supabaseOrigin} https://*.supabase.co https://*.paddle.com https://*.paddlecdn.com https://*.lemonsqueezy.com`,
   "font-src 'self' data:",
-  `connect-src 'self' ${supabaseOrigin} https://*.supabase.co wss://*.supabase.co https://*.paddle.com https://*.paddlecdn.com https://*.ingest.sentry.io`,
-  "frame-src https://*.paddle.com",
+  `connect-src 'self' ${supabaseOrigin} https://*.supabase.co wss://*.supabase.co https://*.paddle.com https://*.paddlecdn.com https://*.lemonsqueezy.com https://*.ingest.sentry.io`,
+  "frame-src https://*.paddle.com https://*.lemonsqueezy.com",
   "worker-src 'self' blob:",
   "media-src 'self' blob:",
   "upgrade-insecure-requests",
@@ -55,7 +55,7 @@ const nextConfig: NextConfig = {
           {
             key: "Permissions-Policy",
             value:
-              "camera=(self), microphone=(), geolocation=(), payment=(self \"https://*.paddle.com\")",
+              "camera=(self), microphone=(), geolocation=(), payment=(self \"https://*.paddle.com\" \"https://*.lemonsqueezy.com\")",
           },
           {
             key: "Strict-Transport-Security",

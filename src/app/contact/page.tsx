@@ -27,13 +27,14 @@ export default function ContactPage() {
         <h2>Operator</h2>
         <p>
           Rarely is operated by Aman Mamgain, sole proprietor. Payments are
-          securely processed by Paddle as Merchant of Record.
+          securely processed by Lemon Squeezy or Paddle as Merchant of Record.
         </p>
 
         <h2>Buyer payment support</h2>
         <p>
-          If your statement shows a charge from Paddle, you can also use
-          Paddle&apos;s buyer support at{" "}
+          Use the support link in your Lemon Squeezy or Paddle receipt for
+          provider-specific payment help. If your statement shows a charge from
+          Paddle, you can also use Paddle&apos;s buyer support at{" "}
           <a href="https://paddle.net" rel="noreferrer" target="_blank">
             paddle.net
           </a>

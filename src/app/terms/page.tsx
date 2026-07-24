@@ -30,23 +30,27 @@ export default function TermsPage() {
           or relationship with you.
         </p>
 
-        <h2>The $5 five-card pack</h2>
+        <h2>The five-card pack</h2>
         <p>
-          One $5 USD checkout adds five card credits to your Rarely account. It
-          is a one-time purchase, not a subscription, and you may buy additional
-          packs whenever you want. One credit is used whenever the AI returns a
-          valid accepted or rejected response. Invalid files do not use a
-          credit. If a provider or worker failure prevents a valid response,
-          Rarely returns the reserved credit automatically.
+          One checkout adds five card credits to your Rarely account. The web
+          price is $5 USD; Google Play shows the Android price in your local
+          currency before purchase. It is a one-time purchase, not a
+          subscription, and you may buy additional packs whenever you want. One
+          credit is used whenever the AI returns a valid accepted or rejected
+          response. Invalid files do not use a credit. If a provider or worker
+          failure prevents a valid response, Rarely returns the reserved credit
+          automatically.
         </p>
 
         <h2>Refunds</h2>
         <p>
           You may request a full refund within 14 days of a five-card pack
           purchase, even if some or all credits were used. Requests are handled
-          under our Refund Policy and processed by Paddle. Paddle may mark live
-          refunds as pending approval, and banks may take additional time to
-          return funds. Refunded or disputed purchases lose any unused credits.
+          under our Refund Policy and processed by the provider used at
+          checkout—Google Play, Lemon Squeezy, or Paddle. A provider may mark a
+          refund as pending approval, and banks may take additional time to
+          return funds.
+          Refunded or disputed purchases lose any unused credits.
         </p>
 
         <h2>Availability and acceptable use</h2>

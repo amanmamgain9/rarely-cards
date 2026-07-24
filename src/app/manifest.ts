@@ -1,0 +1,42 @@
+import type { MetadataRoute } from "next";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    id: "/",
+    name: "Rarely — Pet Rarity Cards",
+    short_name: "Rarely",
+    description:
+      "Turn one photograph of your cat or dog into a one-of-one rarity card.",
+    start_url: "/",
+    scope: "/",
+    display: "standalone",
+    background_color: "#fff8ee",
+    theme_color: "#ff62a5",
+    orientation: "any",
+    categories: ["entertainment", "photo"],
+    icons: [
+      {
+        src: "/icons/rarely-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        src: "/icons/rarely-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+      {
+        src: "/icons/rarely-maskable-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
+        src: "/icons/rarely-monochrome-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "monochrome",
+      },
+    ],
+  };
+}

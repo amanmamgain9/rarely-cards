@@ -29,6 +29,8 @@ export type CreditPurchaseStatus =
   | "disputed"
   | "failed";
 
+export type PaymentProvider = "paddle" | "lemon_squeezy" | "google_play";
+
 type AnalysisRequestRow = {
   id: string;
   user_id: string;
@@ -63,7 +65,7 @@ type AnalysisRequestRow = {
   processing_started_at: string | null;
   completed_at: string | null;
   refunded_at: string | null;
-  expires_at: string;
+  expires_at: string | null;
 };
 
 type AnalysisRequestInsert = {
@@ -100,7 +102,7 @@ type AnalysisRequestInsert = {
   processing_started_at?: string | null;
   completed_at?: string | null;
   refunded_at?: string | null;
-  expires_at?: string;
+  expires_at?: string | null;
 };
 
 type AnalysisRequestUpdate = Partial<AnalysisRequestInsert>;
@@ -118,8 +120,10 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          paddle_transaction_id: string | null;
-          paddle_adjustment_id: string | null;
+          payment_provider: PaymentProvider;
+          provider_checkout_id: string | null;
+          provider_transaction_id: string | null;
+          provider_adjustment_id: string | null;
           resume_analysis_id: string | null;
           status: CreditPurchaseStatus;
           credits_granted: number;
@@ -135,8 +139,10 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
-          paddle_transaction_id?: string | null;
-          paddle_adjustment_id?: string | null;
+          payment_provider?: PaymentProvider;
+          provider_checkout_id?: string | null;
+          provider_transaction_id?: string | null;
+          provider_adjustment_id?: string | null;
           resume_analysis_id?: string | null;
           status?: CreditPurchaseStatus;
           credits_granted?: number;
@@ -150,8 +156,10 @@ export type Database = {
           refunded_at?: string | null;
         };
         Update: {
-          paddle_transaction_id?: string | null;
-          paddle_adjustment_id?: string | null;
+          payment_provider?: PaymentProvider;
+          provider_checkout_id?: string | null;
+          provider_transaction_id?: string | null;
+          provider_adjustment_id?: string | null;
           resume_analysis_id?: string | null;
           status?: CreditPurchaseStatus;
           credits_granted?: number;
@@ -165,10 +173,49 @@ export type Database = {
         };
         Relationships: [];
       };
+      google_play_purchases: {
+        Row: {
+          purchase_token: string;
+          credit_purchase_id: string;
+          user_id: string;
+          product_id: string;
+          order_id: string;
+          purchase_state: "purchased" | "consumed" | "canceled" | "voided";
+          purchased_at: string | null;
+          consumed_at: string | null;
+          voided_at: string | null;
+          last_verified_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          purchase_token: string;
+          credit_purchase_id: string;
+          user_id: string;
+          product_id: string;
+          order_id: string;
+          purchase_state: "purchased" | "consumed" | "canceled" | "voided";
+          purchased_at?: string | null;
+          consumed_at?: string | null;
+          voided_at?: string | null;
+          last_verified_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          purchase_state?: "purchased" | "consumed" | "canceled" | "voided";
+          consumed_at?: string | null;
+          voided_at?: string | null;
+          last_verified_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       payment_events: {
         Row: {
           event_id: string;
           event_type: string;
+          payment_provider: PaymentProvider;
           transaction_id: string | null;
           analysis_request_id: string | null;
           credit_purchase_id: string | null;
@@ -179,6 +226,7 @@ export type Database = {
         Insert: {
           event_id: string;
           event_type: string;
+          payment_provider?: PaymentProvider;
           transaction_id?: string | null;
           analysis_request_id?: string | null;
           credit_purchase_id?: string | null;
@@ -188,6 +236,7 @@ export type Database = {
         };
         Update: {
           event_type?: string;
+          payment_provider?: PaymentProvider;
           transaction_id?: string | null;
           analysis_request_id?: string | null;
           credit_purchase_id?: string | null;
@@ -231,6 +280,7 @@ export type Database = {
         Args: {
           p_purchase_id: string;
           p_user_id: string;
+          p_provider: PaymentProvider;
           p_transaction_id: string;
           p_credits?: number;
         };

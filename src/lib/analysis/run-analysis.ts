@@ -65,13 +65,6 @@ async function claimAnalysis(analysisId: string) {
   };
 }
 
-async function deletePhoto(objectPath: string) {
-  const { error } = await createAdminClient().storage
-    .from("analysis-photos")
-    .remove([objectPath]);
-  return !error;
-}
-
 export async function runAnalysis(analysisId: string): Promise<void> {
   const claimed = await claimAnalysis(analysisId);
   if (!claimed) return;
@@ -105,17 +98,15 @@ export async function runAnalysis(analysisId: string): Promise<void> {
       if (creditError) throw new Error("credit_finalize_failed");
     }
     if (result.status === "rejected") {
-      const deleted = await deletePhoto(claimed.object_path);
       await admin
         .from("analysis_requests")
         .update({
           status: "photo_rejected",
-          object_path: deleted ? null : claimed.object_path,
           result_json: null,
           rejection_reason: result.reason,
           rejection_message: result.message,
           processing_started_at: null,
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          expires_at: null,
         })
         .eq("id", analysisId)
         .eq("status", "processing");
@@ -133,22 +124,18 @@ export async function runAnalysis(analysisId: string): Promise<void> {
     const cardPhotoPath = retainedPhotoError
       ? claimed.object_path
       : retainedPath;
-    if (!retainedPhotoError && retainedPath !== claimed.object_path) {
-      await deletePhoto(claimed.object_path);
-    }
 
     await admin
       .from("analysis_requests")
       .update({
         status: "completed",
-        object_path: null,
         card_photo_path: cardPhotoPath,
         result_json: result as unknown as Json,
         rejection_reason: null,
         rejection_message: null,
         completed_at: new Date().toISOString(),
         processing_started_at: null,
-        expires_at: new Date().toISOString(),
+        expires_at: null,
       })
       .eq("id", analysisId)
       .eq("status", "processing");
@@ -189,28 +176,28 @@ export async function runAnalysis(analysisId: string): Promise<void> {
         "restore_analysis_credit",
         { p_analysis_id: analysisId },
       );
-      if (await deletePhoto(claimed.object_path)) {
-        await admin
-          .from("analysis_requests")
-          .update({
-            object_path: null,
-            error_code: restoreError ? "credit_restore_failed" : code,
-          })
-          .eq("id", analysisId);
-      }
+      await admin
+        .from("analysis_requests")
+        .update({
+          error_code: restoreError ? "credit_restore_failed" : code,
+          expires_at: null,
+        })
+        .eq("id", analysisId);
     } else {
       try {
         await startFullRefund(analysisId);
-        if (await deletePhoto(claimed.object_path)) {
-          await admin
-            .from("analysis_requests")
-            .update({ object_path: null })
-            .eq("id", analysisId);
-        }
+        await admin
+          .from("analysis_requests")
+          .update({ expires_at: null })
+          .eq("id", analysisId);
       } catch {
         await admin
           .from("analysis_requests")
-          .update({ status: "refund_pending", error_code: "refund_start_failed" })
+          .update({
+            status: "refund_pending",
+            error_code: "refund_start_failed",
+            expires_at: null,
+          })
           .eq("id", analysisId)
           .neq("status", "completed");
       }

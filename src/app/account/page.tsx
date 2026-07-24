@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AccountDashboard } from "@/components/account-dashboard";
 import { requireUser } from "@/lib/auth";
+import { hasLemonSqueezyEnv, hasPaddleEnv } from "@/lib/env";
+import { isZazzlePrintEnabled } from "@/lib/printing/zazzle";
 
 export const metadata: Metadata = {
   title: "Your cards — Rarely",
@@ -14,7 +16,9 @@ export default async function AccountPage() {
 
   return (
     <AccountDashboard
-      paddleConfigured={Boolean(process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN)}
+      lemonSqueezyConfigured={hasLemonSqueezyEnv()}
+      paddleConfigured={hasPaddleEnv()}
+      zazzlePrintEnabled={isZazzlePrintEnabled()}
       paddleEnvironment={
         process.env.PADDLE_ENVIRONMENT === "production"
           ? "production"

@@ -1,8 +1,12 @@
 import type { AcceptedAnalysis, AnalysisStatus } from "@/lib/analysis/types";
-import type { CreditPurchaseStatus } from "@/lib/supabase/database.types";
+import type {
+  CreditPurchaseStatus,
+  PaymentProvider,
+} from "@/lib/supabase/database.types";
 
 export type AccountPurchase = {
   id: string;
+  paymentProvider: PaymentProvider;
   status: CreditPurchaseStatus;
   creditsGranted: number;
   creditsRemaining: number;

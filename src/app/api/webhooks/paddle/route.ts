@@ -7,6 +7,7 @@ import {
 import { purchaseAdjustmentDecision } from "@/lib/analysis/credit-state";
 import { serverEnv } from "@/lib/env";
 import { getPaddle } from "@/lib/paddle";
+import { grantCreditPurchase } from "@/lib/payments/credit-purchases";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const maxDuration = 60;
@@ -111,30 +112,13 @@ async function processCreditPurchase(data: TransactionData) {
     throw new Error("webhook_catalog_mismatch");
   }
 
-  const admin = createAdminClient();
-  const { error } = await admin.rpc("grant_credit_purchase", {
-    p_purchase_id: purchaseId,
-    p_user_id: userId,
-    p_transaction_id: data.id,
-    p_credits: 5,
+  return grantCreditPurchase({
+    provider: "paddle",
+    purchaseId,
+    userId,
+    transactionId: data.id,
+    analysisId: typeof analysisId === "string" ? analysisId : undefined,
   });
-  if (error) throw new Error("webhook_credit_grant_failed");
-
-  let resumedAnalysisId: string | null = null;
-  if (typeof analysisId === "string") {
-    const { data: resumed, error: resumeError } = await admin
-      .from("analysis_requests")
-      .update({ status: "awaiting_name", error_code: null })
-      .eq("id", analysisId)
-      .eq("user_id", userId)
-      .eq("status", "awaiting_payment")
-      .select("id")
-      .maybeSingle();
-    if (resumeError) throw new Error("webhook_resume_analysis_failed");
-    resumedAnalysisId = resumed?.id ?? null;
-  }
-
-  return { purchaseId, analysisId: resumedAnalysisId };
 }
 
 async function processAdjustment(data: AdjustmentData) {
@@ -142,7 +126,8 @@ async function processAdjustment(data: AdjustmentData) {
   const { data: purchase } = await admin
     .from("credit_purchases")
     .select("id, status")
-    .eq("paddle_transaction_id", data.transactionId)
+    .eq("payment_provider", "paddle")
+    .eq("provider_transaction_id", data.transactionId)
     .maybeSingle();
 
   if (purchase) {
@@ -156,7 +141,7 @@ async function processAdjustment(data: AdjustmentData) {
         .update({
           status: "disputed",
           credits_remaining: 0,
-          paddle_adjustment_id: data.id,
+          provider_adjustment_id: data.id,
         })
         .eq("id", purchase.id);
       return;
@@ -167,7 +152,7 @@ async function processAdjustment(data: AdjustmentData) {
         .update({
           status: "refunded",
           credits_remaining: 0,
-          paddle_adjustment_id: data.id,
+          provider_adjustment_id: data.id,
           refunded_at: new Date().toISOString(),
         })
         .eq("id", purchase.id);
@@ -176,7 +161,7 @@ async function processAdjustment(data: AdjustmentData) {
         .from("credit_purchases")
         .update({
           status: "refund_pending",
-          paddle_adjustment_id: data.id,
+          provider_adjustment_id: data.id,
           refund_requested_at: new Date().toISOString(),
         })
         .eq("id", purchase.id)
@@ -186,7 +171,7 @@ async function processAdjustment(data: AdjustmentData) {
         .from("credit_purchases")
         .update({
           status: "active",
-          paddle_adjustment_id: data.id,
+          provider_adjustment_id: data.id,
         })
         .eq("id", purchase.id)
         .eq("status", "refund_pending");
@@ -275,6 +260,7 @@ export async function POST(request: Request) {
   const { error: insertError } = await admin.from("payment_events").insert({
     event_id: event.eventId,
     event_type: event.eventType,
+    payment_provider: "paddle",
     transaction_id:
       "id" in event.data && event.eventType.startsWith("transaction.")
         ? String(event.data.id)

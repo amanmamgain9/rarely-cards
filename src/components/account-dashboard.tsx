@@ -4,12 +4,22 @@ import { initializePaddle } from "@paddle/paddle-js";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AccountCard, AccountData, AccountPurchase } from "@/lib/account-types";
+import {
+  getGooglePlayProduct,
+  restoreGooglePlayPurchases,
+  startGooglePlayPurchase,
+} from "@/lib/payments/google-play-client";
+import { openLemonSqueezyCheckout } from "@/lib/payments/lemon-squeezy-client";
+import { usePaymentChannel } from "@/lib/payments/use-payment-channel";
 import { clearPendingPhoto } from "@/lib/pending-photo";
+import { createZazzlePrintCheckout } from "@/lib/printing/zazzle-client";
 import { createClient } from "@/lib/supabase/client";
 import { createShareAsset, ShareCard } from "@/components/share-card";
 
 type AccountDashboardProps = {
+  lemonSqueezyConfigured: boolean;
   paddleConfigured: boolean;
+  zazzlePrintEnabled: boolean;
   paddleEnvironment: "sandbox" | "production";
 };
 
@@ -32,9 +42,11 @@ function date(value: string | null) {
 function SavedCard({
   card,
   onPhotoDeleted,
+  zazzlePrintEnabled,
 }: {
   card: AccountCard;
   onPhotoDeleted: () => void;
+  zazzlePrintEnabled: boolean;
 }) {
   const cardRef = useRef<HTMLElement>(null);
   const [busy, setBusy] = useState(false);
@@ -82,6 +94,24 @@ function SavedCard({
     }
   }
 
+  async function orderPrint() {
+    if (!cardRef.current || !zazzlePrintEnabled) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const asset = await createShareAsset(cardRef.current);
+      const checkoutUrl = await createZazzlePrintCheckout(card.id, asset.file);
+      window.location.assign(checkoutUrl);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Print checkout could not be opened.",
+      );
+      setBusy(false);
+    }
+  }
+
   async function deletePhoto() {
     if (!window.confirm("Delete this saved photo? The text result will remain.")) return;
     setBusy(true);
@@ -122,6 +152,11 @@ function SavedCard({
             <button type="button" disabled={busy} onClick={() => void share()}>
               Share
             </button>
+            {zazzlePrintEnabled && (
+              <button type="button" disabled={busy} onClick={() => void orderPrint()}>
+                Order print
+              </button>
+            )}
             <button className="quiet" type="button" disabled={busy} onClick={() => void deletePhoto()}>
               Delete photo
             </button>
@@ -160,7 +195,14 @@ function PurchaseRow({
     <li>
       <div>
         <strong>5-card pack</strong>
-        <span>{date(purchase.purchasedAt || purchase.createdAt)}</span>
+        <span>
+          {date(purchase.purchasedAt || purchase.createdAt)} ·{" "}
+          {purchase.paymentProvider === "google_play"
+            ? "Google Play"
+            : purchase.paymentProvider === "lemon_squeezy"
+              ? "Lemon Squeezy"
+              : "Paddle"}
+        </span>
       </div>
       <div>
         <strong>{money(purchase.amountCents, purchase.currency)}</strong>
@@ -177,13 +219,18 @@ function PurchaseRow({
 }
 
 export function AccountDashboard({
+  lemonSqueezyConfigured,
   paddleConfigured,
+  zazzlePrintEnabled,
   paddleEnvironment,
 }: AccountDashboardProps) {
+  const paymentChannel = usePaymentChannel();
   const [account, setAccount] = useState<AccountData | null>(null);
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(false);
+  const [playPrice, setPlayPrice] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const playRestoreAttempted = useRef(false);
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/account", { cache: "no-store" });
@@ -232,12 +279,51 @@ export function AccountDashboard({
         return;
       }
     }
-    setMessage("Payment is complete. Paddle is still confirming your credits; refresh shortly.");
+    setMessage("Payment is complete. Your credits are still being confirmed; refresh shortly.");
     setBuying(false);
   }
 
-  async function buyCredits() {
-    if (!paddleConfigured) {
+  useEffect(() => {
+    if (paymentChannel !== "google_play") return;
+    let cancelled = false;
+    void getGooglePlayProduct()
+      .then((product) => {
+        if (!cancelled) setPlayPrice(product.formattedPrice);
+      })
+      .catch(() => {
+        if (!cancelled) setPlayPrice(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentChannel]);
+
+  useEffect(() => {
+    if (
+      paymentChannel !== "google_play" ||
+      playRestoreAttempted.current
+    ) {
+      return;
+    }
+    playRestoreAttempted.current = true;
+    void restoreGooglePlayPurchases()
+      .then((restored) => {
+        if (restored.length > 0) {
+          setMessage("A Google Play purchase was restored.");
+          void refresh();
+        }
+      })
+      .catch(() => undefined);
+  }, [paymentChannel, refresh]);
+
+  async function buyCredits(
+    provider: "lemon_squeezy" | "paddle" | "google_play",
+  ) {
+    if (
+      (provider === "lemon_squeezy" && !lemonSqueezyConfigured) ||
+      (provider === "paddle" && !paddleConfigured) ||
+      (provider === "google_play" && paymentChannel !== "google_play")
+    ) {
       setMessage("Checkout is not configured yet.");
       return;
     }
@@ -246,7 +332,7 @@ export function AccountDashboard({
     const response = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ provider }),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -255,6 +341,40 @@ export function AccountDashboard({
       return;
     }
     const previousBalance = account?.creditBalance ?? 0;
+    if (provider === "google_play") {
+      try {
+        await startGooglePlayPurchase({ purchaseId: payload.purchaseId });
+        setMessage("Payment complete. Adding five credits…");
+        void confirmPurchase(previousBalance);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          setBuying(false);
+          return;
+        }
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Google Play checkout could not be completed.",
+        );
+        setBuying(false);
+      }
+      return;
+    }
+    if (provider === "lemon_squeezy") {
+      if (typeof payload.checkoutUrl !== "string") {
+        setMessage("Checkout could not be opened.");
+        setBuying(false);
+        return;
+      }
+      openLemonSqueezyCheckout(payload.checkoutUrl, () => {
+        setBuying(true);
+        setMessage("Payment complete. Adding five credits…");
+        void confirmPurchase(previousBalance);
+      });
+      setBuying(false);
+      return;
+    }
+
     const paddle = await initializePaddle({
       token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN!,
       environment: paddleEnvironment,
@@ -289,10 +409,39 @@ export function AccountDashboard({
     window.location.assign("/");
   }
 
+  async function deleteSavedPhoto(card: AccountCard) {
+    if (!window.confirm(`Delete the saved photo for ${card.petName || "this attempt"}?`)) {
+      return;
+    }
+    setMessage(null);
+    const response = await fetch(`/api/analyses/${card.id}`, {
+      method: "DELETE",
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(payload.error || "The photo could not be deleted.");
+      return;
+    }
+    setMessage("The saved photo was deleted. The result history remains.");
+    await refresh();
+  }
+
   if (loading) {
     return <main className="account-page account-loading">Loading your cards…</main>;
   }
 
+  const checkoutAvailable =
+    paymentChannel === "google_play" ||
+    (paymentChannel === "web" &&
+      (lemonSqueezyConfigured || paddleConfigured));
+  const primaryProvider =
+    paymentChannel === "google_play"
+      ? ("google_play" as const)
+      : lemonSqueezyConfigured
+        ? ("lemon_squeezy" as const)
+        : ("paddle" as const);
+  const checkoutPrice =
+    paymentChannel === "google_play" ? playPrice : paymentChannel === "web" ? "$5" : null;
   const completedCards = account?.cards.filter((card) => card.status === "completed") ?? [];
   const activity =
     account?.cards.filter((card) => card.status !== "completed") ?? [];
@@ -324,9 +473,34 @@ export function AccountDashboard({
           <span>CARD CREDITS</span>
           <strong>{account?.creditBalance ?? 0}</strong>
           <p>Each accepted or rejected AI response uses one credit. Technical failures do not.</p>
-          <button type="button" disabled={buying} onClick={() => void buyCredits()}>
-            {buying ? "Opening checkout…" : "Buy 5 more — $5"}
+          <button
+            type="button"
+            disabled={buying || !checkoutAvailable}
+            onClick={() => void buyCredits(primaryProvider)}
+          >
+            {buying
+              ? "Opening checkout…"
+              : paymentChannel === "loading"
+                ? "Preparing secure checkout…"
+                : paymentChannel === "play_unavailable"
+                  ? "Google Play Billing unavailable"
+                  : `Buy 5 more${checkoutPrice ? ` — ${checkoutPrice}` : ""}`}
           </button>
+          {paymentChannel === "web" &&
+            lemonSqueezyConfigured &&
+            paddleConfigured && (
+            <button
+              className="quiet"
+              type="button"
+              disabled={buying}
+              onClick={() => void buyCredits("paddle")}
+            >
+              Pay with Paddle instead
+            </button>
+            )}
+          {paymentChannel === "play_unavailable" && (
+            <p>Update Chrome or reopen Rarely from Google Play to buy credits.</p>
+          )}
         </aside>
       </section>
 
@@ -357,7 +531,12 @@ export function AccountDashboard({
         {completedCards.length > 0 ? (
           <div className="account-card-grid">
             {completedCards.map((card) => (
-              <SavedCard card={card} key={card.id} onPhotoDeleted={() => void refresh()} />
+              <SavedCard
+                card={card}
+                key={card.id}
+                onPhotoDeleted={() => void refresh()}
+                zazzlePrintEnabled={zazzlePrintEnabled}
+              />
             ))}
           </div>
         ) : (
@@ -384,6 +563,14 @@ export function AccountDashboard({
                     ? card.rejectionMessage || "The AI could not use this photo. One credit was used."
                     : "A technical failure occurred. The reserved credit was returned."}
                 </span>
+                {card.photoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => void deleteSavedPhoto(card)}
+                  >
+                    Delete photo
+                  </button>
+                )}
               </li>
             ))}
           </ul>

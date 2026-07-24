@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       admin
         .from("credit_purchases")
         .select(
-          "id, status, credits_granted, credits_remaining, amount_cents, currency, completed_at, created_at",
+          "id, payment_provider, status, credits_granted, credits_remaining, amount_cents, currency, completed_at, created_at",
         )
         .eq("user_id", user.id)
         .neq("status", "failed")
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
       admin
         .from("analysis_requests")
         .select(
-          "id, status, pet_name, result_json, card_photo_path, rejection_message, credit_state, created_at, completed_at",
+          "id, status, pet_name, result_json, card_photo_path, object_path, rejection_message, credit_state, created_at, completed_at",
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
@@ -49,10 +49,11 @@ export async function GET(request: Request) {
     (analysisRows ?? []).map(async (row) => {
       const parsedResult = acceptedAnalysisSchema.safeParse(row.result_json);
       let photoUrl: string | null = null;
-      if (row.card_photo_path) {
+      const visiblePhotoPath = row.card_photo_path ?? row.object_path;
+      if (visiblePhotoPath) {
         const { data: signedPhoto } = await admin.storage
           .from("analysis-photos")
-          .createSignedUrl(row.card_photo_path, 60 * 60);
+          .createSignedUrl(visiblePhotoPath, 60 * 60);
         photoUrl = signedPhoto?.signedUrl ?? null;
       }
       return {
@@ -81,6 +82,7 @@ export async function GET(request: Request) {
       : null;
     return {
       id: row.id,
+      paymentProvider: row.payment_provider,
       status: row.status,
       creditsGranted: row.credits_granted,
       creditsRemaining: row.credits_remaining,

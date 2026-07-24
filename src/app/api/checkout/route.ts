@@ -1,12 +1,24 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { serverEnv } from "@/lib/env";
+import {
+  hasGooglePlayEnv,
+  hasLemonSqueezyEnv,
+  hasPaddleEnv,
+  serverEnv,
+} from "@/lib/env";
+import {
+  createLemonSqueezyCheckout,
+  getLemonSqueezyCheckout,
+} from "@/lib/lemon-squeezy";
 import { getPaddle } from "@/lib/paddle";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const checkoutSchema = z.object({
   analysisId: z.string().uuid().optional(),
+  provider: z
+    .enum(["lemon_squeezy", "paddle", "google_play"])
+    .default("lemon_squeezy"),
 });
 
 export async function POST(request: Request) {
@@ -25,6 +37,17 @@ export async function POST(request: Request) {
   const body = checkoutSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
     return Response.json({ error: "Invalid checkout request." }, { status: 400 });
+  }
+  const provider = body.data.provider;
+  if (
+    (provider === "lemon_squeezy" && !hasLemonSqueezyEnv()) ||
+    (provider === "paddle" && !hasPaddleEnv()) ||
+    (provider === "google_play" && !hasGooglePlayEnv())
+  ) {
+    return Response.json(
+      { error: "This checkout provider is not configured." },
+      { status: 503 },
+    );
   }
 
   const admin = createAdminClient();
@@ -48,8 +71,9 @@ export async function POST(request: Request) {
   const pendingCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
   let pendingQuery = admin
     .from("credit_purchases")
-    .select("id, paddle_transaction_id")
+    .select("id, provider_checkout_id, provider_transaction_id")
     .eq("user_id", user.id)
+    .eq("payment_provider", provider)
     .eq("status", "checkout_pending")
     .gte("created_at", pendingCutoff)
     .order("created_at", { ascending: false })
@@ -59,14 +83,38 @@ export async function POST(request: Request) {
     : pendingQuery.is("resume_analysis_id", null);
   const { data: existingPending } = await pendingQuery.maybeSingle();
 
-  if (existingPending?.paddle_transaction_id) {
-    const transaction = await getPaddle().transactions.get(
-      existingPending.paddle_transaction_id,
-    );
+  if (existingPending?.provider_checkout_id) {
+    if (provider === "paddle" && existingPending.provider_transaction_id) {
+      const transaction = await getPaddle().transactions.get(
+        existingPending.provider_transaction_id,
+      );
+      return Response.json({
+        provider,
+        purchaseId: existingPending.id,
+        transactionId: transaction.id,
+        checkoutUrl: transaction.checkout?.url ?? null,
+        existing: true,
+      });
+    }
+    if (provider === "lemon_squeezy") {
+      const checkout = await getLemonSqueezyCheckout(
+        existingPending.provider_checkout_id,
+      );
+      return Response.json({
+        provider,
+        purchaseId: existingPending.id,
+        transactionId: null,
+        checkoutUrl: checkout.url,
+        existing: true,
+      });
+    }
+  }
+  if (provider === "google_play" && existingPending) {
     return Response.json({
+      provider,
       purchaseId: existingPending.id,
-      transactionId: transaction.id,
-      checkoutUrl: transaction.checkout?.url ?? null,
+      transactionId: null,
+      checkoutUrl: null,
       existing: true,
     });
   }
@@ -81,6 +129,7 @@ export async function POST(request: Request) {
     .from("credit_purchases")
     .insert({
       user_id: user.id,
+      payment_provider: provider,
       resume_analysis_id: body.data.analysisId ?? null,
       status: "checkout_pending",
       credits_granted: 5,
@@ -98,6 +147,38 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (provider === "google_play") {
+      return Response.json({
+        provider,
+        purchaseId: purchase.id,
+        transactionId: null,
+        checkoutUrl: null,
+        existing: false,
+      });
+    }
+    if (provider === "lemon_squeezy") {
+      const checkout = await createLemonSqueezyCheckout({
+        userId: user.id,
+        email: user.email ?? null,
+        purchaseId: purchase.id,
+        analysisId: body.data.analysisId,
+      });
+      const { error: saveError } = await admin
+        .from("credit_purchases")
+        .update({ provider_checkout_id: checkout.id })
+        .eq("id", purchase.id)
+        .eq("status", "checkout_pending")
+        .is("provider_checkout_id", null);
+      if (saveError) throw new Error("checkout_not_saved");
+      return Response.json({
+        provider,
+        purchaseId: purchase.id,
+        transactionId: null,
+        checkoutUrl: checkout.url,
+        existing: false,
+      });
+    }
+
     const env = serverEnv();
     const transaction = await getPaddle().transactions.create({
       items: [{ priceId: env.paddlePriceId, quantity: 1 }],
@@ -113,17 +194,18 @@ export async function POST(request: Request) {
         url: body.data.analysisId ? env.appUrl : `${env.appUrl}/account`,
       },
     });
-
     const { error: saveError } = await admin
       .from("credit_purchases")
-      .update({ paddle_transaction_id: transaction.id })
+      .update({
+        provider_checkout_id: transaction.id,
+        provider_transaction_id: transaction.id,
+      })
       .eq("id", purchase.id)
       .eq("status", "checkout_pending")
-      .is("paddle_transaction_id", null);
-
+      .is("provider_checkout_id", null);
     if (saveError) throw new Error("checkout_transaction_not_saved");
-
     return Response.json({
+      provider,
       purchaseId: purchase.id,
       transactionId: transaction.id,
       checkoutUrl: transaction.checkout?.url ?? null,
@@ -135,7 +217,7 @@ export async function POST(request: Request) {
       .update({ status: "failed" })
       .eq("id", purchase.id)
       .eq("status", "checkout_pending")
-      .is("paddle_transaction_id", null);
+      .is("provider_checkout_id", null);
     return Response.json(
       { error: "Checkout could not be created. Please try again." },
       { status: 502 },

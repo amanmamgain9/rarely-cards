@@ -162,6 +162,11 @@ export async function PATCH(request: Request, context: RouteContext) {
         );
       }
 
+      await admin
+        .from("analysis_requests")
+        .update({ expires_at: null })
+        .eq("id", id)
+        .eq("user_id", user.id);
       after(() => runAnalysis(id));
       return Response.json({
         id,
@@ -176,7 +181,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         pet_name: body.data.petName,
         pet_pronouns: body.data.pronouns,
         status: "paid",
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        expires_at: null,
       })
       .eq("id", id)
       .eq("user_id", user.id)
@@ -244,7 +249,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         image_width: image.width,
         image_height: image.height,
         photo_uploaded_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        expires_at: null,
         rejection_reason: null,
         rejection_message: null,
       })
@@ -311,29 +316,38 @@ export async function DELETE(request: Request, context: RouteContext) {
   const admin = createAdminClient();
   const { data: analysis } = await admin
     .from("analysis_requests")
-    .select("id, status, card_photo_path")
+    .select("id, status, card_photo_path, object_path")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
   if (!analysis) {
     return Response.json({ error: "Card not found." }, { status: 404 });
   }
-  if (analysis.status !== "completed" || !analysis.card_photo_path) {
+  const savedPhotoPaths = [analysis.card_photo_path, analysis.object_path].filter(
+    (path): path is string => Boolean(path),
+  );
+  if (savedPhotoPaths.length === 0) {
     return Response.json(
       { error: "This card has no saved photo." },
       { status: 409 },
     );
   }
+  const photoPaths = Array.from(
+    new Set([
+      ...savedPhotoPaths,
+      `${user.id}/${analysis.id}/zazzle-card.png`,
+    ]),
+  );
 
   const { error: storageError } = await admin.storage
     .from("analysis-photos")
-    .remove([analysis.card_photo_path]);
+    .remove(photoPaths);
   if (storageError) {
     return Response.json({ error: "Photo could not be deleted." }, { status: 502 });
   }
   await admin
     .from("analysis_requests")
-    .update({ card_photo_path: null })
+    .update({ card_photo_path: null, object_path: null })
     .eq("id", id)
     .eq("user_id", user.id);
 

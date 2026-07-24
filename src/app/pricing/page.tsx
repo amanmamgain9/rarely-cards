@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import {
+  PaymentProcessorCopy,
+  PricingIntroPaymentCopy,
+  PricingTicketPrice,
+} from "@/components/pricing-payment-copy";
 
 export const metadata: Metadata = {
   title: "Pricing — Rarely",
   description:
-    "Five AI pet-card credits for one $5 USD payment. No subscription.",
+    "Five AI pet-card credits for one payment. No subscription.",
   alternates: {
     canonical: "/pricing",
   },
@@ -40,14 +45,7 @@ export default function PricingPage() {
             <br />
             <em>their whole thing.</em>
           </h1>
-          <p>
-            One $5 pack adds five AI pet-card credits to your account. Use them
-            now or later, buy another pack whenever you want, and never worry
-            about a subscription.
-          </p>
-          <Link className="pricing-primary-cta" href="/#maker">
-            Get 5 card credits — $5 <span>→</span>
-          </Link>
+          <PricingIntroPaymentCopy />
         </div>
 
         <aside className="price-ticket" aria-label="Rarely card price">
@@ -55,11 +53,7 @@ export default function PricingPage() {
             <span>RLY / FIVE-PACK</span>
             <span>DIGITAL CREDITS</span>
           </div>
-          <div className="ticket-price">
-            <span>$</span>
-            <strong>5</strong>
-            <small>USD</small>
-          </div>
+          <PricingTicketPrice />
           <p>5 CREDITS · ONE-TIME PAYMENT</p>
           <ul>
             <li><span>01</span> Buy five card credits</li>
@@ -72,7 +66,7 @@ export default function PricingPage() {
 
       <section className="pricing-includes">
         <div>
-          <span className="pixel-label">WHAT YOUR $5 BUYS</span>
+          <span className="pixel-label">WHAT FIVE CREDITS BUY</span>
           <h2>Five looks in.<br /><em>Up to five keepsakes out.</em></h2>
         </div>
         <ol>
@@ -89,11 +83,7 @@ export default function PricingPage() {
         <div>
           <span>PAYMENT</span>
           <h2>What happens at checkout?</h2>
-          <p>
-            Paddle securely processes the one-time payment as our Merchant of
-            Record. Paddle handles payment details, applicable sales tax or VAT,
-            and your receipt. Any tax due is shown before you confirm payment.
-          </p>
+          <PaymentProcessorCopy />
         </div>
         <div>
           <span>DELIVERY</span>
@@ -101,7 +91,7 @@ export default function PricingPage() {
           <p>
             Each completed attempt produces a digital 9:16 pet card you can save
             and share. Nothing physical is shipped. Completed cards and their
-            optimized photos stay private in your account until you delete them.
+            photos stay private in your account until you delete them.
           </p>
         </div>
         <div>
