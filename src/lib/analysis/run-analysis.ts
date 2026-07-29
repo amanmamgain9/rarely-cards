@@ -18,6 +18,30 @@ function safeErrorCode(error: unknown) {
   if (error instanceof Error && error.message.startsWith("invalid_image")) {
     return "invalid_image";
   }
+  const candidate = error as {
+    status?: number;
+    code?: number | string;
+    message?: string;
+  };
+  const status =
+    typeof candidate.status === "number"
+      ? candidate.status
+      : typeof candidate.code === "number"
+        ? candidate.code
+        : null;
+  if (status && status >= 400 && status <= 599) {
+    return `provider_http_${status}`;
+  }
+  const message = candidate.message ?? "";
+  if (/api key.*(invalid|blocked|leak)|invalid.*api key/i.test(message)) {
+    return "provider_api_key_invalid";
+  }
+  if (/quota|resource.?exhausted|rate.?limit/i.test(message)) {
+    return "provider_quota_exhausted";
+  }
+  if (/model.*not found|not found.*model/i.test(message)) {
+    return "provider_model_not_found";
+  }
   return "provider_or_worker_error";
 }
 
@@ -229,4 +253,3 @@ export async function runAnalysis(analysisId: string): Promise<void> {
     }
   }
 }
-
