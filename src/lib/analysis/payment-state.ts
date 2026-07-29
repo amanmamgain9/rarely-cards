@@ -35,7 +35,7 @@ export function adjustmentStatus({
   status: string;
 }): AnalysisStatus | null {
   if (["chargeback", "chargeback_warning"].includes(action)) {
-    return "disputed";
+    return status === "reversed" ? null : "disputed";
   }
   if (action !== "refund") return null;
   if (status === "approved") return "refunded";

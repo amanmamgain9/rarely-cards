@@ -1,6 +1,7 @@
-import { createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { googlePlayEnv } from "@/lib/env";
+import { googlePlayPaymentEventIdentity } from "@/lib/payments/google-play-events";
 import {
   getGooglePlayPurchase,
   verifyGooglePlayPubSubToken,
@@ -15,6 +16,7 @@ const envelopeSchema = z.object({
     messageId: z.string().min(1),
     publishTime: z.string().optional(),
   }),
+  subscription: z.string().min(1).optional(),
 });
 
 const notificationSchema = z.object({
@@ -43,18 +45,13 @@ async function revokeCreditPurchase(
   adjustmentId: string,
 ) {
   const admin = createAdminClient();
-  await admin
-    .from("credit_purchases")
-    .update({
-      status,
-      credits_remaining: 0,
-      provider_adjustment_id: adjustmentId,
-      ...(status === "refunded"
-        ? { refunded_at: new Date().toISOString() }
-        : {}),
-    })
-    .eq("id", purchaseId)
-    .in("status", ["checkout_pending", "active", "refund_pending"]);
+  const { error } = await admin.rpc("revoke_credit_purchase", {
+    p_purchase_id: purchaseId,
+    p_status: status,
+    p_adjustment_id: adjustmentId,
+    p_refunded_at: status === "refunded" ? new Date().toISOString() : null,
+  });
+  if (error) throw new Error("google_play_credit_revocation_failed");
 }
 
 export async function POST(request: Request) {
@@ -92,8 +89,11 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
-  const eventId = `google_play:${envelope.data.message.messageId}`;
-  const digest = createHash("sha256").update(rawBody).digest("hex");
+  const { eventId, digest } = googlePlayPaymentEventIdentity({
+    messageId: envelope.data.message.messageId,
+    data: envelope.data.message.data,
+    subscription: envelope.data.subscription,
+  });
   const eventType = notification.testNotification
     ? "test"
     : notification.oneTimeProductNotification
@@ -102,7 +102,9 @@ export async function POST(request: Request) {
         ? "voided"
         : "unknown";
   const transactionId =
-    notification.voidedPurchaseNotification?.orderId ?? null;
+    notification.voidedPurchaseNotification?.orderId ??
+    notification.oneTimeProductNotification?.purchaseToken ??
+    null;
   const { error: eventError } = await admin.from("payment_events").insert({
     event_id: eventId,
     event_type: eventType,
@@ -112,63 +114,90 @@ export async function POST(request: Request) {
       ? new Date(Number(notification.eventTimeMillis)).toISOString()
       : envelope.data.message.publishTime ?? null,
     payload_digest: digest,
+    processed_at: null,
   });
-  if (eventError?.code === "23505") {
+  if (eventError && eventError.code !== "23505") {
+    return Response.json({ error: "Webhook storage unavailable." }, { status: 503 });
+  }
+
+  const processingToken = randomUUID();
+  const { data: claim, error: claimError } = await admin.rpc(
+    "claim_payment_event",
+    {
+      p_event_id: eventId,
+      p_payload_digest: digest,
+      p_processing_token: processingToken,
+    },
+  );
+  if (claimError || claim === "missing") {
+    return Response.json({ error: "Webhook storage unavailable." }, { status: 503 });
+  }
+  if (claim === "mismatch") {
+    return Response.json({ error: "Webhook event mismatch." }, { status: 409 });
+  }
+  if (claim === "processed") {
     return Response.json({ received: true, duplicate: true });
   }
-  if (eventError) {
-    return Response.json({ error: "Webhook storage unavailable." }, { status: 503 });
+  if (claim === "busy") {
+    return Response.json({ error: "Webhook event is already processing." }, { status: 503 });
   }
 
   try {
     const oneTime = notification.oneTimeProductNotification;
-    if (oneTime) {
-      if (oneTime.sku !== env.productId) {
-        throw new Error("google_play_product_mismatch");
-      }
-      const { data: stored } = await admin
+    if (oneTime?.sku === env.productId) {
+      const { data: stored, error: lookupError } = await admin
         .from("google_play_purchases")
         .select("credit_purchase_id")
         .eq("purchase_token", oneTime.purchaseToken)
         .maybeSingle();
+      if (lookupError) throw new Error("google_play_purchase_lookup_failed");
       if (stored) {
-        const current = await getGooglePlayPurchase(oneTime.purchaseToken);
-        const state = current.purchaseStateContext?.purchaseState;
-        if (state === "CANCELLED") {
-          await admin
+        const current =
+          oneTime.notificationType === 2
+            ? null
+            : await getGooglePlayPurchase(oneTime.purchaseToken);
+        const canceled =
+          oneTime.notificationType === 2 ||
+          current?.purchaseStateContext?.purchaseState === "CANCELLED";
+        if (canceled) {
+          const { error } = await admin
             .from("google_play_purchases")
             .update({
               purchase_state: "canceled",
               last_verified_at: new Date().toISOString(),
             })
             .eq("purchase_token", oneTime.purchaseToken);
+          if (error) throw new Error("google_play_cancellation_update_failed");
           await revokeCreditPurchase(
             stored.credit_purchase_id,
             "failed",
             `google-play-canceled:${eventId}`,
           );
         } else {
-          await admin
+          const { error } = await admin
             .from("google_play_purchases")
             .update({ last_verified_at: new Date().toISOString() })
             .eq("purchase_token", oneTime.purchaseToken);
+          if (error) throw new Error("google_play_verification_update_failed");
         }
-        await admin
+        const { error: linkError } = await admin
           .from("payment_events")
           .update({ credit_purchase_id: stored.credit_purchase_id })
           .eq("event_id", eventId);
+        if (linkError) throw new Error("google_play_event_link_failed");
       }
     }
 
     const voided = notification.voidedPurchaseNotification;
     if (voided && voided.productType === 2) {
-      const { data: stored } = await admin
+      const { data: stored, error: lookupError } = await admin
         .from("google_play_purchases")
         .select("credit_purchase_id")
         .eq("order_id", voided.orderId)
         .maybeSingle();
+      if (lookupError) throw new Error("google_play_order_lookup_failed");
       if (stored) {
-        await admin
+        const { error } = await admin
           .from("google_play_purchases")
           .update({
             purchase_state: "voided",
@@ -176,21 +205,44 @@ export async function POST(request: Request) {
             last_verified_at: new Date().toISOString(),
           })
           .eq("order_id", voided.orderId);
+        if (error) throw new Error("google_play_void_update_failed");
         await revokeCreditPurchase(
           stored.credit_purchase_id,
           "refunded",
           `google-play-voided:${voided.orderId}`,
         );
-        await admin
+        const { error: linkError } = await admin
           .from("payment_events")
           .update({ credit_purchase_id: stored.credit_purchase_id })
           .eq("event_id", eventId);
+        if (linkError) throw new Error("google_play_event_link_failed");
       }
     }
 
+    const { data: completed, error: processedError } = await admin
+      .from("payment_events")
+      .update({
+        processed_at: new Date().toISOString(),
+        processing_started_at: null,
+        processing_token: null,
+      })
+      .eq("event_id", eventId)
+      .eq("processing_token", processingToken)
+      .select("event_id")
+      .maybeSingle();
+    if (processedError || !completed) {
+      throw new Error("webhook_completion_not_saved");
+    }
     return Response.json({ received: true });
   } catch {
-    await admin.from("payment_events").delete().eq("event_id", eventId);
+    await admin
+      .from("payment_events")
+      .update({
+        processing_started_at: null,
+        processing_token: null,
+      })
+      .eq("event_id", eventId)
+      .eq("processing_token", processingToken);
     return Response.json({ error: "Webhook processing failed." }, { status: 500 });
   }
 }

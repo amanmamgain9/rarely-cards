@@ -52,6 +52,9 @@ describe("paid analysis payment state", () => {
     expect(
       adjustmentStatus({ action: "chargeback", status: "approved" }),
     ).toBe("disputed");
+    expect(
+      adjustmentStatus({ action: "chargeback", status: "reversed" }),
+    ).toBeNull();
   });
 });
 

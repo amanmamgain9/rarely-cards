@@ -47,9 +47,8 @@ export default function TermsPage() {
           You may request a full refund within 14 days of a five-card pack
           purchase, even if some or all credits were used. Requests are handled
           under our Refund Policy and processed by the provider used at
-          checkout—Google Play, Lemon Squeezy, or Paddle. A provider may mark a
-          refund as pending approval, and banks may take additional time to
-          return funds.
+          checkout—Google Play or Paddle. A provider may mark a refund as
+          pending approval, and banks may take additional time to return funds.
           Refunded or disputed purchases lose any unused credits.
         </p>
 

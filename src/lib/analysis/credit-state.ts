@@ -13,20 +13,28 @@ export function creditOutcomeForEvent(
 export type PurchaseAdjustmentDecision =
   | "refund_pending"
   | "refunded"
-  | "refund_failed"
+  | "refund_rejected"
+  | "refund_reversed"
   | "disputed"
+  | "dispute_reversed"
   | null;
 
 export function purchaseAdjustmentDecision(input: {
   action: string;
   status: string;
 }): PurchaseAdjustmentDecision {
+  if (
+    ["chargeback_reverse", "chargeback_warning_reverse"].includes(input.action)
+  ) {
+    return "dispute_reversed";
+  }
   if (["chargeback", "chargeback_warning"].includes(input.action)) {
-    return "disputed";
+    return input.status === "reversed" ? "dispute_reversed" : "disputed";
   }
   if (input.action !== "refund") return null;
   if (input.status === "approved") return "refunded";
   if (input.status === "pending_approval") return "refund_pending";
-  if (["rejected", "reversed"].includes(input.status)) return "refund_failed";
+  if (input.status === "rejected") return "refund_rejected";
+  if (input.status === "reversed") return "refund_reversed";
   return null;
 }

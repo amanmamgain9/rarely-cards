@@ -27,10 +27,22 @@ describe("five-card credit policy", () => {
     ).toBe("refunded");
     expect(
       purchaseAdjustmentDecision({ action: "refund", status: "rejected" }),
-    ).toBe("refund_failed");
+    ).toBe("refund_rejected");
+    expect(
+      purchaseAdjustmentDecision({ action: "refund", status: "reversed" }),
+    ).toBe("refund_reversed");
     expect(
       purchaseAdjustmentDecision({ action: "chargeback", status: "approved" }),
     ).toBe("disputed");
+    expect(
+      purchaseAdjustmentDecision({ action: "chargeback", status: "reversed" }),
+    ).toBe("dispute_reversed");
+    expect(
+      purchaseAdjustmentDecision({
+        action: "chargeback_reverse",
+        status: "approved",
+      }),
+    ).toBe("dispute_reversed");
     expect(
       purchaseAdjustmentDecision({ action: "credit", status: "approved" }),
     ).toBeNull();

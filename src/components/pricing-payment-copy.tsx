@@ -75,9 +75,8 @@ export function PaymentProcessorCopy() {
   if (channel === "web") {
     return (
       <p>
-        Lemon Squeezy or Paddle securely processes the one-time web payment.
-        Your selected provider handles payment details, applicable sales tax or
-        VAT, and your receipt.
+        Paddle securely processes the one-time web payment, including payment
+        details, applicable sales tax or VAT, and your receipt.
       </p>
     );
   }

@@ -20,6 +20,7 @@ const verifySchema = z.object({
   purchaseId: z.string().uuid().optional(),
   analysisId: z.string().uuid().optional(),
 });
+const ACCOUNT_CHECKOUT_SCOPE = "00000000-0000-0000-0000-000000000000";
 
 export async function POST(request: Request) {
   const { user } = await requireUser();
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     const { data: knownToken } = await admin
       .from("google_play_purchases")
-      .select("credit_purchase_id, user_id")
+      .select("credit_purchase_id, user_id, purchase_state")
       .eq("purchase_token", body.data.purchaseToken)
       .maybeSingle();
     if (knownToken && knownToken.user_id !== user.id) {
@@ -74,6 +75,16 @@ export async function POST(request: Request) {
     ) {
       return Response.json(
         { error: "Google Play purchase was already claimed." },
+        { status: 409 },
+      );
+    }
+    if (
+      knownToken &&
+      (knownToken.purchase_state === "canceled" ||
+        knownToken.purchase_state === "voided")
+    ) {
+      return Response.json(
+        { error: "This Google Play purchase was canceled or refunded." },
         { status: 409 },
       );
     }
@@ -107,7 +118,7 @@ export async function POST(request: Request) {
         .limit(1);
       pendingQuery = body.data.analysisId
         ? pendingQuery.eq("resume_analysis_id", body.data.analysisId)
-        : pendingQuery;
+        : pendingQuery.is("resume_analysis_id", null);
       const { data } = await pendingQuery.maybeSingle();
       creditPurchase = data;
       creditPurchaseId = data?.id;
@@ -120,6 +131,8 @@ export async function POST(request: Request) {
           user_id: user.id,
           payment_provider: "google_play",
           resume_analysis_id: body.data.analysisId ?? null,
+          checkout_scope_id:
+            body.data.analysisId ?? ACCOUNT_CHECKOUT_SCOPE,
           status: "checkout_pending",
           credits_granted: 5,
           credits_remaining: 0,
@@ -128,9 +141,27 @@ export async function POST(request: Request) {
         })
         .select("id, status, resume_analysis_id, payment_provider")
         .single();
-      if (error || !data) throw new Error("google_play_purchase_create_failed");
-      creditPurchase = data;
-      creditPurchaseId = data.id;
+      if (error?.code === "23505") {
+        let existingQuery = admin
+          .from("credit_purchases")
+          .select("id, status, resume_analysis_id, payment_provider")
+          .eq("user_id", user.id)
+          .eq("payment_provider", "google_play")
+          .eq("status", "checkout_pending")
+          .order("created_at", { ascending: false })
+          .limit(1);
+        existingQuery = body.data.analysisId
+          ? existingQuery.eq("resume_analysis_id", body.data.analysisId)
+          : existingQuery.is("resume_analysis_id", null);
+        const { data: existing } = await existingQuery.maybeSingle();
+        if (!existing) throw new Error("google_play_purchase_create_conflict");
+        creditPurchase = existing;
+        creditPurchaseId = existing.id;
+      } else {
+        if (error || !data) throw new Error("google_play_purchase_create_failed");
+        creditPurchase = data;
+        creditPurchaseId = data.id;
+      }
     }
 
     if (
@@ -165,15 +196,70 @@ export async function POST(request: Request) {
       if (error) throw new Error("google_play_purchase_store_failed");
     }
 
+    const [
+      { data: canceledEvent, error: canceledEventError },
+      { data: voidedEvent, error: voidedEventError },
+    ] = await Promise.all([
+      admin
+        .from("payment_events")
+        .select("event_id")
+        .eq("payment_provider", "google_play")
+        .eq("event_type", "one_time:2")
+        .eq("transaction_id", body.data.purchaseToken)
+        .limit(1)
+        .maybeSingle(),
+      admin
+        .from("payment_events")
+        .select("event_id")
+        .eq("payment_provider", "google_play")
+        .eq("event_type", "voided")
+        .eq("transaction_id", verified.orderId)
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (canceledEventError || voidedEventError) {
+      throw new Error("google_play_revocation_lookup_failed");
+    }
+    if (canceledEvent || voidedEvent) {
+      const revokedAt = new Date().toISOString();
+      const { error: purchaseRevocationError } = await admin
+        .from("google_play_purchases")
+        .update({
+          purchase_state: voidedEvent ? "voided" : "canceled",
+          ...(voidedEvent ? { voided_at: revokedAt } : {}),
+          last_verified_at: revokedAt,
+        })
+        .eq("purchase_token", body.data.purchaseToken);
+      const { error: creditRevocationError } = await admin.rpc(
+        "revoke_credit_purchase",
+        {
+          p_purchase_id: creditPurchaseId,
+          p_status: voidedEvent ? "refunded" : "failed",
+          p_adjustment_id: voidedEvent
+            ? `google-play-voided:${verified.orderId}`
+            : `google-play-canceled:${canceledEvent?.event_id}`,
+          p_refunded_at: voidedEvent ? revokedAt : null,
+        },
+      );
+      if (purchaseRevocationError || creditRevocationError) {
+        throw new Error("google_play_revocation_store_failed");
+      }
+      return Response.json(
+        { error: "This Google Play purchase was canceled or refunded." },
+        { status: 409 },
+      );
+    }
+
     const money = googlePlayMoneyToCents(order.total);
     if (money) {
-      await admin
+      const { error: moneyError } = await admin
         .from("credit_purchases")
         .update({
           amount_cents: money.amountCents,
           currency: money.currency,
         })
         .eq("id", creditPurchaseId);
+      if (moneyError) throw new Error("google_play_amount_store_failed");
     }
 
     const granted = await grantCreditPurchase({

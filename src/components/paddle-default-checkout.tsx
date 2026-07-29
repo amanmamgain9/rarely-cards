@@ -1,7 +1,7 @@
 "use client";
 
-import { initializePaddle } from "@paddle/paddle-js";
 import { useEffect } from "react";
+import { PADDLE_CHECKOUT_COMPLETED_EVENT } from "@/lib/payments/paddle-client-events";
 
 export function PaddleDefaultCheckout({
   token,
@@ -11,18 +11,38 @@ export function PaddleDefaultCheckout({
   environment: "sandbox" | "production";
 }) {
   useEffect(() => {
-    if (!token || !new URLSearchParams(window.location.search).has("_ptxn")) return;
-    void initializePaddle({
-      token,
-      environment,
-      checkout: {
-        settings: {
-          displayMode: "overlay",
-          theme: "light",
-          showAddDiscounts: false,
+    const transactionId = new URLSearchParams(window.location.search).get("_ptxn");
+    if (!token || !transactionId) return;
+    void import("@paddle/paddle-js").then(({ initializePaddle }) =>
+      initializePaddle({
+        token,
+        environment,
+        eventCallback: (event) => {
+          if (event.name === "checkout.completed") {
+            window.dispatchEvent(
+              new CustomEvent(PADDLE_CHECKOUT_COMPLETED_EVENT, {
+                detail: { transactionId },
+              }),
+            );
+            const url = new URL(window.location.href);
+            url.searchParams.delete("_ptxn");
+            window.history.replaceState(
+              null,
+              "",
+              `${url.pathname}${url.search}${url.hash}`,
+            );
+          }
         },
-      },
-    });
+        checkout: {
+          settings: {
+            displayMode: "overlay",
+            theme: "light",
+            allowLogout: false,
+            showAddDiscounts: false,
+          },
+        },
+      }),
+    );
   }, [environment, token]);
 
   return null;

@@ -89,8 +89,7 @@ export async function refundGooglePlayOrder(orderId: string) {
     method: "POST",
     url:
       `${API_ROOT}/applications/${encode(env.packageId)}` +
-      `/orders/${encode(orderId)}:refund`,
-    data: { revoke: true },
+      `/orders/${encode(orderId)}:refund?revoke=true`,
   });
   return { orderId };
 }

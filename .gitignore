@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+/scripts/.video-deps/
+/marketing/campaigns/.storyboard-review/
+__pycache__/
 /.pnp
 .pnp.*
 .yarn/*

@@ -39,11 +39,10 @@ export default function RefundPolicyPage() {
 
         <h2>Processing time</h2>
         <p>
-          Google Play, Lemon Squeezy, or Paddle processes the refund to the
-          original payment method. Google Play purchases remain store-managed.
-          Approval may be required. Refunds typically appear in 3–5 working
-          days after approval, though your bank or payment provider may take
-          longer.
+          Google Play or Paddle processes the refund to the original payment
+          method. Google Play purchases remain store-managed. Approval may be
+          required. Refunds typically appear in 3–5 working days after approval,
+          though your bank or payment provider may take longer.
         </p>
 
         <h2>After 14 days</h2>

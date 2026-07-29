@@ -1,6 +1,6 @@
 "use client";
 
-import { toPng } from "html-to-image";
+import Image from "next/image";
 import { forwardRef } from "react";
 import type { AcceptedAnalysis } from "@/lib/analysis/types";
 import { getRarityTier } from "@/lib/rarity/score";
@@ -29,10 +29,19 @@ function Spark() {
 
 export const ShareCard = forwardRef<
   HTMLElement,
-  { photo: string; result: AcceptedAnalysis; pending?: boolean }
->(function ShareCard({ photo, result, pending = false }, ref) {
+  {
+    photo: string;
+    result: AcceptedAnalysis;
+    pending?: boolean;
+    photoPriority?: boolean;
+  }
+>(function ShareCard(
+  { photo, result, pending = false, photoPriority = false },
+  ref,
+) {
   const petName = result.petName || "Your pet";
   const rarityTier = getRarityTier(result.rarityScore);
+  const isOptimizableDemo = photo.startsWith("/pets/");
   const pendingPhrases: Record<string, string> = {
     aura: "Their Whole Mood",
     sceneLore: "The World Around Them",
@@ -62,8 +71,27 @@ export const ShareCard = forwardRef<
         </div>
       </header>
       <div className="story-portrait">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photo} alt={`${petName} in their rarity card photograph`} />
+        {isOptimizableDemo ? (
+          <Image
+            src={photo}
+            alt={`${petName} in their rarity card photograph`}
+            fill
+            sizes={photoPriority ? "(max-width: 760px) 88vw, 42vw" : "240px"}
+            fetchPriority={photoPriority ? "high" : "auto"}
+            loading={photoPriority ? "eager" : "lazy"}
+          />
+        ) : (
+          // Blob and signed storage URLs are already resized by the app pipeline.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photo}
+            alt={`${petName} in their rarity card photograph`}
+            width={720}
+            height={1280}
+            loading={photoPriority ? "eager" : "lazy"}
+            fetchPriority={photoPriority ? "high" : "auto"}
+          />
+        )}
         <span className="story-spark story-spark-two"><Star /></span>
       </div>
       <section className="story-thought">
@@ -103,6 +131,7 @@ export const ShareCard = forwardRef<
 export type ShareAsset = { dataUrl: string; file: File };
 
 export async function createShareAsset(card: HTMLElement): Promise<ShareAsset> {
+  const { toPng } = await import("html-to-image");
   await Promise.all(
     Array.from(card.querySelectorAll("img")).map((image) =>
       image.complete ? Promise.resolve() : image.decode(),

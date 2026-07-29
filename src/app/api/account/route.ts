@@ -21,6 +21,39 @@ export async function GET(request: Request) {
   if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds);
 
   const admin = createAdminClient();
+  const searchParams = new URL(request.url).searchParams;
+  if (searchParams.get("view") === "balance") {
+    const transactionId = searchParams.get("transactionId");
+    const validTransactionId =
+      transactionId && transactionId.length <= 100 ? transactionId : null;
+    const { data: activePurchases, error } = await admin
+      .from("credit_purchases")
+      .select("credits_remaining, provider_transaction_id")
+      .eq("user_id", user.id)
+      .eq("status", "active");
+    if (error) {
+      return Response.json(
+        { error: "Credit balance could not be loaded." },
+        { status: 500 },
+      );
+    }
+    return Response.json(
+      {
+        creditBalance: (activePurchases ?? []).reduce(
+          (sum, purchase) => sum + purchase.credits_remaining,
+          0,
+        ),
+        transactionConfirmed:
+          Boolean(validTransactionId) &&
+          (activePurchases ?? []).some(
+            (purchase) =>
+              purchase.provider_transaction_id === validTransactionId,
+          ),
+      },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+
   const [{ data: purchaseRows, error: purchaseError }, { data: analysisRows, error: analysisError }] =
     await Promise.all([
       admin
@@ -45,17 +78,24 @@ export async function GET(request: Request) {
     return Response.json({ error: "Account could not be loaded." }, { status: 500 });
   }
 
-  const cards = await Promise.all(
-    (analysisRows ?? []).map(async (row) => {
-      const parsedResult = acceptedAnalysisSchema.safeParse(row.result_json);
-      let photoUrl: string | null = null;
-      const visiblePhotoPath = row.card_photo_path ?? row.object_path;
-      if (visiblePhotoPath) {
-        const { data: signedPhoto } = await admin.storage
+  const photoPaths = (analysisRows ?? [])
+    .map((row) => row.card_photo_path ?? row.object_path)
+    .filter((path): path is string => Boolean(path));
+  const { data: signedPhotos } =
+    photoPaths.length > 0
+      ? await admin.storage
           .from("analysis-photos")
-          .createSignedUrl(visiblePhotoPath, 60 * 60);
-        photoUrl = signedPhoto?.signedUrl ?? null;
-      }
+          .createSignedUrls(photoPaths, 60 * 60)
+      : { data: [] };
+  const signedPhotoByPath = new Map(
+    (signedPhotos ?? []).flatMap((photo) =>
+      photo.path && photo.signedUrl ? [[photo.path, photo.signedUrl]] : [],
+    ),
+  );
+
+  const cards = (analysisRows ?? []).map((row) => {
+      const parsedResult = acceptedAnalysisSchema.safeParse(row.result_json);
+      const visiblePhotoPath = row.card_photo_path ?? row.object_path;
       return {
         id: row.id,
         status: analysisStatusSchema.parse(row.status),
@@ -65,14 +105,15 @@ export async function GET(request: Request) {
             ? parsedResult.data
             : { ...parsedResult.data, petName: row.pet_name }
           : null,
-        photoUrl,
+        photoUrl: visiblePhotoPath
+          ? signedPhotoByPath.get(visiblePhotoPath) ?? null
+          : null,
         rejectionMessage: row.rejection_message,
         creditState: row.credit_state,
         createdAt: row.created_at,
         completedAt: row.completed_at,
       };
-    }),
-  );
+    });
 
   const purchases = (purchaseRows ?? []).map((row) => {
     const refundableUntil = row.completed_at
@@ -92,7 +133,9 @@ export async function GET(request: Request) {
       createdAt: row.created_at,
       refundableUntil,
       refundable:
-        row.status === "active" &&
+        (row.payment_provider === "paddle" ||
+          row.payment_provider === "google_play") &&
+        (row.status === "active" || row.status === "refund_pending") &&
         refundableUntil !== null &&
         new Date(refundableUntil).getTime() > Date.now(),
     };

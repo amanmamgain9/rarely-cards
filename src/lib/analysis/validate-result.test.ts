@@ -340,9 +340,15 @@ describe("analysis result validation", () => {
       signatureRead: { ...result.signatureRead, score: 99 },
       ratings: exceptionalRatings,
     };
-    expect(
-      validateAnalysisContract(exceptional, "pet", "Miso", "they").rarityScore,
-    ).toBe(100);
+    const validated = validateAnalysisContract(
+      exceptional,
+      "pet",
+      "Miso",
+      "they",
+    );
+    expect(validated.status).toBe("accepted");
+    if (validated.status !== "accepted") throw new Error("expected acceptance");
+    expect(validated.rarityScore).toBe(100);
     expect(() =>
       validateAnalysisContract(
         {

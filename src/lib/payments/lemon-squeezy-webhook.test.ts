@@ -35,7 +35,7 @@ function payload(eventName: "order_created" | "order_refunded") {
   };
 }
 
-describe("Lemon Squeezy webhooks", () => {
+describe("legacy Lemon Squeezy webhooks", () => {
   it("verifies HMAC signatures without accepting malformed values", () => {
     const body = JSON.stringify(payload("order_created"));
     const signature = createHmac("sha256", "secret").update(body).digest("hex");
@@ -44,7 +44,7 @@ describe("Lemon Squeezy webhooks", () => {
     expect(verifyLemonSqueezySignature(`${body} `, signature, "secret")).toBe(false);
   });
 
-  it("validates the configured catalog and custom entitlement", () => {
+  it("validates the historical catalog and custom entitlement", () => {
     const event = parseLemonSqueezyWebhook(
       JSON.stringify(payload("order_created")),
       { storeId: 12, variantId: 34, testMode: true },
@@ -59,7 +59,7 @@ describe("Lemon Squeezy webhooks", () => {
     ).toThrow("webhook_catalog_mismatch");
   });
 
-  it("creates stable, refund-aware idempotency keys", () => {
+  it("creates stable, refund-aware event IDs", () => {
     const created = parseLemonSqueezyWebhook(
       JSON.stringify(payload("order_created")),
       { storeId: 12, variantId: 34, testMode: true },

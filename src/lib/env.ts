@@ -32,6 +32,7 @@ export function publicSupabaseEnv() {
 
 export function hasPaddleEnv(): boolean {
   return Boolean(
+    process.env.NEXT_PUBLIC_APP_URL?.trim() &&
     process.env.PADDLE_API_KEY?.trim() &&
       process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.trim() &&
       process.env.PADDLE_WEBHOOK_SECRET?.trim() &&
@@ -39,20 +40,49 @@ export function hasPaddleEnv(): boolean {
   );
 }
 
-export function hasLemonSqueezyEnv(): boolean {
-  return Boolean(
-    process.env.LEMON_SQUEEZY_API_KEY?.trim() &&
-      process.env.LEMON_SQUEEZY_STORE_ID?.trim() &&
-      process.env.LEMON_SQUEEZY_VARIANT_ID?.trim() &&
-      process.env.LEMON_SQUEEZY_WEBHOOK_SECRET?.trim(),
-  );
+export function paddleEnv() {
+  return {
+    appUrl: required("NEXT_PUBLIC_APP_URL"),
+    paddleEnvironment:
+      process.env.PADDLE_ENVIRONMENT === "production"
+        ? ("production" as const)
+        : ("sandbox" as const),
+    paddleApiKey: required("PADDLE_API_KEY"),
+    paddleClientToken: required("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN"),
+    paddleWebhookSecret: required("PADDLE_WEBHOOK_SECRET"),
+    paddlePriceId: required("PADDLE_PRICE_ID"),
+  };
 }
 
-export function hasGooglePlayEnv(): boolean {
+export function lemonSqueezyWebhookEnv() {
+  return {
+    storeId: requiredPositiveInteger("LEMON_SQUEEZY_STORE_ID"),
+    variantId: requiredPositiveInteger("LEMON_SQUEEZY_VARIANT_ID"),
+    webhookSecret: required("LEMON_SQUEEZY_WEBHOOK_SECRET"),
+    testMode: process.env.LEMON_SQUEEZY_TEST_MODE !== "false",
+  };
+}
+
+export function hasGooglePlayApiEnv(): boolean {
   return Boolean(
     process.env.GOOGLE_PLAY_PACKAGE_ID?.trim() &&
       process.env.NEXT_PUBLIC_GOOGLE_PLAY_PRODUCT_ID?.trim() &&
       process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON?.trim(),
+  );
+}
+
+export function hasGooglePlayRtdnEnv(): boolean {
+  return Boolean(
+    process.env.GOOGLE_PLAY_PUBSUB_AUDIENCE?.trim() &&
+      process.env.GOOGLE_PLAY_PUBSUB_SERVICE_ACCOUNT?.trim(),
+  );
+}
+
+export function hasGooglePlayEnv(): boolean {
+  return (
+    process.env.GOOGLE_PLAY_CHECKOUT_ENABLED === "true" &&
+    hasGooglePlayApiEnv() &&
+    hasGooglePlayRtdnEnv()
   );
 }
 
@@ -83,30 +113,11 @@ export function googlePlayEnv() {
   };
 }
 
-export function lemonSqueezyEnv() {
-  return {
-    apiKey: required("LEMON_SQUEEZY_API_KEY"),
-    storeId: requiredPositiveInteger("LEMON_SQUEEZY_STORE_ID"),
-    variantId: requiredPositiveInteger("LEMON_SQUEEZY_VARIANT_ID"),
-    webhookSecret: required("LEMON_SQUEEZY_WEBHOOK_SECRET"),
-    testMode: process.env.LEMON_SQUEEZY_TEST_MODE !== "false",
-    appUrl: required("NEXT_PUBLIC_APP_URL"),
-  };
-}
-
 export function serverEnv() {
   return {
     ...publicSupabaseEnv(),
+    ...paddleEnv(),
     serviceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
-    appUrl: required("NEXT_PUBLIC_APP_URL"),
-    paddleEnvironment:
-      process.env.PADDLE_ENVIRONMENT === "production"
-        ? ("production" as const)
-        : ("sandbox" as const),
-    paddleApiKey: required("PADDLE_API_KEY"),
-    paddleClientToken: required("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN"),
-    paddleWebhookSecret: required("PADDLE_WEBHOOK_SECRET"),
-    paddlePriceId: required("PADDLE_PRICE_ID"),
     geminiApiKey: required("GEMINI_API_KEY"),
     geminiModel: process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash",
   };

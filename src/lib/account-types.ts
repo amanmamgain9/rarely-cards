@@ -25,7 +25,7 @@ export type AccountCard = {
   result: AcceptedAnalysis | null;
   photoUrl: string | null;
   rejectionMessage: string | null;
-  creditState: "reserved" | "consumed" | "restored" | null;
+  creditState: "reserved" | "consumed" | "restored" | "revoked" | null;
   createdAt: string;
   completedAt: string | null;
 };

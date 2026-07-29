@@ -5,6 +5,8 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+export const maxDuration = 60;
+
 export async function POST(request: Request, context: RouteContext) {
   const { user } = await requireUser();
   if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
@@ -46,6 +48,42 @@ export async function POST(request: Request, context: RouteContext) {
     if (["refund_not_allowed", "refund_state_conflict"].includes(code)) {
       return Response.json(
         { error: "This purchase cannot be refunded right now." },
+        { status: 409 },
+      );
+    }
+    if (code === "refund_retry_later") {
+      return Response.json(
+        { error: "A refund attempt is still being checked. Try again shortly." },
+        { status: 409 },
+      );
+    }
+    if (code === "refund_rejected") {
+      return Response.json(
+        {
+          error:
+            "The payment provider rejected this refund. You can try again or contact support.",
+        },
+        { status: 409 },
+      );
+    }
+    if (code === "refund_reversed") {
+      return Response.json(
+        {
+          error:
+            "The provider reversed the earlier refund. Your unused credits were restored; you can request a new refund.",
+        },
+        { status: 409 },
+      );
+    }
+    if (code === "refund_provider_not_supported") {
+      return Response.json(
+        { error: "Contact support to refund this historical purchase." },
+        { status: 409 },
+      );
+    }
+    if (code === "refund_persistence_unconfirmed") {
+      return Response.json(
+        { error: "Your refund was submitted. Refresh your account shortly." },
         { status: 409 },
       );
     }

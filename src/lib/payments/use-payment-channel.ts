@@ -10,6 +10,25 @@ export type PaymentChannel =
 
 const PLAY_MARKER = "rarely-google-play-session";
 const PLAY_BILLING_METHOD = "https://play.google.com/billing";
+let digitalGoodsProbe: Promise<boolean> | null = null;
+
+async function hasGooglePlayBilling() {
+  if (typeof window.getDigitalGoodsService !== "function") {
+    return false;
+  }
+  const probe =
+    digitalGoodsProbe ??
+    window.getDigitalGoodsService(PLAY_BILLING_METHOD).then(() => true);
+  digitalGoodsProbe = probe;
+  try {
+    return await probe;
+  } catch {
+    // Billing can reject while the TWA bridge is still starting. Do not cache
+    // that transient result for the rest of the browser tab.
+    if (digitalGoodsProbe === probe) digitalGoodsProbe = null;
+    return false;
+  }
+}
 
 export function usePaymentChannel(): PaymentChannel {
   const [channel, setChannel] = useState<PaymentChannel>("loading");
@@ -23,14 +42,14 @@ export function usePaymentChannel(): PaymentChannel {
     const launchedFromPlay = sessionStorage.getItem(PLAY_MARKER) === "1";
 
     void (async () => {
-      if (typeof window.getDigitalGoodsService === "function") {
-        try {
-          await window.getDigitalGoodsService(PLAY_BILLING_METHOD);
-          if (!cancelled) setChannel("google_play");
-          return;
-        } catch {
-          // A Play launch must fail closed instead of exposing web checkout.
-        }
+      let hasBilling = await hasGooglePlayBilling();
+      if (!hasBilling && launchedFromPlay) {
+        await new Promise((resolve) => window.setTimeout(resolve, 400));
+        hasBilling = await hasGooglePlayBilling();
+      }
+      if (hasBilling) {
+        if (!cancelled) setChannel("google_play");
+        return;
       }
       if (!cancelled) {
         setChannel(launchedFromPlay ? "play_unavailable" : "web");

@@ -1,11 +1,11 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
   adjustmentStatus,
   paymentCompletionDecision,
 } from "@/lib/analysis/payment-state";
 import { purchaseAdjustmentDecision } from "@/lib/analysis/credit-state";
-import { serverEnv } from "@/lib/env";
+import { paddleEnv } from "@/lib/env";
 import { getPaddle } from "@/lib/paddle";
 import { grantCreditPurchase } from "@/lib/payments/credit-purchases";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -30,7 +30,7 @@ type AdjustmentData = {
 };
 
 async function processCompletedTransaction(data: TransactionData) {
-  const env = serverEnv();
+  const env = paddleEnv();
   const analysisId = data.customData?.analysis_request_id;
   if (
     typeof analysisId !== "string" ||
@@ -82,7 +82,7 @@ async function processCompletedTransaction(data: TransactionData) {
 }
 
 async function processCreditPurchase(data: TransactionData) {
-  const env = serverEnv();
+  const env = paddleEnv();
   const purchaseId = data.customData?.credit_purchase_id;
   const userId = data.customData?.user_id;
   const analysisId = data.customData?.analysis_request_id;
@@ -121,120 +121,67 @@ async function processCreditPurchase(data: TransactionData) {
   });
 }
 
-async function processAdjustment(data: AdjustmentData) {
+async function processAdjustment(data: AdjustmentData, occurredAt: string) {
   const admin = createAdminClient();
-  const { data: purchase } = await admin
+  const { data: purchase, error: purchaseError } = await admin
     .from("credit_purchases")
-    .select("id, status")
+    .select("id")
     .eq("payment_provider", "paddle")
     .eq("provider_transaction_id", data.transactionId)
     .maybeSingle();
+  if (purchaseError) throw new Error("webhook_purchase_lookup_failed");
 
   if (purchase) {
     const purchaseDecision = purchaseAdjustmentDecision({
       action: data.action,
       status: data.status,
     });
-    if (purchaseDecision === "disputed") {
-      await admin
-        .from("credit_purchases")
-        .update({
-          status: "disputed",
-          credits_remaining: 0,
-          provider_adjustment_id: data.id,
-        })
-        .eq("id", purchase.id);
-      return;
-    }
-    if (purchaseDecision === "refunded") {
-      await admin
-        .from("credit_purchases")
-        .update({
-          status: "refunded",
-          credits_remaining: 0,
-          provider_adjustment_id: data.id,
-          refunded_at: new Date().toISOString(),
-        })
-        .eq("id", purchase.id);
-    } else if (purchaseDecision === "refund_pending") {
-      await admin
-        .from("credit_purchases")
-        .update({
-          status: "refund_pending",
-          provider_adjustment_id: data.id,
-          refund_requested_at: new Date().toISOString(),
-        })
-        .eq("id", purchase.id)
-        .neq("status", "refunded");
-    } else if (purchaseDecision === "refund_failed") {
-      await admin
-        .from("credit_purchases")
-        .update({
-          status: "active",
-          provider_adjustment_id: data.id,
-        })
-        .eq("id", purchase.id)
-        .eq("status", "refund_pending");
+    if (purchaseDecision) {
+      const { error } = await admin.rpc("apply_credit_purchase_adjustment", {
+        p_purchase_id: purchase.id,
+        p_decision: purchaseDecision,
+        p_adjustment_id: data.id,
+        p_occurred_at: occurredAt,
+      });
+      if (error) throw new Error("webhook_purchase_adjustment_failed");
     }
     return;
   }
 
-  const { data: analysis } = await admin
+  const { data: analysis, error: analysisError } = await admin
     .from("analysis_requests")
-    .select("id, status")
+    .select("id")
     .eq("paddle_transaction_id", data.transactionId)
     .maybeSingle();
+  if (analysisError) throw new Error("webhook_analysis_lookup_failed");
   if (!analysis) return;
 
+  const disputeReversed =
+    ["chargeback_reverse", "chargeback_warning_reverse"].includes(data.action) ||
+    (["chargeback", "chargeback_warning"].includes(data.action) &&
+      data.status === "reversed");
   const nextStatus = adjustmentStatus({
     action: data.action,
     status: data.status,
   });
-  if (nextStatus === "disputed") {
-    await admin
-      .from("analysis_requests")
-      .update({
-        status: "disputed",
-        paddle_adjustment_id: data.id,
-        error_code: data.action,
-      })
-      .eq("id", analysis.id);
-    return;
-  }
-
-  if (!nextStatus) return;
-  if (nextStatus === "refunded") {
-    await admin
-      .from("analysis_requests")
-      .update({
-        status: "refunded",
-        paddle_adjustment_id: data.id,
-        refunded_at: new Date().toISOString(),
-        error_code: null,
-      })
-      .eq("id", analysis.id)
-      .neq("status", "completed");
-  } else if (nextStatus === "refund_pending") {
-    await admin
-      .from("analysis_requests")
-      .update({
-        status: "refund_pending",
-        paddle_adjustment_id: data.id,
-        error_code: "refund_pending_approval",
-      })
-      .eq("id", analysis.id)
-      .neq("status", "completed");
-  } else if (nextStatus === "failed") {
-    await admin
-      .from("analysis_requests")
-      .update({
-        status: "failed",
-        paddle_adjustment_id: data.id,
-        error_code: `refund_${data.status}`,
-      })
-      .eq("id", analysis.id)
-      .neq("status", "completed");
-  }
+  if (!nextStatus && !disputeReversed) return;
+  const legacyDecision =
+    disputeReversed
+      ? "dispute_reversed"
+      : nextStatus === "disputed" ||
+    nextStatus === "refunded" ||
+    nextStatus === "refund_pending"
+      ? nextStatus
+      : "refund_retry";
+  const { error } = await admin.rpc("apply_legacy_analysis_adjustment", {
+    p_analysis_id: analysis.id,
+    p_decision: legacyDecision,
+    p_adjustment_id: data.id,
+    p_occurred_at: occurredAt,
+    p_error_code:
+      nextStatus === "disputed" ? data.action : `refund_${data.status}`,
+  });
+  if (error) throw new Error("webhook_analysis_adjustment_failed");
 }
 
 export async function POST(request: Request) {
@@ -248,7 +195,7 @@ export async function POST(request: Request) {
   try {
     event = await getPaddle().webhooks.unmarshal(
       rawBody,
-      serverEnv().paddleWebhookSecret,
+      paddleEnv().paddleWebhookSecret,
       signature,
     );
   } catch {
@@ -269,13 +216,33 @@ export async function POST(request: Request) {
           : null,
     occurred_at: event.occurredAt,
     payload_digest: digest,
+    processed_at: null,
   });
 
-  if (insertError?.code === "23505") {
+  if (insertError && insertError.code !== "23505") {
+    return Response.json({ error: "Webhook storage unavailable." }, { status: 503 });
+  }
+
+  const processingToken = randomUUID();
+  const { data: claim, error: claimError } = await admin.rpc(
+    "claim_payment_event",
+    {
+      p_event_id: event.eventId,
+      p_payload_digest: digest,
+      p_processing_token: processingToken,
+    },
+  );
+  if (claimError || claim === "missing") {
+    return Response.json({ error: "Webhook storage unavailable." }, { status: 503 });
+  }
+  if (claim === "mismatch") {
+    return Response.json({ error: "Webhook event mismatch." }, { status: 409 });
+  }
+  if (claim === "processed") {
     return Response.json({ received: true, duplicate: true });
   }
-  if (insertError) {
-    return Response.json({ error: "Webhook storage unavailable." }, { status: 503 });
+  if (claim === "busy") {
+    return Response.json({ error: "Webhook event is already processing." }, { status: 503 });
   }
 
   try {
@@ -289,22 +256,47 @@ export async function POST(request: Request) {
             purchaseId: null,
             analysisId: await processCompletedTransaction(transaction),
           };
-      await admin
+      const { error: linkError } = await admin
         .from("payment_events")
         .update({
           analysis_request_id: processed.analysisId,
           credit_purchase_id: processed.purchaseId,
         })
         .eq("event_id", event.eventId);
+      if (linkError) throw new Error("webhook_event_link_failed");
     } else if (
       event.eventType === "adjustment.created" ||
       event.eventType === "adjustment.updated"
     ) {
-      await processAdjustment(event.data as AdjustmentData);
+      await processAdjustment(
+        event.data as AdjustmentData,
+        event.occurredAt,
+      );
+    }
+    const { data: completed, error: processedError } = await admin
+      .from("payment_events")
+      .update({
+        processed_at: new Date().toISOString(),
+        processing_started_at: null,
+        processing_token: null,
+      })
+      .eq("event_id", event.eventId)
+      .eq("processing_token", processingToken)
+      .select("event_id")
+      .maybeSingle();
+    if (processedError || !completed) {
+      throw new Error("webhook_completion_not_saved");
     }
     return Response.json({ received: true });
   } catch {
-    await admin.from("payment_events").delete().eq("event_id", event.eventId);
+    await admin
+      .from("payment_events")
+      .update({
+        processing_started_at: null,
+        processing_token: null,
+      })
+      .eq("event_id", event.eventId)
+      .eq("processing_token", processingToken);
     return Response.json({ error: "Webhook processing failed." }, { status: 500 });
   }
 }

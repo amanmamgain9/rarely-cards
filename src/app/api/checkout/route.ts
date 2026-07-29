@@ -2,24 +2,18 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import {
   hasGooglePlayEnv,
-  hasLemonSqueezyEnv,
   hasPaddleEnv,
-  serverEnv,
+  paddleEnv,
 } from "@/lib/env";
-import {
-  createLemonSqueezyCheckout,
-  getLemonSqueezyCheckout,
-} from "@/lib/lemon-squeezy";
-import { getPaddle } from "@/lib/paddle";
+import { getOrCreatePaddleCustomerId, getPaddle } from "@/lib/paddle";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const checkoutSchema = z.object({
   analysisId: z.string().uuid().optional(),
-  provider: z
-    .enum(["lemon_squeezy", "paddle", "google_play"])
-    .default("lemon_squeezy"),
+  provider: z.enum(["paddle", "google_play"]).default("paddle"),
 });
+const ACCOUNT_CHECKOUT_SCOPE = "00000000-0000-0000-0000-000000000000";
 
 export async function POST(request: Request) {
   const { user } = await requireUser();
@@ -40,7 +34,6 @@ export async function POST(request: Request) {
   }
   const provider = body.data.provider;
   if (
-    (provider === "lemon_squeezy" && !hasLemonSqueezyEnv()) ||
     (provider === "paddle" && !hasPaddleEnv()) ||
     (provider === "google_play" && !hasGooglePlayEnv())
   ) {
@@ -48,6 +41,24 @@ export async function POST(request: Request) {
       { error: "This checkout provider is not configured." },
       { status: 503 },
     );
+  }
+  if (provider === "paddle" && !user.email) {
+    return Response.json(
+      { error: "Your account needs an email address before checkout." },
+      { status: 400 },
+    );
+  }
+
+  let paddleCustomerId: string | null = null;
+  if (provider === "paddle") {
+    try {
+      paddleCustomerId = await getOrCreatePaddleCustomerId(user.id, user.email!);
+    } catch {
+      return Response.json(
+        { error: "Checkout customer could not be prepared. Please try again." },
+        { status: 502 },
+      );
+    }
   }
 
   const admin = createAdminClient();
@@ -68,45 +79,85 @@ export async function POST(request: Request) {
     }
   }
 
-  const pendingCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
   let pendingQuery = admin
     .from("credit_purchases")
-    .select("id, provider_checkout_id, provider_transaction_id")
+    .select("id, provider_checkout_id, provider_transaction_id, created_at")
     .eq("user_id", user.id)
     .eq("payment_provider", provider)
     .eq("status", "checkout_pending")
-    .gte("created_at", pendingCutoff)
     .order("created_at", { ascending: false })
     .limit(1);
   pendingQuery = body.data.analysisId
     ? pendingQuery.eq("resume_analysis_id", body.data.analysisId)
     : pendingQuery.is("resume_analysis_id", null);
-  const { data: existingPending } = await pendingQuery.maybeSingle();
+  let { data: existingPending } = await pendingQuery.maybeSingle();
+
+  if (
+    existingPending &&
+    !existingPending.provider_checkout_id &&
+    Date.now() - new Date(existingPending.created_at).getTime() > 2 * 60_000
+  ) {
+    const { data: released } = await admin
+      .from("credit_purchases")
+      .update({ pending_checkout_guarded: false })
+      .eq("id", existingPending.id)
+      .eq("status", "checkout_pending")
+      .is("provider_checkout_id", null)
+      .select("id")
+      .maybeSingle();
+    if (released) existingPending = null;
+  }
 
   if (existingPending?.provider_checkout_id) {
     if (provider === "paddle" && existingPending.provider_transaction_id) {
-      const transaction = await getPaddle().transactions.get(
-        existingPending.provider_transaction_id,
-      );
-      return Response.json({
-        provider,
-        purchaseId: existingPending.id,
-        transactionId: transaction.id,
-        checkoutUrl: transaction.checkout?.url ?? null,
-        existing: true,
-      });
-    }
-    if (provider === "lemon_squeezy") {
-      const checkout = await getLemonSqueezyCheckout(
-        existingPending.provider_checkout_id,
-      );
-      return Response.json({
-        provider,
-        purchaseId: existingPending.id,
-        transactionId: null,
-        checkoutUrl: checkout.url,
-        existing: true,
-      });
+      const pending = existingPending;
+      const transactionId = existingPending.provider_transaction_id;
+      try {
+        let transaction = await getPaddle().transactions.get(transactionId);
+        if (transaction.status === "canceled") {
+          const { data: canceled } = await admin
+            .from("credit_purchases")
+            .update({ status: "failed" })
+            .eq("id", pending.id)
+            .eq("status", "checkout_pending")
+            .select("id")
+            .maybeSingle();
+          if (canceled) existingPending = null;
+        } else {
+          if (!transaction.customerId && paddleCustomerId) {
+            transaction = await getPaddle().transactions.update(transaction.id, {
+              customerId: paddleCustomerId,
+            });
+          }
+          return Response.json({
+            provider,
+            purchaseId: pending.id,
+            transactionId: transaction.id,
+            checkoutUrl: transaction.checkout?.url ?? null,
+            existing: true,
+          });
+        }
+      } catch {
+        if (
+          Date.now() - new Date(pending.created_at).getTime() >
+          24 * 60 * 60_000
+        ) {
+          const { data: released } = await admin
+            .from("credit_purchases")
+            .update({ pending_checkout_guarded: false })
+            .eq("id", pending.id)
+            .eq("status", "checkout_pending")
+            .select("id")
+            .maybeSingle();
+          if (released) existingPending = null;
+        }
+        if (existingPending) {
+          return Response.json(
+            { error: "Existing checkout could not be loaded. Try again shortly." },
+            { status: 502 },
+          );
+        }
+      }
     }
   }
   if (provider === "google_play" && existingPending) {
@@ -131,6 +182,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       payment_provider: provider,
       resume_analysis_id: body.data.analysisId ?? null,
+      checkout_scope_id: body.data.analysisId ?? ACCOUNT_CHECKOUT_SCOPE,
       status: "checkout_pending",
       credits_granted: 5,
       credits_remaining: 0,
@@ -140,6 +192,12 @@ export async function POST(request: Request) {
     .select("id")
     .single();
   if (purchaseError || !purchase) {
+    if (purchaseError?.code === "23505") {
+      return Response.json(
+        { error: "Checkout is already being prepared. Try again in a moment." },
+        { status: 409 },
+      );
+    }
     return Response.json(
       { error: "Checkout could not be prepared. Please try again." },
       { status: 500 },
@@ -156,33 +214,12 @@ export async function POST(request: Request) {
         existing: false,
       });
     }
-    if (provider === "lemon_squeezy") {
-      const checkout = await createLemonSqueezyCheckout({
-        userId: user.id,
-        email: user.email ?? null,
-        purchaseId: purchase.id,
-        analysisId: body.data.analysisId,
-      });
-      const { error: saveError } = await admin
-        .from("credit_purchases")
-        .update({ provider_checkout_id: checkout.id })
-        .eq("id", purchase.id)
-        .eq("status", "checkout_pending")
-        .is("provider_checkout_id", null);
-      if (saveError) throw new Error("checkout_not_saved");
-      return Response.json({
-        provider,
-        purchaseId: purchase.id,
-        transactionId: null,
-        checkoutUrl: checkout.url,
-        existing: false,
-      });
-    }
 
-    const env = serverEnv();
+    const env = paddleEnv();
     const transaction = await getPaddle().transactions.create({
       items: [{ priceId: env.paddlePriceId, quantity: 1 }],
       collectionMode: "automatic",
+      customerId: paddleCustomerId!,
       customData: {
         user_id: user.id,
         credit_purchase_id: purchase.id,
@@ -214,7 +251,7 @@ export async function POST(request: Request) {
   } catch {
     await admin
       .from("credit_purchases")
-      .update({ status: "failed" })
+      .update({ pending_checkout_guarded: false })
       .eq("id", purchase.id)
       .eq("status", "checkout_pending")
       .is("provider_checkout_id", null);
@@ -224,4 +261,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

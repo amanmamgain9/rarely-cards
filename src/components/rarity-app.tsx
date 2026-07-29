@@ -1,6 +1,6 @@
 "use client";
 
-import { initializePaddle } from "@paddle/paddle-js";
+import Image from "next/image";
 import {
   ChangeEvent,
   DragEvent,
@@ -15,7 +15,6 @@ import {
   loadPendingPhoto,
   savePendingPhoto,
 } from "@/lib/pending-photo";
-import { createClient } from "@/lib/supabase/client";
 import {
   createShareAsset,
   ShareCard,
@@ -32,10 +31,15 @@ import {
   restoreGooglePlayPurchases,
   startGooglePlayPurchase,
 } from "@/lib/payments/google-play-client";
-import { openLemonSqueezyCheckout } from "@/lib/payments/lemon-squeezy-client";
+import { PADDLE_CHECKOUT_COMPLETED_EVENT } from "@/lib/payments/paddle-client-events";
 import { usePaymentChannel } from "@/lib/payments/use-payment-channel";
 import { createZazzlePrintCheckout } from "@/lib/printing/zazzle-client";
 import { PET_DEMO_RESULT } from "@/lib/rarity/pet-config";
+
+async function getSupabaseClient() {
+  const { createClient } = await import("@/lib/supabase/client");
+  return createClient();
+}
 
 type IconProps = { className?: string };
 type FlowState =
@@ -58,8 +62,8 @@ type AppProps = {
   initialAnalysis: PublicAnalysis | null;
   shouldRestorePendingPhoto: boolean;
   supabaseConfigured: boolean;
-  lemonSqueezyConfigured: boolean;
   paddleConfigured: boolean;
+  googlePlayConfigured: boolean;
   zazzlePrintEnabled: boolean;
   paddleEnvironment: "sandbox" | "production";
 };
@@ -254,8 +258,8 @@ export function RarityApp({
   initialAnalysis,
   shouldRestorePendingPhoto,
   supabaseConfigured,
-  lemonSqueezyConfigured,
   paddleConfigured,
+  googlePlayConfigured,
   zazzlePrintEnabled,
   paddleEnvironment,
 }: AppProps) {
@@ -270,6 +274,7 @@ export function RarityApp({
   const [checkoutPromptOpen, setCheckoutPromptOpen] = useState(
     initialAnalysis?.status === "awaiting_payment",
   );
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [playPrice, setPlayPrice] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string | null>(
     initialAnalysis?.photoUrl ?? null,
@@ -354,7 +359,9 @@ export function RarityApp({
 
   const refreshCreditBalance = useCallback(async () => {
     if (!initialUser) return;
-    const response = await fetch("/api/account", { cache: "no-store" });
+    const response = await fetch("/api/account?view=balance", {
+      cache: "no-store",
+    });
     if (!response.ok) return;
     const account = await response.json();
     if (typeof account.creditBalance === "number") {
@@ -370,14 +377,34 @@ export function RarityApp({
       const analysis = (await response.json()) as PublicAnalysis;
       if (analysis.status !== "awaiting_payment") {
         applyStatus(analysis);
+        setCheckoutBusy(false);
         void refreshCreditBalance();
         return;
       }
     }
+    setCheckoutBusy(false);
     setFlow("checkout");
     setCheckoutPromptOpen(true);
     setMessage("Payment is complete. Your credits are still being confirmed; try again shortly.");
   }, [applyStatus, refreshCreditBalance]);
+
+  useEffect(() => {
+    const handleHostedCheckoutCompleted = () => {
+      if (!analysisId) return;
+      setCheckoutBusy(true);
+      setFlow("verifying");
+      void confirmCreditPurchase(analysisId);
+    };
+    window.addEventListener(
+      PADDLE_CHECKOUT_COMPLETED_EVENT,
+      handleHostedCheckoutCompleted,
+    );
+    return () =>
+      window.removeEventListener(
+        PADDLE_CHECKOUT_COMPLETED_EVENT,
+        handleHostedCheckoutCompleted,
+      );
+  }, [analysisId, confirmCreditPurchase]);
 
   useEffect(() => {
     if (paymentChannel !== "google_play") return;
@@ -403,7 +430,7 @@ export function RarityApp({
       return;
     }
     playRestoreAttempted.current = true;
-    void restoreGooglePlayPurchases()
+    void restoreGooglePlayPurchases(analysisId ?? undefined)
       .then((restored) => {
         const resumed = restored.find((purchase) => purchase.analysisId);
         if (resumed?.analysisId) {
@@ -415,6 +442,7 @@ export function RarityApp({
       })
       .catch(() => undefined);
   }, [
+    analysisId,
     confirmCreditPurchase,
     initialUser,
     paymentChannel,
@@ -435,7 +463,7 @@ export function RarityApp({
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "Could not start the upload.");
 
-    const supabase = createClient();
+    const supabase = await getSupabaseClient();
     const { error: uploadError } = await supabase.storage
       .from("analysis-photos")
       .uploadToSignedUrl(payload.upload.path, payload.upload.token, file, {
@@ -601,26 +629,36 @@ export function RarityApp({
   }, [flow, photo, result]);
 
   async function startCheckout(
-    provider: "lemon_squeezy" | "paddle" | "google_play",
+    provider: "paddle" | "google_play",
   ) {
+    if (checkoutBusy) return;
     if (
       !analysisId ||
-      (provider === "lemon_squeezy" && !lemonSqueezyConfigured) ||
       (provider === "paddle" && !paddleConfigured) ||
-      (provider === "google_play" && paymentChannel !== "google_play")
+      (provider === "google_play" &&
+        (paymentChannel !== "google_play" || !googlePlayConfigured))
     ) {
       setMessage("Checkout is not configured yet.");
       return;
     }
+    setCheckoutBusy(true);
     setMessage(null);
-    const response = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analysisId, provider }),
-    });
+    let response: Response;
+    try {
+      response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ analysisId, provider }),
+      });
+    } catch {
+      setMessage("Checkout could not be opened. Check your connection and try again.");
+      setCheckoutBusy(false);
+      return;
+    }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       setMessage(payload.error || "Checkout could not be opened.");
+      setCheckoutBusy(false);
       return;
     }
     if (provider === "google_play") {
@@ -632,6 +670,7 @@ export function RarityApp({
         setFlow("verifying");
         void confirmCreditPurchase(analysisId);
       } catch (error) {
+        setCheckoutBusy(false);
         if (error instanceof DOMException && error.name === "AbortError") return;
         setMessage(
           error instanceof Error
@@ -641,35 +680,34 @@ export function RarityApp({
       }
       return;
     }
-    if (provider === "lemon_squeezy") {
-      if (typeof payload.checkoutUrl !== "string") {
-        setMessage("Checkout could not be opened.");
-        return;
-      }
-      openLemonSqueezyCheckout(payload.checkoutUrl, () => {
-        setFlow("verifying");
-        void confirmCreditPurchase(analysisId);
-      });
-      return;
-    }
-    const paddle = await initializePaddle({
-      token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN!,
-      environment: paddleEnvironment,
-      eventCallback: (event) => {
-        if (event.name === "checkout.completed") {
-          setFlow("verifying");
-          void confirmCreditPurchase(analysisId);
-        }
-      },
-      checkout: {
-        settings: {
-          displayMode: "overlay",
-          theme: "light",
-          showAddDiscounts: false,
+    try {
+      const { initializePaddle } = await import("@paddle/paddle-js");
+      const paddle = await initializePaddle({
+        token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN!,
+        environment: paddleEnvironment,
+        eventCallback: (event) => {
+          if (event.name === "checkout.completed") {
+            setFlow("verifying");
+            void confirmCreditPurchase(analysisId);
+          } else if (event.name === "checkout.closed") {
+            setCheckoutBusy(false);
+          }
         },
-      },
-    });
-    paddle?.Checkout.open({ transactionId: payload.transactionId });
+        checkout: {
+          settings: {
+            displayMode: "overlay",
+            theme: "light",
+            allowLogout: false,
+            showAddDiscounts: false,
+          },
+        },
+      });
+      if (!paddle) throw new Error("paddle_not_initialized");
+      paddle.Checkout.open({ transactionId: payload.transactionId });
+    } catch {
+      setMessage("Checkout could not be opened. Please try again.");
+      setCheckoutBusy(false);
+    }
   }
 
   async function signInWithGoogle() {
@@ -678,14 +716,16 @@ export function RarityApp({
       return;
     }
     const redirectTo = `${window.location.origin}/auth/callback?next=/?resume=1`;
-    await createClient().auth.signInWithOAuth({
+    const supabase = await getSupabaseClient();
+    await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
     });
   }
 
   async function signOut() {
-    const { error } = await createClient().auth.signOut();
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase.auth.signOut();
     if (error) {
       setMessage("Could not sign out. Please try again.");
       return;
@@ -699,7 +739,8 @@ export function RarityApp({
     event.preventDefault();
     if (!email || !supabaseConfigured) return;
     const redirectTo = `${window.location.origin}/auth/callback?next=/?resume=1`;
-    const { error } = await createClient().auth.signInWithOtp({
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: redirectTo },
     });
@@ -831,15 +872,12 @@ export function RarityApp({
   const heroCardResult = result || (photo ? PENDING_CARD_RESULT : heroDemo.result);
   const heroCardPhoto = photo || heroDemo.image;
   const checkoutAvailable =
-    paymentChannel === "google_play" ||
-    (paymentChannel === "web" &&
-      (lemonSqueezyConfigured || paddleConfigured));
+    (paymentChannel === "google_play" && googlePlayConfigured) ||
+    (paymentChannel === "web" && paddleConfigured);
   const primaryProvider =
     paymentChannel === "google_play"
       ? ("google_play" as const)
-      : lemonSqueezyConfigured
-        ? ("lemon_squeezy" as const)
-        : ("paddle" as const);
+      : ("paddle" as const);
   const checkoutPrice =
     paymentChannel === "google_play" ? playPrice : paymentChannel === "web" ? "$5" : null;
 
@@ -964,27 +1002,19 @@ export function RarityApp({
               <button
                 type="button"
                 className="checkout-button"
-                disabled={!analysisId || !checkoutAvailable}
+                disabled={checkoutBusy || !analysisId || !checkoutAvailable}
                 onClick={() => void startCheckout(primaryProvider)}
               >
-                {!analysisId || paymentChannel === "loading"
+                {checkoutBusy
+                  ? "Opening checkout…"
+                  : !analysisId || paymentChannel === "loading"
                   ? "Preparing secure checkout…"
                   : paymentChannel === "play_unavailable"
                     ? "Google Play Billing unavailable"
+                    : paymentChannel === "google_play" && !googlePlayConfigured
+                      ? "Google Play checkout temporarily unavailable"
                     : `Pay${checkoutPrice ? ` ${checkoutPrice}` : ""} · Get 5 card credits`}
               </button>
-              {paymentChannel === "web" &&
-                lemonSqueezyConfigured &&
-                paddleConfigured && (
-                <button
-                  type="button"
-                  className="text-button"
-                  disabled={!analysisId}
-                  onClick={() => void startCheckout("paddle")}
-                >
-                  Pay with Paddle instead
-                </button>
-                )}
               {paymentChannel === "play_unavailable" && (
                 <small>
                   Update Chrome or reopen Rarely from Google Play. Web checkout
@@ -1217,6 +1247,7 @@ export function RarityApp({
               photo={heroCardPhoto}
               result={heroCardResult}
               pending={Boolean(photo && !result)}
+              photoPriority
             />
           </div>
           <div className="card-shadow-pink" aria-hidden="true" />
@@ -1237,8 +1268,12 @@ export function RarityApp({
           <article className="clarity-step">
             <span className="clarity-number">01</span>
             <figure>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/pets/window-cat.jpg" alt="Cat watching a pink sunset through an open window" />
+              <Image
+                src="/pets/window-cat.jpg"
+                alt="Cat watching a pink sunset through an open window"
+                fill
+                sizes="(max-width: 760px) 92vw, 30vw"
+              />
               <figcaption>ONE CLEAR CAT OR DOG</figcaption>
             </figure>
             <h3>YOU SEND THE PHOTO</h3>
@@ -1247,8 +1282,12 @@ export function RarityApp({
           <article className="clarity-step clarity-read">
             <span className="clarity-number">02</span>
             <figure>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/pets/quiet-dog.jpg" alt="Beagle looking directly into the camera" />
+              <Image
+                src="/pets/quiet-dog.jpg"
+                alt="Beagle looking directly into the camera"
+                fill
+                sizes="(max-width: 760px) 92vw, 30vw"
+              />
               <div className="trait-tags" aria-hidden="true">
                 <i>AURA</i><i>SCENE LORE</i><i>DRAMA</i><i>GAZE</i>
               </div>
@@ -1327,4 +1366,3 @@ export function RarityApp({
     </main>
   );
 }
-

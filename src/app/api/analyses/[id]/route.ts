@@ -11,6 +11,8 @@ import {
   petPronounsSchema,
   type PublicAnalysis,
 } from "@/lib/analysis/types";
+import { reportServerError } from "@/lib/observability";
+import { startFullRefund } from "@/lib/paddle";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -49,7 +51,7 @@ export async function GET(request: Request, context: RouteContext) {
   const { data, error } = await supabase
     .from("analysis_requests")
     .select(
-      "id, card_style, pet_name, status, result_json, rejection_message, replacement_count, created_at, updated_at, processing_started_at, card_photo_path, object_path",
+      "id, card_style, pet_name, status, result_json, rejection_message, replacement_count, created_at, updated_at, processing_started_at, refund_attempted_at, card_photo_path, object_path",
     )
     .eq("id", id)
     .single();
@@ -99,6 +101,22 @@ export async function GET(request: Request, context: RouteContext) {
     Date.now() - new Date(data.processing_started_at).getTime() > 10 * 60 * 1000;
   if (status === "paid" || processingIsStale) {
     after(() => runAnalysis(id));
+  }
+  const refundReconciliationIsDue =
+    (status === "refund_pending" || status === "refunded") &&
+    (!data.refund_attempted_at ||
+      Date.now() - new Date(data.refund_attempted_at).getTime() > 5 * 60_000);
+  if (refundReconciliationIsDue) {
+    after(async () => {
+      try {
+        await startFullRefund(id);
+      } catch (error) {
+        reportServerError(error, {
+          operation: "analysis_refund_reconciliation",
+          analysisId: id,
+        });
+      }
+    });
   }
 
   return Response.json(response, {

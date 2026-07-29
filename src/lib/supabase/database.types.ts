@@ -29,6 +29,8 @@ export type CreditPurchaseStatus =
   | "disputed"
   | "failed";
 
+// Lemon Squeezy is retained for historical rows only. New checkout and credit
+// grant paths accept Paddle or Google Play.
 export type PaymentProvider = "paddle" | "lemon_squeezy" | "google_play";
 
 type AnalysisRequestRow = {
@@ -45,11 +47,18 @@ type AnalysisRequestRow = {
   image_height: number | null;
   paddle_transaction_id: string | null;
   paddle_adjustment_id: string | null;
+  paddle_adjustment_occurred_at: string | null;
+  pre_dispute_status: AnalysisStatus | null;
+  pre_dispute_adjustment_id: string | null;
+  pre_dispute_refund_attempt_id: string | null;
+  pre_dispute_refund_attempted_at: string | null;
+  pre_dispute_error_code: string | null;
   credit_purchase_id: string | null;
-  credit_state: "reserved" | "consumed" | "restored" | null;
+  credit_state: "reserved" | "consumed" | "restored" | "revoked" | null;
   credit_reserved_at: string | null;
   credit_consumed_at: string | null;
   credit_released_at: string | null;
+  processing_token: string | null;
   card_photo_path: string | null;
   result_json: Json | null;
   rejection_reason: string | null;
@@ -65,6 +74,8 @@ type AnalysisRequestRow = {
   processing_started_at: string | null;
   completed_at: string | null;
   refunded_at: string | null;
+  refund_attempt_id: string | null;
+  refund_attempted_at: string | null;
   expires_at: string | null;
 };
 
@@ -82,11 +93,18 @@ type AnalysisRequestInsert = {
   image_height?: number | null;
   paddle_transaction_id?: string | null;
   paddle_adjustment_id?: string | null;
+  paddle_adjustment_occurred_at?: string | null;
+  pre_dispute_status?: AnalysisStatus | null;
+  pre_dispute_adjustment_id?: string | null;
+  pre_dispute_refund_attempt_id?: string | null;
+  pre_dispute_refund_attempted_at?: string | null;
+  pre_dispute_error_code?: string | null;
   credit_purchase_id?: string | null;
-  credit_state?: "reserved" | "consumed" | "restored" | null;
+  credit_state?: "reserved" | "consumed" | "restored" | "revoked" | null;
   credit_reserved_at?: string | null;
   credit_consumed_at?: string | null;
   credit_released_at?: string | null;
+  processing_token?: string | null;
   card_photo_path?: string | null;
   result_json?: Json | null;
   rejection_reason?: string | null;
@@ -102,6 +120,8 @@ type AnalysisRequestInsert = {
   processing_started_at?: string | null;
   completed_at?: string | null;
   refunded_at?: string | null;
+  refund_attempt_id?: string | null;
+  refund_attempted_at?: string | null;
   expires_at?: string | null;
 };
 
@@ -124,16 +144,27 @@ export type Database = {
           provider_checkout_id: string | null;
           provider_transaction_id: string | null;
           provider_adjustment_id: string | null;
+          provider_adjustment_occurred_at: string | null;
+          pre_dispute_status: CreditPurchaseStatus | null;
+          pre_dispute_adjustment_id: string | null;
+          pre_dispute_refund_requested_at: string | null;
+          pre_dispute_refund_attempt_id: string | null;
+          pre_dispute_refund_attempted_at: string | null;
           resume_analysis_id: string | null;
+          checkout_scope_id: string;
+          pending_checkout_guarded: boolean;
           status: CreditPurchaseStatus;
           credits_granted: number;
           credits_remaining: number;
+          revoked_credits_remaining: number | null;
           amount_cents: number;
           currency: string;
           created_at: string;
           updated_at: string;
           completed_at: string | null;
           refund_requested_at: string | null;
+          refund_attempt_id: string | null;
+          refund_attempted_at: string | null;
           refunded_at: string | null;
         };
         Insert: {
@@ -143,16 +174,27 @@ export type Database = {
           provider_checkout_id?: string | null;
           provider_transaction_id?: string | null;
           provider_adjustment_id?: string | null;
+          provider_adjustment_occurred_at?: string | null;
+          pre_dispute_status?: CreditPurchaseStatus | null;
+          pre_dispute_adjustment_id?: string | null;
+          pre_dispute_refund_requested_at?: string | null;
+          pre_dispute_refund_attempt_id?: string | null;
+          pre_dispute_refund_attempted_at?: string | null;
           resume_analysis_id?: string | null;
+          checkout_scope_id?: string;
+          pending_checkout_guarded?: boolean;
           status?: CreditPurchaseStatus;
           credits_granted?: number;
           credits_remaining?: number;
+          revoked_credits_remaining?: number | null;
           amount_cents?: number;
           currency?: string;
           created_at?: string;
           updated_at?: string;
           completed_at?: string | null;
           refund_requested_at?: string | null;
+          refund_attempt_id?: string | null;
+          refund_attempted_at?: string | null;
           refunded_at?: string | null;
         };
         Update: {
@@ -160,15 +202,26 @@ export type Database = {
           provider_checkout_id?: string | null;
           provider_transaction_id?: string | null;
           provider_adjustment_id?: string | null;
+          provider_adjustment_occurred_at?: string | null;
+          pre_dispute_status?: CreditPurchaseStatus | null;
+          pre_dispute_adjustment_id?: string | null;
+          pre_dispute_refund_requested_at?: string | null;
+          pre_dispute_refund_attempt_id?: string | null;
+          pre_dispute_refund_attempted_at?: string | null;
           resume_analysis_id?: string | null;
+          checkout_scope_id?: string;
+          pending_checkout_guarded?: boolean;
           status?: CreditPurchaseStatus;
           credits_granted?: number;
           credits_remaining?: number;
+          revoked_credits_remaining?: number | null;
           amount_cents?: number;
           currency?: string;
           updated_at?: string;
           completed_at?: string | null;
           refund_requested_at?: string | null;
+          refund_attempt_id?: string | null;
+          refund_attempted_at?: string | null;
           refunded_at?: string | null;
         };
         Relationships: [];
@@ -221,7 +274,9 @@ export type Database = {
           credit_purchase_id: string | null;
           occurred_at: string | null;
           payload_digest: string;
-          processed_at: string;
+          processed_at: string | null;
+          processing_started_at: string | null;
+          processing_token: string | null;
         };
         Insert: {
           event_id: string;
@@ -232,7 +287,9 @@ export type Database = {
           credit_purchase_id?: string | null;
           occurred_at?: string | null;
           payload_digest: string;
-          processed_at?: string;
+          processed_at?: string | null;
+          processing_started_at?: string | null;
+          processing_token?: string | null;
         };
         Update: {
           event_type?: string;
@@ -242,7 +299,9 @@ export type Database = {
           credit_purchase_id?: string | null;
           occurred_at?: string | null;
           payload_digest?: string;
-          processed_at?: string;
+          processed_at?: string | null;
+          processing_started_at?: string | null;
+          processing_token?: string | null;
         };
         Relationships: [];
       };
@@ -276,6 +335,88 @@ export type Database = {
         Args: { p_analysis_id: string };
         Returns: boolean;
       };
+      claim_payment_event: {
+        Args: {
+          p_event_id: string;
+          p_payload_digest: string;
+          p_processing_token: string;
+        };
+        Returns: "missing" | "mismatch" | "processed" | "busy" | "claimed";
+      };
+      claim_analysis_for_processing: {
+        Args: {
+          p_analysis_id: string;
+          p_processing_token: string;
+        };
+        Returns: {
+          id: string;
+          user_id: string;
+          object_path: string;
+          card_style: CardStyle;
+          pet_name: string | null;
+          pet_pronouns: "he" | "she" | "they" | null;
+          attempt_count: number;
+          credit_purchase_id: string | null;
+        }[];
+      };
+      finalize_analysis_result: {
+        Args: {
+          p_analysis_id: string;
+          p_processing_token: string;
+          p_outcome: "completed" | "photo_rejected";
+          p_result_json: Json | null;
+          p_rejection_reason: string | null;
+          p_rejection_message: string | null;
+          p_card_photo_path: string | null;
+        };
+        Returns:
+          | "missing"
+          | "already_finalized"
+          | "stale_claim"
+          | "revoked"
+          | "credit_conflict"
+          | "entitlement_missing"
+          | "finalized";
+      };
+      retry_analysis_after_failure: {
+        Args: {
+          p_analysis_id: string;
+          p_processing_token: string;
+          p_error_code: string;
+        };
+        Returns:
+          | "missing"
+          | "stale_claim"
+          | "revoked"
+          | "retry_scheduled";
+      };
+      fail_analysis_and_restore_credit: {
+        Args: {
+          p_analysis_id: string;
+          p_processing_token: string;
+          p_error_code: string;
+        };
+        Returns:
+          | "unsupported"
+          | "stale_claim"
+          | "revoked"
+          | "credit_conflict"
+          | "restored";
+      };
+      recover_exhausted_analysis: {
+        Args: {
+          p_analysis_id: string;
+          p_error_code: string;
+        };
+        Returns:
+          | "missing"
+          | "not_exhausted"
+          | "entitlement_missing"
+          | "legacy_refund_required"
+          | "revoked"
+          | "credit_conflict"
+          | "restored";
+      };
       grant_credit_purchase: {
         Args: {
           p_purchase_id: string;
@@ -302,6 +443,52 @@ export type Database = {
       restore_analysis_credit: {
         Args: { p_analysis_id: string };
         Returns: boolean;
+      };
+      revoke_credit_purchase: {
+        Args: {
+          p_purchase_id: string;
+          p_status: "failed" | "refunded" | "disputed";
+          p_adjustment_id: string;
+          p_refunded_at?: string | null;
+        };
+        Returns: "missing" | "already_terminal" | "revoked";
+      };
+      reverse_credit_purchase_dispute: {
+        Args: {
+          p_purchase_id: string;
+          p_adjustment_id: string;
+        };
+        Returns: "missing" | "not_disputed" | "restored";
+      };
+      apply_credit_purchase_adjustment: {
+        Args: {
+          p_purchase_id: string;
+          p_decision:
+            | "refund_pending"
+            | "refund_rejected"
+            | "refund_reversed"
+            | "refunded"
+            | "disputed"
+            | "dispute_reversed";
+          p_adjustment_id: string;
+          p_occurred_at: string;
+        };
+        Returns: "missing" | "stale" | "ignored" | "applied";
+      };
+      apply_legacy_analysis_adjustment: {
+        Args: {
+          p_analysis_id: string;
+          p_decision:
+            | "disputed"
+            | "dispute_reversed"
+            | "refunded"
+            | "refund_pending"
+            | "refund_retry";
+          p_adjustment_id: string;
+          p_occurred_at: string;
+          p_error_code: string;
+        };
+        Returns: "missing" | "stale" | "ignored" | "applied";
       };
     };
     Enums: {

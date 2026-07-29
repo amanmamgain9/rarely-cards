@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import { analyzePet } from "@/lib/ai/gemini";
 import { inspectImage, prepareImageForGemini } from "@/lib/analysis/image";
 import { cardStyleSchema } from "@/lib/analysis/types";
@@ -8,7 +9,6 @@ import { reportServerError } from "@/lib/observability";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/supabase/database.types";
 
-const STALE_PROCESSING_MS = 10 * 60 * 1000;
 const MAX_JOB_ATTEMPTS = 3;
 
 function safeErrorCode(error: unknown) {
@@ -23,49 +23,63 @@ function safeErrorCode(error: unknown) {
 
 async function claimAnalysis(analysisId: string) {
   const admin = createAdminClient();
-  const { data: current } = await admin
-    .from("analysis_requests")
-    .select(
-      "id, user_id, status, version, attempt_count, object_path, card_style, pet_name, pet_pronouns, processing_started_at, paddle_transaction_id, credit_purchase_id, credit_state",
-    )
-    .eq("id", analysisId)
-    .single();
-
-  const hasEntitlement =
-    Boolean(current?.paddle_transaction_id) ||
-    (Boolean(current?.credit_purchase_id) &&
-      ["reserved", "consumed"].includes(current?.credit_state ?? ""));
-  if (!current || !hasEntitlement || !current.object_path) return null;
-  const stale =
-    current.status === "processing" &&
-    current.processing_started_at &&
-    Date.now() - new Date(current.processing_started_at).getTime() >
-      STALE_PROCESSING_MS;
-  if (current.status !== "paid" && !stale) return null;
-
-  const { data: claimed } = await admin
-    .from("analysis_requests")
-    .update({
-      status: "processing",
-      processing_started_at: new Date().toISOString(),
-      attempt_count: current.attempt_count + 1,
-      error_code: null,
-    })
-    .eq("id", analysisId)
-    .eq("version", current.version)
-    .select(
-      "id, user_id, object_path, card_style, pet_name, pet_pronouns, attempt_count, credit_purchase_id",
-    )
-    .maybeSingle();
+  const processingToken = randomUUID();
+  const { data, error } = await admin.rpc("claim_analysis_for_processing", {
+    p_analysis_id: analysisId,
+    p_processing_token: processingToken,
+  });
+  if (error) throw new Error("analysis_claim_failed");
+  const claimed = data?.[0];
 
   if (!claimed?.object_path) return null;
   return {
     ...claimed,
     object_path: claimed.object_path,
+    processingToken,
   };
 }
 
+async function recoverExhaustedAnalysis(analysisId: string) {
+  const admin = createAdminClient();
+  const { data: recovery, error } = await admin.rpc(
+    "recover_exhausted_analysis",
+    {
+      p_analysis_id: analysisId,
+      p_error_code: "worker_recovery",
+    },
+  );
+  if (error) {
+    reportServerError(error, {
+      operation: "analysis_exhausted_recovery",
+      analysisId,
+    });
+    return true;
+  }
+  if (recovery === "legacy_refund_required") {
+    try {
+      await startFullRefund(analysisId);
+    } catch (refundError) {
+      reportServerError(refundError, {
+        operation: "analysis_legacy_refund_recovery",
+        analysisId,
+      });
+      await admin
+        .from("analysis_requests")
+        .update({
+          status: "refund_pending",
+          error_code: "refund_start_failed",
+          expires_at: null,
+        })
+        .eq("id", analysisId)
+        .eq("status", "failed");
+    }
+    return true;
+  }
+  return recovery !== "not_exhausted";
+}
+
 export async function runAnalysis(analysisId: string): Promise<void> {
+  if (await recoverExhaustedAnalysis(analysisId)) return;
   const claimed = await claimAnalysis(analysisId);
   if (!claimed) return;
 
@@ -90,26 +104,24 @@ export async function runAnalysis(analysisId: string): Promise<void> {
       petName: claimed.pet_name,
       pronouns: claimed.pet_pronouns,
     });
-    if (claimed.credit_purchase_id) {
-      const { error: creditError } = await admin.rpc(
-        "consume_analysis_credit",
-        { p_analysis_id: analysisId },
-      );
-      if (creditError) throw new Error("credit_finalize_failed");
-    }
     if (result.status === "rejected") {
-      await admin
-        .from("analysis_requests")
-        .update({
-          status: "photo_rejected",
-          result_json: null,
-          rejection_reason: result.reason,
-          rejection_message: result.message,
-          processing_started_at: null,
-          expires_at: null,
-        })
-        .eq("id", analysisId)
-        .eq("status", "processing");
+      const { data: finalized, error: finalizeError } = await admin.rpc(
+        "finalize_analysis_result",
+        {
+          p_analysis_id: analysisId,
+          p_processing_token: claimed.processingToken,
+          p_outcome: "photo_rejected",
+          p_result_json: null,
+          p_rejection_reason: result.reason,
+          p_rejection_message: result.message,
+          p_card_photo_path: null,
+        },
+      );
+      if (finalizeError) throw new Error("analysis_finalize_failed");
+      if (finalized === "revoked" || finalized === "stale_claim") return;
+      if (!["finalized", "already_finalized"].includes(finalized)) {
+        throw new Error(`analysis_finalize_${finalized}`);
+      }
       return;
     }
 
@@ -125,20 +137,23 @@ export async function runAnalysis(analysisId: string): Promise<void> {
       ? claimed.object_path
       : retainedPath;
 
-    await admin
-      .from("analysis_requests")
-      .update({
-        status: "completed",
-        card_photo_path: cardPhotoPath,
-        result_json: result as unknown as Json,
-        rejection_reason: null,
-        rejection_message: null,
-        completed_at: new Date().toISOString(),
-        processing_started_at: null,
-        expires_at: null,
-      })
-      .eq("id", analysisId)
-      .eq("status", "processing");
+    const { data: finalized, error: finalizeError } = await admin.rpc(
+      "finalize_analysis_result",
+      {
+        p_analysis_id: analysisId,
+        p_processing_token: claimed.processingToken,
+        p_outcome: "completed",
+        p_result_json: result as unknown as Json,
+        p_rejection_reason: null,
+        p_rejection_message: null,
+        p_card_photo_path: cardPhotoPath,
+      },
+    );
+    if (finalizeError) throw new Error("analysis_finalize_failed");
+    if (finalized === "revoked" || finalized === "stale_claim") return;
+    if (!["finalized", "already_finalized"].includes(finalized)) {
+      throw new Error(`analysis_finalize_${finalized}`);
+    }
   } catch (error) {
     const code = safeErrorCode(error);
     reportServerError(error, {
@@ -149,47 +164,57 @@ export async function runAnalysis(analysisId: string): Promise<void> {
     });
 
     if (claimed.attempt_count < MAX_JOB_ATTEMPTS) {
-      await admin
-        .from("analysis_requests")
-        .update({
-          status: "paid",
-          processing_started_at: null,
-          error_code: code,
-        })
-        .eq("id", analysisId)
-        .eq("status", "processing");
+      const { data: retryState, error: retryError } = await admin.rpc(
+        "retry_analysis_after_failure",
+        {
+          p_analysis_id: analysisId,
+          p_processing_token: claimed.processingToken,
+          p_error_code: code,
+        },
+      );
+      if (retryError) {
+        reportServerError(retryError, {
+          operation: "analysis_retry_transition",
+          analysisId,
+        });
+      }
+      if (retryState === "revoked" || retryState === "stale_claim") return;
       return;
     }
 
-    await admin
-      .from("analysis_requests")
-      .update({
-        status: "failed",
-        processing_started_at: null,
-        error_code: code,
-      })
-      .eq("id", analysisId)
-      .eq("status", "processing");
-
     if (claimed.credit_purchase_id) {
-      const { error: restoreError } = await admin.rpc(
-        "restore_analysis_credit",
-        { p_analysis_id: analysisId },
+      const { data: restored, error: restoreError } = await admin.rpc(
+        "fail_analysis_and_restore_credit",
+        {
+          p_analysis_id: analysisId,
+          p_processing_token: claimed.processingToken,
+          p_error_code: code,
+        },
       );
-      await admin
+      if (restoreError || !["restored", "revoked", "stale_claim"].includes(restored)) {
+        reportServerError(restoreError ?? new Error(`credit_restore_${restored}`), {
+          operation: "analysis_credit_restore",
+          analysisId,
+        });
+      }
+    } else {
+      const { data: failed } = await admin
         .from("analysis_requests")
         .update({
-          error_code: restoreError ? "credit_restore_failed" : code,
+          status: "failed",
+          processing_started_at: null,
+          processing_token: null,
+          error_code: code,
           expires_at: null,
         })
-        .eq("id", analysisId);
-    } else {
+        .eq("id", analysisId)
+        .eq("status", "processing")
+        .eq("processing_token", claimed.processingToken)
+        .select("id")
+        .maybeSingle();
+      if (!failed) return;
       try {
         await startFullRefund(analysisId);
-        await admin
-          .from("analysis_requests")
-          .update({ expires_at: null })
-          .eq("id", analysisId);
       } catch {
         await admin
           .from("analysis_requests")

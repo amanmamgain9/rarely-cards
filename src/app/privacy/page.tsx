@@ -22,8 +22,8 @@ export default function PrivacyPage() {
         <p>
           We process your account identifier, email, the pet name and pronouns
           you provide, payment status, analysis status, and the result shown on the card.
-          Google Play, Lemon Squeezy, or Paddle handles payment details; Rarely
-          does not store full payment card data.
+          Google Play or Paddle handles payment details; Rarely does not store
+          full payment card data.
         </p>
 
         <h2>Photo handling</h2>
@@ -41,9 +41,9 @@ export default function PrivacyPage() {
         <h2>Sharing and retention</h2>
         <p>
           Supabase provides authentication, database, and private storage;
-          Google processes the image for AI output; Google Play, Lemon Squeezy,
-          or Paddle processes checkout and refunds; Vercel hosts the app; and
-          Sentry may receive redacted technical errors. We retain card results
+          Google processes the image for AI output; Google Play or Paddle
+          processes checkout and refunds; Vercel hosts the app; and Sentry may
+          receive redacted technical errors. We retain card results
           and transaction state for account access, support, fraud prevention,
           and legal obligations. Saved card photos remain until you delete the
           photo or request account deletion. Error logs never intentionally

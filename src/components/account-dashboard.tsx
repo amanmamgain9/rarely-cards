@@ -1,6 +1,5 @@
 "use client";
 
-import { initializePaddle } from "@paddle/paddle-js";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AccountCard, AccountData, AccountPurchase } from "@/lib/account-types";
@@ -9,16 +8,15 @@ import {
   restoreGooglePlayPurchases,
   startGooglePlayPurchase,
 } from "@/lib/payments/google-play-client";
-import { openLemonSqueezyCheckout } from "@/lib/payments/lemon-squeezy-client";
+import { PADDLE_CHECKOUT_COMPLETED_EVENT } from "@/lib/payments/paddle-client-events";
 import { usePaymentChannel } from "@/lib/payments/use-payment-channel";
 import { clearPendingPhoto } from "@/lib/pending-photo";
 import { createZazzlePrintCheckout } from "@/lib/printing/zazzle-client";
-import { createClient } from "@/lib/supabase/client";
 import { createShareAsset, ShareCard } from "@/components/share-card";
 
 type AccountDashboardProps = {
-  lemonSqueezyConfigured: boolean;
   paddleConfigured: boolean;
+  googlePlayConfigured: boolean;
   zazzlePrintEnabled: boolean;
   paddleEnvironment: "sandbox" | "production";
 };
@@ -210,7 +208,11 @@ function PurchaseRow({
       </div>
       {refundable && (
         <button type="button" disabled={busy} onClick={() => void requestRefund()}>
-          {busy ? "Requesting…" : "Request full refund"}
+          {busy
+            ? "Requesting…"
+            : purchase.status === "refund_pending"
+              ? "Retry refund"
+              : "Request full refund"}
         </button>
       )}
       {message && <p className="account-message" role="status">{message}</p>}
@@ -219,8 +221,8 @@ function PurchaseRow({
 }
 
 export function AccountDashboard({
-  lemonSqueezyConfigured,
   paddleConfigured,
+  googlePlayConfigured,
   zazzlePrintEnabled,
   paddleEnvironment,
 }: AccountDashboardProps) {
@@ -242,6 +244,21 @@ export function AccountDashboard({
     if (!response.ok) throw new Error(payload.error || "Account could not be loaded.");
     setAccount(payload as AccountData);
     return payload as AccountData;
+  }, []);
+
+  const fetchCreditBalance = useCallback(async (transactionId?: string) => {
+    const params = new URLSearchParams({ view: "balance" });
+    if (transactionId) params.set("transactionId", transactionId);
+    const response = await fetch(`/api/account?${params}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    if (typeof payload.creditBalance !== "number") return null;
+    return {
+      creditBalance: payload.creditBalance,
+      transactionConfirmed: payload.transactionConfirmed === true,
+    };
   }, []);
 
   useEffect(() => {
@@ -269,11 +286,18 @@ export function AccountDashboard({
     };
   }, []);
 
-  async function confirmPurchase(previousBalance: number) {
+  const confirmPurchase = useCallback(async (
+    previousBalance: number,
+    transactionId?: string,
+  ) => {
     for (let attempt = 0; attempt < 20; attempt += 1) {
       await new Promise((resolve) => window.setTimeout(resolve, 1500));
-      const next = await refresh().catch(() => null);
-      if (next && next.creditBalance >= previousBalance + 5) {
+      const next = await fetchCreditBalance(transactionId).catch(() => null);
+      const confirmed = transactionId
+        ? next?.transactionConfirmed === true
+        : next !== null && next.creditBalance >= previousBalance + 5;
+      if (confirmed) {
+        await refresh().catch(() => null);
         setMessage("Five new card credits are ready.");
         setBuying(false);
         return;
@@ -281,7 +305,28 @@ export function AccountDashboard({
     }
     setMessage("Payment is complete. Your credits are still being confirmed; refresh shortly.");
     setBuying(false);
-  }
+  }, [fetchCreditBalance, refresh]);
+
+  useEffect(() => {
+    const handleHostedCheckoutCompleted = (event: Event) => {
+      const transactionId = (
+        event as CustomEvent<{ transactionId?: string }>
+      ).detail?.transactionId;
+      if (!transactionId) return;
+      setBuying(true);
+      setMessage("Payment complete. Adding five credits…");
+      void confirmPurchase(account?.creditBalance ?? 0, transactionId);
+    };
+    window.addEventListener(
+      PADDLE_CHECKOUT_COMPLETED_EVENT,
+      handleHostedCheckoutCompleted,
+    );
+    return () =>
+      window.removeEventListener(
+        PADDLE_CHECKOUT_COMPLETED_EVENT,
+        handleHostedCheckoutCompleted,
+      );
+  }, [account?.creditBalance, confirmPurchase]);
 
   useEffect(() => {
     if (paymentChannel !== "google_play") return;
@@ -317,23 +362,31 @@ export function AccountDashboard({
   }, [paymentChannel, refresh]);
 
   async function buyCredits(
-    provider: "lemon_squeezy" | "paddle" | "google_play",
+    provider: "paddle" | "google_play",
   ) {
+    if (buying) return;
     if (
-      (provider === "lemon_squeezy" && !lemonSqueezyConfigured) ||
       (provider === "paddle" && !paddleConfigured) ||
-      (provider === "google_play" && paymentChannel !== "google_play")
+      (provider === "google_play" &&
+        (paymentChannel !== "google_play" || !googlePlayConfigured))
     ) {
       setMessage("Checkout is not configured yet.");
       return;
     }
     setBuying(true);
     setMessage(null);
-    const response = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider }),
-    });
+    let response: Response;
+    try {
+      response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+    } catch {
+      setMessage("Checkout could not be opened. Check your connection and try again.");
+      setBuying(false);
+      return;
+    }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       setMessage(payload.error || "Checkout could not be opened.");
@@ -360,44 +413,39 @@ export function AccountDashboard({
       }
       return;
     }
-    if (provider === "lemon_squeezy") {
-      if (typeof payload.checkoutUrl !== "string") {
-        setMessage("Checkout could not be opened.");
-        setBuying(false);
-        return;
-      }
-      openLemonSqueezyCheckout(payload.checkoutUrl, () => {
-        setBuying(true);
-        setMessage("Payment complete. Adding five credits…");
-        void confirmPurchase(previousBalance);
-      });
-      setBuying(false);
-      return;
-    }
 
-    const paddle = await initializePaddle({
-      token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN!,
-      environment: paddleEnvironment,
-      eventCallback: (event) => {
-        if (event.name === "checkout.completed") {
-          setMessage("Payment complete. Adding five credits…");
-          void confirmPurchase(previousBalance);
-        } else if (event.name === "checkout.closed") {
-          setBuying(false);
-        }
-      },
-      checkout: {
-        settings: {
-          displayMode: "overlay",
-          theme: "light",
-          showAddDiscounts: false,
+    try {
+      const { initializePaddle } = await import("@paddle/paddle-js");
+      const paddle = await initializePaddle({
+        token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN!,
+        environment: paddleEnvironment,
+        eventCallback: (event) => {
+          if (event.name === "checkout.completed") {
+            setMessage("Payment complete. Adding five credits…");
+            void confirmPurchase(previousBalance, payload.transactionId);
+          } else if (event.name === "checkout.closed") {
+            setBuying(false);
+          }
         },
-      },
-    });
-    paddle?.Checkout.open({ transactionId: payload.transactionId });
+        checkout: {
+          settings: {
+            displayMode: "overlay",
+            theme: "light",
+            allowLogout: false,
+            showAddDiscounts: false,
+          },
+        },
+      });
+      if (!paddle) throw new Error("paddle_not_initialized");
+      paddle.Checkout.open({ transactionId: payload.transactionId });
+    } catch {
+      setMessage("Checkout could not be opened. Please try again.");
+      setBuying(false);
+    }
   }
 
   async function signOut() {
+    const { createClient } = await import("@/lib/supabase/client");
     await createClient().auth.signOut();
     localStorage.removeItem("rarely-analysis-id");
     await clearPendingPhoto().catch(() => undefined);
@@ -431,15 +479,12 @@ export function AccountDashboard({
   }
 
   const checkoutAvailable =
-    paymentChannel === "google_play" ||
-    (paymentChannel === "web" &&
-      (lemonSqueezyConfigured || paddleConfigured));
+    (paymentChannel === "google_play" && googlePlayConfigured) ||
+    (paymentChannel === "web" && paddleConfigured);
   const primaryProvider =
     paymentChannel === "google_play"
       ? ("google_play" as const)
-      : lemonSqueezyConfigured
-        ? ("lemon_squeezy" as const)
-        : ("paddle" as const);
+      : ("paddle" as const);
   const checkoutPrice =
     paymentChannel === "google_play" ? playPrice : paymentChannel === "web" ? "$5" : null;
   const completedCards = account?.cards.filter((card) => card.status === "completed") ?? [];
@@ -484,20 +529,10 @@ export function AccountDashboard({
                 ? "Preparing secure checkout…"
                 : paymentChannel === "play_unavailable"
                   ? "Google Play Billing unavailable"
+                  : paymentChannel === "google_play" && !googlePlayConfigured
+                    ? "Google Play checkout temporarily unavailable"
                   : `Buy 5 more${checkoutPrice ? ` — ${checkoutPrice}` : ""}`}
           </button>
-          {paymentChannel === "web" &&
-            lemonSqueezyConfigured &&
-            paddleConfigured && (
-            <button
-              className="quiet"
-              type="button"
-              disabled={buying}
-              onClick={() => void buyCredits("paddle")}
-            >
-              Pay with Paddle instead
-            </button>
-            )}
           {paymentChannel === "play_unavailable" && (
             <p>Update Chrome or reopen Rarely from Google Play to buy credits.</p>
           )}

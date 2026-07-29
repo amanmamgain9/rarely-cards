@@ -4,12 +4,12 @@ import { PENDING_PHOTO_COOKIE } from "@/lib/analysis/resume";
 import { getLatestResumableAnalysis } from "@/lib/analysis/resume-server";
 import type { PublicAnalysis } from "@/lib/analysis/types";
 import {
-  hasLemonSqueezyEnv,
+  hasGooglePlayEnv,
   hasPaddleEnv,
   hasPublicSupabaseEnv,
 } from "@/lib/env";
+import { requireUser } from "@/lib/auth";
 import { isZazzlePrintEnabled } from "@/lib/printing/zazzle";
-import { createClient } from "@/lib/supabase/server";
 
 type HomeProps = {
   searchParams: Promise<{ resume?: string | string[] }>;
@@ -23,12 +23,9 @@ export default async function Home({ searchParams }: HomeProps) {
   let initialAnalysis: PublicAnalysis | null = null;
 
   if (supabaseConfigured) {
-    const supabase = await createClient();
-    const {
-      data: { user: currentUser },
-    } = await supabase.auth.getUser();
+    const { user: currentUser, supabase } = await requireUser();
     if (currentUser) {
-      user = { id: currentUser.id, email: currentUser.email ?? null };
+      user = currentUser;
       const [{ data: purchases }, resumableAnalysis] = await Promise.all([
         supabase
           .from("credit_purchases")
@@ -61,8 +58,8 @@ export default async function Home({ searchParams }: HomeProps) {
       initialAnalysis={initialAnalysis}
       shouldRestorePendingPhoto={shouldRestorePendingPhoto}
       supabaseConfigured={supabaseConfigured}
-      lemonSqueezyConfigured={hasLemonSqueezyEnv()}
       paddleConfigured={hasPaddleEnv()}
+      googlePlayConfigured={hasGooglePlayEnv()}
       zazzlePrintEnabled={isZazzlePrintEnabled()}
       paddleEnvironment={
         process.env.PADDLE_ENVIRONMENT === "production"
