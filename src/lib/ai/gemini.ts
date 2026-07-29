@@ -1,7 +1,7 @@
 import "server-only";
 
 import { GoogleGenAI } from "@google/genai";
-import { serverEnv } from "@/lib/env";
+import { GEMINI_GENERATION_CONFIG } from "@/lib/ai/gemini-config";
 import {
   analysisResultSchema,
   type AnalysisResult,
@@ -9,6 +9,7 @@ import {
   type PetPronouns,
 } from "@/lib/analysis/types";
 import { validateAnalysisContract } from "@/lib/analysis/validate-result";
+import { serverEnv } from "@/lib/env";
 import { buildPetRarityPrompt } from "@/lib/rarity/pet-prompt";
 
 let geminiClient: GoogleGenAI | null = null;
@@ -30,11 +31,6 @@ function isTransient(error: unknown) {
   );
 }
 
-function providerStatus(error: unknown) {
-  const candidate = error as { status?: number; code?: number };
-  return candidate.status ?? candidate.code ?? null;
-}
-
 function wait(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -53,17 +49,13 @@ export async function analyzePet({
   const env = serverEnv();
   if (style !== "pet") throw new Error("invalid_model_schema");
   const prompt = buildPetRarityPrompt(petName, pronouns);
-  const models = Array.from(
-    new Set([env.geminiModel, "gemini-2.5-flash-lite"]),
-  );
-  let modelIndex = 0;
   let transientRetries = 0;
   let schemaRetries = 0;
 
   for (;;) {
     try {
       const response = await getGemini().models.generateContent({
-        model: models[modelIndex],
+        model: env.geminiModel,
         contents: [
           {
             role: "user",
@@ -78,11 +70,7 @@ export async function analyzePet({
             ],
           },
         ],
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.35,
-          thinkingConfig: { thinkingBudget: 512 },
-        },
+        config: GEMINI_GENERATION_CONFIG,
       });
 
       try {
@@ -99,12 +87,6 @@ export async function analyzePet({
         error.message === "invalid_model_schema"
       ) {
         throw error;
-      }
-      if (providerStatus(error) === 404 && modelIndex < models.length - 1) {
-        modelIndex += 1;
-        transientRetries = 0;
-        schemaRetries = 0;
-        continue;
       }
       if (!isTransient(error) || transientRetries >= 2) throw error;
       await wait(500 * 2 ** transientRetries);

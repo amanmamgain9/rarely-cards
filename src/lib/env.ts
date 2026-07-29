@@ -1,5 +1,7 @@
 import "server-only";
 
+import { DEFAULT_GEMINI_MODEL } from "@/lib/ai/gemini-config";
+
 function required(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) {
@@ -119,7 +121,6 @@ export function serverEnv() {
     ...paddleEnv(),
     serviceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
     geminiApiKey: required("GEMINI_API_KEY"),
-    geminiModel: process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash",
+    geminiModel: process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL,
   };
 }
-
