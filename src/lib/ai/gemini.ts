@@ -30,6 +30,11 @@ function isTransient(error: unknown) {
   );
 }
 
+function providerStatus(error: unknown) {
+  const candidate = error as { status?: number; code?: number };
+  return candidate.status ?? candidate.code ?? null;
+}
+
 function wait(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -48,13 +53,17 @@ export async function analyzePet({
   const env = serverEnv();
   if (style !== "pet") throw new Error("invalid_model_schema");
   const prompt = buildPetRarityPrompt(petName, pronouns);
+  const models = Array.from(
+    new Set([env.geminiModel, "gemini-2.5-flash-lite"]),
+  );
+  let modelIndex = 0;
   let transientRetries = 0;
   let schemaRetries = 0;
 
   for (;;) {
     try {
       const response = await getGemini().models.generateContent({
-        model: env.geminiModel,
+        model: models[modelIndex],
         contents: [
           {
             role: "user",
@@ -91,10 +100,15 @@ export async function analyzePet({
       ) {
         throw error;
       }
+      if (providerStatus(error) === 404 && modelIndex < models.length - 1) {
+        modelIndex += 1;
+        transientRetries = 0;
+        schemaRetries = 0;
+        continue;
+      }
       if (!isTransient(error) || transientRetries >= 2) throw error;
       await wait(500 * 2 ** transientRetries);
       transientRetries += 1;
     }
   }
 }
-
