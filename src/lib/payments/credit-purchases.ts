@@ -38,3 +38,31 @@ export async function grantCreditPurchase(input: GrantCreditPurchaseInput) {
 
   return { purchaseId: input.purchaseId, analysisId: resumedAnalysisId };
 }
+
+export async function resumeAnalysisAfterGrantedPurchase(input: {
+  userId: string;
+  analysisId: string;
+}) {
+  const admin = createAdminClient();
+  const { data: completedPurchase, error: purchaseError } = await admin
+    .from("credit_purchases")
+    .select("id")
+    .eq("user_id", input.userId)
+    .eq("resume_analysis_id", input.analysisId)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+  if (purchaseError || !completedPurchase) return false;
+
+  const { data: resumed, error: resumeError } = await admin
+    .from("analysis_requests")
+    .update({ status: "awaiting_name", error_code: null })
+    .eq("id", input.analysisId)
+    .eq("user_id", input.userId)
+    .eq("status", "awaiting_payment")
+    .select("id")
+    .maybeSingle();
+  if (resumeError) throw new Error("purchase_analysis_resume_failed");
+
+  return Boolean(resumed);
+}

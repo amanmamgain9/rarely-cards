@@ -81,6 +81,12 @@ body {
   font-family: var(--font-nunito), sans-serif;
 }
 
+body:has(.flow-overlay),
+body:has(.analysis-overlay),
+body:has(.result-screen) {
+  overflow: hidden;
+}
+
 button,
 input {
   font: inherit;

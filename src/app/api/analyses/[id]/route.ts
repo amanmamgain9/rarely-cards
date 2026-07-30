@@ -13,6 +13,7 @@ import {
 } from "@/lib/analysis/types";
 import { reportServerError } from "@/lib/observability";
 import { startFullRefund } from "@/lib/paddle";
+import { resumeAnalysisAfterGrantedPurchase } from "@/lib/payments/credit-purchases";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -60,7 +61,18 @@ export async function GET(request: Request, context: RouteContext) {
     return Response.json({ error: "Analysis not found." }, { status: 404 });
   }
 
-  const status = analysisStatusSchema.parse(data.status);
+  let status = analysisStatusSchema.parse(data.status);
+
+  // A successful checkout and its webhook are separate requests. If the
+  // purchase was granted but the follow-up analysis update was interrupted,
+  // do not strand the user on the payment screen forever.
+  if (status === "awaiting_payment") {
+    const resumed = await resumeAnalysisAfterGrantedPurchase({
+      userId: user.id,
+      analysisId: id,
+    });
+    if (resumed) status = "awaiting_name";
+  }
   const parsedResult =
     status === "completed" ? acceptedAnalysisSchema.parse(data.result_json) : null;
   const result =
@@ -371,4 +383,3 @@ export async function DELETE(request: Request, context: RouteContext) {
 
   return Response.json({ deleted: true });
 }
-

@@ -6,6 +6,7 @@ import {
   type PublicAnalysis,
 } from "@/lib/analysis/types";
 import { RESUMABLE_ANALYSIS_STATUSES } from "@/lib/analysis/resume";
+import { resumeAnalysisAfterGrantedPurchase } from "@/lib/payments/credit-purchases";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function getLatestResumableAnalysis(
@@ -27,7 +28,14 @@ export async function getLatestResumableAnalysis(
   if (error) throw new Error(`resume_analysis_unavailable:${error.code}`);
   if (!data) return null;
 
-  const status = analysisStatusSchema.parse(data.status);
+  let status = analysisStatusSchema.parse(data.status);
+  if (status === "awaiting_payment") {
+    const resumed = await resumeAnalysisAfterGrantedPurchase({
+      userId,
+      analysisId: data.id,
+    });
+    if (resumed) status = "awaiting_name";
+  }
   let photoUrl: string | null = null;
   if (data.object_path) {
     const { data: signedPhoto, error: signedPhotoError } = await admin.storage
