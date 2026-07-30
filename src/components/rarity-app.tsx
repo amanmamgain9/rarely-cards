@@ -580,7 +580,7 @@ export function RarityApp({
         heroCardResult={heroCardResult}
       />
 
-      <RarityMarketing />
+      {!(initialUser && creditBalance > 0) && <RarityMarketing />}
     </main>
   );
 }

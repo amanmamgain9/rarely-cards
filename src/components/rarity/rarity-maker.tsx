@@ -51,16 +51,20 @@ export function RarityMaker({
   heroCardPhoto,
   heroCardResult,
 }: RarityMakerProps) {
+  const creditedWorkspace = signedIn && creditBalance > 0;
+
   return (
     <>
-      <header className="nav">
+      <header className={`nav ${creditedWorkspace ? "nav--workspace" : ""}`}>
         <a className="brand" href="#">RARELY <span><Star /></span></a>
-        <div className="nav-center">
-          <a href="#example">See an example</a>
-          <a href="/pricing">Pricing</a>
-          <a href="#stats">Why you&apos;ll keep it</a>
-          <a href="#how">How it works</a>
-        </div>
+        {!creditedWorkspace && (
+          <div className="nav-center">
+            <a href="#example">See an example</a>
+            <a href="/pricing">Pricing</a>
+            <a href="#stats">Why you&apos;ll keep it</a>
+            <a href="#how">How it works</a>
+          </div>
+        )}
         {signedIn ? (
           <div className="nav-account">
             <a href="/account"><i /> {creditBalance} credits · Account</a>
@@ -73,25 +77,41 @@ export function RarityMaker({
         )}
       </header>
 
-      <section className="hero" id="maker">
-        <div className="hero-burst burst-one" aria-hidden="true"><Star /></div>
+      <section className={`hero ${creditedWorkspace ? "hero--workspace" : ""}`} id="maker">
+        {!creditedWorkspace && (
+          <div className="hero-burst burst-one" aria-hidden="true"><Star /></div>
+        )}
         <div className="hero-content">
-          <div className="mini-tag"><span>AI PET CARDS</span> CAT OR DOG · 5 CARD CREDITS · $5</div>
-          <h1>PET PHOTO<span>→ STORY CARD.</span></h1>
-          <p className="hero-copy">
-            Upload the photo that feels most like them. We turn that one look into
-            a one-of-one card with the voice you already hear in your head—funny,
-            specific, and unmistakably theirs.
-          </p>
-          <div className="upload-instruction">
-            <span>01</span>
-            <div>
-              <small>SHOW US THEIR WORLD</small>
-              <strong>ADD THEIR PHOTO</strong>
-              <p>Close-up or full scene. One clear cat or dog. Let the room tell on them.</p>
-            </div>
-            <i aria-hidden="true">↓</i>
+          <div className="mini-tag">
+            <span>{creditedWorkspace ? "READY TO MAKE ONE" : "AI PET CARDS"}</span>
+            {creditedWorkspace
+              ? `${creditBalance} CREDIT${creditBalance === 1 ? "" : "S"} READY · 1 PER CARD`
+              : "CAT OR DOG · 5 CARD CREDITS · $5"}
           </div>
+          <h1>
+            {creditedWorkspace ? "PICK A PHOTO." : "PET PHOTO"}
+            <span>{creditedWorkspace ? "GET THEIR CARD." : "→ STORY CARD."}</span>
+          </h1>
+          <p className="hero-copy">
+            {creditedWorkspace
+              ? "Choose one clear photo of your cat or dog. Add their name, and we’ll turn that look into their one-of-one card."
+              : "Upload the photo that feels most like them. We turn that one look into a one-of-one card with the voice you already hear in your head—funny, specific, and unmistakably theirs."}
+          </p>
+          {creditedWorkspace ? (
+            <p className="workspace-flow">
+              01 Photo <b>→</b> 02 Name <b>→</b> 03 Card
+            </p>
+          ) : (
+            <div className="upload-instruction">
+              <span>01</span>
+              <div>
+                <small>SHOW US THEIR WORLD</small>
+                <strong>ADD THEIR PHOTO</strong>
+                <p>Close-up or full scene. One clear cat or dog. Let the room tell on them.</p>
+              </div>
+              <i aria-hidden="true">↓</i>
+            </div>
+          )}
           <div
             className={`photo-actions ${dragging ? "is-dragging" : ""}`}
             onDragOver={(event) => { event.preventDefault(); onDraggingChange(true); }}
@@ -114,34 +134,45 @@ export function RarityMaker({
             By adding a photo, you confirm you may use it and consent to private AI
             processing under our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.
           </p>
-          <button
-            className="reveal-cta"
-            type="button"
-            disabled={flow !== "checkout"}
-            onClick={onOpenCheckout}
-          >
-            <span>
-              {flow === "checkout"
-                ? `Get 5 card credits${checkoutPrice ? ` — ${checkoutPrice}` : ""}`
-                : selectedFile
-                  ? signedIn
-                    ? "Preparing secure checkout"
-                    : "Sign in to continue"
-                  : "Start with a pet photo ↑"}
-            </span>
-            <span className="cta-ball" aria-hidden="true"><i /></span>
-          </button>
+          {!creditedWorkspace && (
+            <button
+              className="reveal-cta"
+              type="button"
+              disabled={flow !== "checkout"}
+              onClick={onOpenCheckout}
+            >
+              <span>
+                {flow === "checkout"
+                  ? `Get 5 card credits${checkoutPrice ? ` — ${checkoutPrice}` : ""}`
+                  : selectedFile
+                    ? signedIn
+                      ? "Preparing secure checkout"
+                      : "Sign in to continue"
+                    : "Start with a pet photo ↑"}
+              </span>
+              <span className="cta-ball" aria-hidden="true"><i /></span>
+            </button>
+          )}
           <p className="privacy">
-            <span>◆</span> Private upload · Saved securely with completed cards · 5 attempts for $5
+            <span>◆</span>{" "}
+            {creditedWorkspace
+              ? "Private upload · Invalid files use no credit · Technical failures return it"
+              : "Private upload · Saved securely with completed cards · 5 attempts for $5"}
           </p>
           {message && flow !== "retry" && <p className="photo-error" role="alert">{message}</p>}
         </div>
 
         <div className="card-zone">
           <div className="card-label label-top">
-            {photo ? "YOUR PHOTO" : "REAL CARD PREVIEW"} <span>★</span>
+            {photo
+              ? "YOUR PHOTO"
+              : creditedWorkspace
+                ? "YOUR CARD APPEARS HERE"
+                : "REAL CARD PREVIEW"}{" "}<span>★</span>
           </div>
-          <div className="card-label label-side">DOWNLOADABLE · 9:16</div>
+          <div className="card-label label-side">
+            {creditedWorkspace ? "PHOTO → NAME → CARD" : "DOWNLOADABLE · 9:16"}
+          </div>
           <div className="hero-story-card" key={photo || result ? "active-card" : heroDemoImage}>
             <ShareCard
               photo={heroCardPhoto}
