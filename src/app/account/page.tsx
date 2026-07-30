@@ -6,7 +6,7 @@ import { hasGooglePlayEnv, hasPaddleEnv } from "@/lib/env";
 import { isZazzlePrintEnabled } from "@/lib/printing/zazzle";
 
 export const metadata: Metadata = {
-  title: "Your cards — Rarely",
+  title: "Account — Rarely",
   robots: { index: false, follow: false },
 };
 

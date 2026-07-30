@@ -133,7 +133,7 @@ function SavedCard({
           <div className="account-card-missing">
             <span>PHOTO DELETED</span>
             <strong>{card.result?.cardTitle || card.petName || "Saved card"}</strong>
-            <p>The result is still in your history.</p>
+            <p>Generation saved.</p>
           </div>
         )}
       </div>
@@ -192,7 +192,7 @@ function PurchaseRow({
   return (
     <li>
       <div>
-        <strong>5-card pack</strong>
+        <strong>5 credits</strong>
         <span>
           {date(purchase.purchasedAt || purchase.createdAt)} ·{" "}
           {purchase.paymentProvider === "google_play"
@@ -475,7 +475,7 @@ export function AccountDashboard({
   }
 
   if (loading) {
-    return <main className="account-page account-loading">Loading your cards…</main>;
+    return <main className="account-page account-loading">Loading account…</main>;
   }
 
   const checkoutAvailable =
@@ -502,7 +502,6 @@ export function AccountDashboard({
       <header className="account-nav">
         <Link className="public-brand" href="/">RARELY <span>★</span></Link>
         <nav>
-          <Link href="/pricing">Pricing</Link>
           <Link href="/">Make a card</Link>
           <button type="button" onClick={() => void signOut()}>Sign out</button>
         </nav>
@@ -510,14 +509,13 @@ export function AccountDashboard({
 
       <section className="account-hero">
         <div>
-          <span className="pixel-label">YOUR RARELY ACCOUNT</span>
-          <h1>Your pets.<br /><em>Still unmistakable.</em></h1>
+          <h1>Account</h1>
           <p>{account?.email}</p>
         </div>
         <aside>
-          <span>CARD CREDITS</span>
+          <span>CREDITS</span>
           <strong>{account?.creditBalance ?? 0}</strong>
-          <p>Each accepted or rejected AI response uses one credit. Technical failures do not.</p>
+          <p>Completed and rejected generations use one credit. Technical failures don’t.</p>
           <button
             type="button"
             disabled={buying || !checkoutAvailable}
@@ -531,7 +529,7 @@ export function AccountDashboard({
                   ? "Google Play Billing unavailable"
                   : paymentChannel === "google_play" && !googlePlayConfigured
                     ? "Google Play checkout temporarily unavailable"
-                  : `Buy 5 more${checkoutPrice ? ` — ${checkoutPrice}` : ""}`}
+                    : `Buy 5 credits${checkoutPrice ? ` — ${checkoutPrice}` : ""}`}
           </button>
           {paymentChannel === "play_unavailable" && (
             <p>Update Chrome or reopen Rarely from Google Play to buy credits.</p>
@@ -544,8 +542,8 @@ export function AccountDashboard({
       {inProgress.length > 0 && (
         <section className="account-section">
           <div className="account-section-heading">
-            <span>IN PROGRESS</span>
-            <h2>Pick up where you left off.</h2>
+            <h2>In progress</h2>
+            <span>{inProgress.length}</span>
           </div>
           <div className="account-progress-list">
             {inProgress.map((card) => (
@@ -560,8 +558,8 @@ export function AccountDashboard({
 
       <section className="account-section">
         <div className="account-section-heading">
-          <span>YOUR CARDS</span>
-          <h2>The looks worth keeping.</h2>
+          <h2>My generations</h2>
+          <span>{completedCards.length}</span>
         </div>
         {completedCards.length > 0 ? (
           <div className="account-card-grid">
@@ -576,9 +574,8 @@ export function AccountDashboard({
           </div>
         ) : (
           <div className="account-empty">
-            <strong>No finished cards yet.</strong>
-            <p>Your first unmistakable look belongs here.</p>
-            <Link href="/">Make a card →</Link>
+            <strong>No generations yet.</strong>
+            <Link href="/">Make a card</Link>
           </div>
         )}
       </section>
@@ -586,8 +583,8 @@ export function AccountDashboard({
       {spentAttempts.length > 0 && (
         <section className="account-section account-attempts">
           <div className="account-section-heading">
-            <span>OTHER ATTEMPTS</span>
-            <h2>AI responses and technical failures.</h2>
+            <h2>Other attempts</h2>
+            <span>{spentAttempts.length}</span>
           </div>
           <ul>
             {spentAttempts.map((card) => (
@@ -614,8 +611,8 @@ export function AccountDashboard({
 
       <section className="account-section account-purchases">
         <div className="account-section-heading">
-          <span>PURCHASES</span>
-          <h2>Five at a time. Yours until used.</h2>
+          <h2>Purchases</h2>
+          <span>{account?.purchases.length ?? 0}</span>
         </div>
         {account?.purchases.length ? (
           <ul>

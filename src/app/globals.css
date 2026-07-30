@@ -4848,25 +4848,20 @@ footer > a:last-child {
 .account-hero {
   width: min(1120px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 85px 0 70px;
+  padding: 52px 0;
   display: grid;
   grid-template-columns: 1fr 350px;
   align-items: center;
-  gap: 80px;
+  gap: 56px;
 }
 
 .account-hero h1 {
-  margin: 16px 0 18px;
+  margin: 0 0 10px;
   font-family: var(--font-bungee), sans-serif;
-  font-size: clamp(52px, 7vw, 86px);
+  font-size: clamp(38px, 5vw, 58px);
   font-weight: 400;
-  line-height: 0.95;
-  letter-spacing: -0.055em;
-}
-
-.account-hero h1 em {
-  color: var(--pink);
-  font-style: normal;
+  line-height: 1;
+  letter-spacing: -0.035em;
 }
 
 .account-hero > div > p {
@@ -4946,19 +4941,22 @@ footer > a:last-child {
 
 .account-section-heading {
   margin-bottom: 34px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
 }
 
 .account-section-heading > span {
   color: var(--pink);
   font-family: var(--font-dm-mono), monospace;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .account-section-heading h2 {
-  margin: 9px 0 0;
+  margin: 0;
   font-family: var(--font-bungee), sans-serif;
-  font-size: clamp(32px, 5vw, 55px);
+  font-size: clamp(28px, 4vw, 42px);
   font-weight: 400;
   line-height: 1;
 }
@@ -5251,12 +5249,11 @@ footer > a:last-child {
   .pricing-hero,
   .account-hero {
     width: calc(100% - 28px);
-    padding: 62px 0 75px;
-    gap: 55px;
+    padding: 46px 0 58px;
+    gap: 32px;
   }
 
-  .pricing-intro h1,
-  .account-hero h1 {
+  .pricing-intro h1 {
     font-size: 48px;
   }
 
