@@ -10,3 +10,7 @@ export const RESUMABLE_ANALYSIS_STATUSES = [
   "processing",
   "refund_pending",
 ] as const satisfies readonly AnalysisStatus[];
+
+export function isResumableAnalysisStatus(status: AnalysisStatus) {
+  return RESUMABLE_ANALYSIS_STATUSES.some((candidate) => candidate === status);
+}
