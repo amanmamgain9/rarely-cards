@@ -130,6 +130,25 @@ export const ShareCard = forwardRef<
 
 export type ShareAsset = { dataUrl: string; file: File };
 
+export function downloadShareAsset(asset: ShareAsset, filename: string) {
+  const downloadUrl = URL.createObjectURL(asset.file);
+  const anchor = document.createElement("a");
+  anchor.href = downloadUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1_000);
+}
+
+export function canUseNativeFileShare(file: File) {
+  return (
+    navigator.maxTouchPoints > 0 &&
+    Boolean(navigator.share) &&
+    Boolean(navigator.canShare?.({ files: [file] }))
+  );
+}
+
 function blobToDataUrl(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();

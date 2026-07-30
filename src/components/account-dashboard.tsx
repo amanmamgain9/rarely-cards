@@ -12,7 +12,12 @@ import { PADDLE_CHECKOUT_COMPLETED_EVENT } from "@/lib/payments/paddle-client-ev
 import { usePaymentChannel } from "@/lib/payments/use-payment-channel";
 import { clearPendingPhoto } from "@/lib/pending-photo";
 import { createZazzlePrintCheckout } from "@/lib/printing/zazzle-client";
-import { createShareAsset, ShareCard } from "@/components/share-card";
+import {
+  canUseNativeFileShare,
+  createShareAsset,
+  downloadShareAsset,
+  ShareCard,
+} from "@/components/share-card";
 
 type AccountDashboardProps = {
   paddleConfigured: boolean;
@@ -56,10 +61,7 @@ function SavedCard({
     setMessage(null);
     try {
       const asset = await createShareAsset(cardRef.current);
-      const anchor = document.createElement("a");
-      anchor.href = asset.dataUrl;
-      anchor.download = `${card.petName || "rarely"}-card.png`;
-      anchor.click();
+      downloadShareAsset(asset, `${card.petName || "rarely"}-card.png`);
     } catch {
       setMessage("The card image could not be downloaded. Try again.");
     } finally {
@@ -73,16 +75,13 @@ function SavedCard({
     setMessage(null);
     try {
       const asset = await createShareAsset(cardRef.current);
-      if (navigator.share && navigator.canShare?.({ files: [asset.file] })) {
+      if (canUseNativeFileShare(asset.file)) {
         await navigator.share({
           files: [asset.file],
           title: `${card.petName || "My pet"}'s Rarely card`,
         });
       } else {
-        const anchor = document.createElement("a");
-        anchor.href = asset.dataUrl;
-        anchor.download = `${card.petName || "rarely"}-card.png`;
-        anchor.click();
+        downloadShareAsset(asset, `${card.petName || "rarely"}-card.png`);
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;

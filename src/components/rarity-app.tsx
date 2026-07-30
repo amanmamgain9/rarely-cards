@@ -13,7 +13,9 @@ import {
   savePendingPhoto,
 } from "@/lib/pending-photo";
 import {
+  canUseNativeFileShare,
   createShareAsset,
+  downloadShareAsset,
   type ShareAsset,
 } from "@/components/share-card";
 import type {
@@ -390,7 +392,7 @@ export function RarityApp({
         cachedShareAsset.current ??
         (await createShareAsset(exportCardRef.current));
       cachedShareAsset.current = asset;
-      if (navigator.share && navigator.canShare?.({ files: [asset.file] })) {
+      if (canUseNativeFileShare(asset.file)) {
         await navigator.share({
           files: [asset.file],
           title: `${visibleResult.petName || "My pet"} — ${visibleResult.cardTitle}`,
@@ -398,10 +400,7 @@ export function RarityApp({
         });
         setShareLabel("Shared");
       } else {
-        const download = document.createElement("a");
-        download.href = asset.dataUrl;
-        download.download = "rarely-card.png";
-        download.click();
+        downloadShareAsset(asset, "rarely-card.png");
         setShareLabel("Image saved");
       }
     } catch (error) {
