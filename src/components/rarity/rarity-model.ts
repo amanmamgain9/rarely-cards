@@ -1,5 +1,6 @@
 import { PENDING_PHOTO_COOKIE } from "@/lib/analysis/resume";
 import type { AcceptedAnalysis, PublicAnalysis } from "@/lib/analysis/types";
+import type { WorkflowSnapshot } from "@/lib/workflow/types";
 import { PET_DEMO_RESULT } from "@/lib/rarity/pet-config";
 
 export type FlowState =
@@ -146,6 +147,36 @@ export function flowForAnalysis(analysis: PublicAnalysis): FlowState {
     case "disputed":
       return "error";
   }
+}
+
+export function flowForWorkflow(
+  snapshot: WorkflowSnapshot,
+  transientFlow: FlowState,
+): FlowState {
+  if (!snapshot.analysis) {
+    return transientFlow === "checkout" && snapshot.creditBalance > 0
+      ? "naming"
+      : transientFlow;
+  }
+
+  const serverFlow =
+    snapshot.analysis.status === "awaiting_payment" &&
+    snapshot.creditBalance > 0
+      ? "naming"
+      : flowForAnalysis(snapshot.analysis);
+  if (
+    transientFlow === "verifying" &&
+    ["checkout", "verifying"].includes(serverFlow)
+  ) {
+    return "verifying";
+  }
+  if (
+    transientFlow === "processing" &&
+    ["naming", "processing"].includes(serverFlow)
+  ) {
+    return "processing";
+  }
+  return serverFlow;
 }
 
 export function setPendingPhotoHint(pending: boolean) {

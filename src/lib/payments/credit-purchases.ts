@@ -48,8 +48,8 @@ export async function resumeAnalysisAfterGrantedPurchase(input: {
     .from("credit_purchases")
     .select("id")
     .eq("user_id", input.userId)
-    .eq("resume_analysis_id", input.analysisId)
     .eq("status", "active")
+    .gt("credits_remaining", 0)
     .limit(1)
     .maybeSingle();
   if (purchaseError || !completedPurchase) return false;

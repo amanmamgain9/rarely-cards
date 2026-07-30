@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bungee, DM_Mono, Nunito } from "next/font/google";
 import "./globals.css";
+import { AppProviders } from "@/components/app-providers";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { WebPaymentScripts } from "@/components/web-payment-scripts";
 
@@ -87,16 +88,18 @@ export default function RootLayout({
       className={`${nunito.variable} ${bungee.variable} ${dmMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        {children}
-        <ServiceWorkerRegistration />
-        <WebPaymentScripts
-          paddleToken={process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN ?? null}
-          paddleEnvironment={
-            process.env.PADDLE_ENVIRONMENT === "production"
-              ? "production"
-              : "sandbox"
-          }
-        />
+        <AppProviders>
+          {children}
+          <ServiceWorkerRegistration />
+          <WebPaymentScripts
+            paddleToken={process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN ?? null}
+            paddleEnvironment={
+              process.env.PADDLE_ENVIRONMENT === "production"
+                ? "production"
+                : "sandbox"
+            }
+          />
+        </AppProviders>
       </body>
     </html>
   );

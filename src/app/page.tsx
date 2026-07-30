@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { RarityApp } from "@/components/rarity-app";
+import { RarelyWorkflowProvider } from "@/components/rarity/rarely-workflow-provider";
 import { PENDING_PHOTO_COOKIE } from "@/lib/analysis/resume";
 import { getLatestResumableAnalysis } from "@/lib/analysis/resume-server";
 import type { PublicAnalysis } from "@/lib/analysis/types";
@@ -52,20 +53,25 @@ export default async function Home({ searchParams }: HomeProps) {
   );
 
   return (
-    <RarityApp
-      initialUser={user}
-      initialCreditBalance={creditBalance}
-      initialAnalysis={initialAnalysis}
-      shouldRestorePendingPhoto={shouldRestorePendingPhoto}
-      supabaseConfigured={supabaseConfigured}
-      paddleConfigured={hasPaddleEnv()}
-      googlePlayConfigured={hasGooglePlayEnv()}
-      zazzlePrintEnabled={isZazzlePrintEnabled()}
-      paddleEnvironment={
-        process.env.PADDLE_ENVIRONMENT === "production"
-          ? "production"
-          : "sandbox"
-      }
-    />
+    <RarelyWorkflowProvider
+      userId={user?.id ?? null}
+      initialSnapshot={{ creditBalance, analysis: initialAnalysis }}
+    >
+      <RarityApp
+        initialUser={user}
+        initialCreditBalance={creditBalance}
+        initialAnalysis={initialAnalysis}
+        shouldRestorePendingPhoto={shouldRestorePendingPhoto}
+        supabaseConfigured={supabaseConfigured}
+        paddleConfigured={hasPaddleEnv()}
+        googlePlayConfigured={hasGooglePlayEnv()}
+        zazzlePrintEnabled={isZazzlePrintEnabled()}
+        paddleEnvironment={
+          process.env.PADDLE_ENVIRONMENT === "production"
+            ? "production"
+            : "sandbox"
+        }
+      />
+    </RarelyWorkflowProvider>
   );
 }

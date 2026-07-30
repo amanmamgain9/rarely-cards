@@ -5,13 +5,11 @@ import {
   DragEvent,
   FormEvent,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from "react";
 import {
   clearPendingPhoto,
-  loadPendingPhoto,
   savePendingPhoto,
 } from "@/lib/pending-photo";
 import {
@@ -21,13 +19,10 @@ import {
 import type {
   AcceptedAnalysis,
   PetPronouns,
-  PublicAnalysis,
 } from "@/lib/analysis/types";
 import {
-  restoreGooglePlayPurchases,
   startGooglePlayPurchase,
 } from "@/lib/payments/google-play-client";
-import { PADDLE_CHECKOUT_COMPLETED_EVENT } from "@/lib/payments/paddle-client-events";
 import { usePaymentRuntime } from "@/lib/payments/use-payment-channel";
 import { createZazzlePrintCheckout } from "@/lib/printing/zazzle-client";
 import {
@@ -36,11 +31,14 @@ import {
 } from "@/components/rarity/rarity-flow-layers";
 import { RarityMaker } from "@/components/rarity/rarity-maker";
 import { RarityMarketing } from "@/components/rarity/rarity-marketing";
+import { useHeroDemo } from "@/components/rarity/hero-demo-store";
+import { PendingPhotoResume } from "@/components/rarity/workflow-effects";
+import { useRarelyWorkflowContext } from "@/components/rarity/rarely-workflow-provider";
 import {
   AUTOMATIC_CARD_STYLE,
   clearResumeQuery,
   flowForAnalysis,
-  HERO_CARD_DEMOS,
+  flowForWorkflow,
   PENDING_CARD_RESULT,
   readPhoto,
   setPendingPhotoHint,
@@ -67,22 +65,23 @@ export function RarityApp({
   const { channel: paymentChannel, playPrice } = usePaymentRuntime();
   const [flow, setFlow] = useState<FlowState>(() =>
     initialAnalysis
-      ? flowForAnalysis(initialAnalysis)
+      ? initialAnalysis.status === "awaiting_payment" && initialCreditBalance > 0
+        ? "naming"
+        : flowForAnalysis(initialAnalysis)
       : shouldRestorePendingPhoto
         ? "restoring"
         : "idle",
   );
   const [checkoutPromptOpen, setCheckoutPromptOpen] = useState(
-    initialAnalysis?.status === "awaiting_payment",
+    initialAnalysis?.status === "awaiting_payment" && initialCreditBalance === 0,
   );
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [photo, setPhoto] = useState<string | null>(
     initialAnalysis?.photoUrl ?? null,
   );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [analysisId, setAnalysisId] = useState<string | null>(
-    initialAnalysis?.id ?? null,
-  );
+  const workflow = useRarelyWorkflowContext();
+  const { analysisId, setAnalysisId } = workflow;
   const [result, setResult] = useState<AcceptedAnalysis | null>(
     initialAnalysis?.result ?? null,
   );
@@ -96,151 +95,36 @@ export function RarityApp({
   const [shareLabel, setShareLabel] = useState("Share my card");
   const [printLabel, setPrintLabel] = useState("Order a printed card");
   const [printBusy, setPrintBusy] = useState(false);
-  const [heroDemoIndex, setHeroDemoIndex] = useState(0);
-  const [creditBalance, setCreditBalance] = useState(initialCreditBalance);
   const uploadInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const petNameInput = useRef<HTMLInputElement>(null);
   const exportCardRef = useRef<HTMLElement>(null);
   const cachedShareAsset = useRef<ShareAsset | null>(null);
-  const playRestoreAttempted = useRef(false);
-  const heroDemo = HERO_CARD_DEMOS[heroDemoIndex];
-
-  const applyStatus = useCallback((analysis: PublicAnalysis) => {
-    if (analysis.photoUrl) setPhoto(analysis.photoUrl);
-    if (
-      ["completed", "photo_rejected", "failed", "refunded"].includes(
-        analysis.status,
-      )
-    ) {
-      setPendingPhotoHint(false);
-      void clearPendingPhoto().catch(() => undefined);
-    }
-    if (analysis.status === "completed" && analysis.result) {
-      setResult(analysis.result);
-      setFlow("completed");
-      setMessage(null);
-    } else if (analysis.status === "photo_rejected") {
-      setFlow("retry");
-      setMessage(
-        analysis.rejectionMessage ||
-          "The AI could not use this photo. This response used one card credit.",
-      );
-    } else if (analysis.status === "refund_pending") {
-      setFlow("refund_pending");
-      setMessage("Refund started. Your payment provider may need to approve it.");
-    } else if (analysis.status === "refunded") {
-      setFlow("refunded");
-      setMessage("Your refund was approved.");
-    } else if (analysis.status === "awaiting_name") {
-      setFlow("naming");
-      setMessage(null);
-    } else if (["paid", "processing"].includes(analysis.status)) {
-      setFlow("processing");
-      setMessage(null);
-    } else if (analysis.status === "payment_pending") {
-      setFlow("verifying");
-    } else if (analysis.status === "awaiting_payment") {
-      setFlow("checkout");
-      setCheckoutPromptOpen(true);
-    } else if (analysis.status === "failed") {
-      setFlow("error");
-      setMessage("A technical failure stopped this card. Your credit was returned.");
-    }
-  }, []);
-
-  const refreshAnalysis = useCallback(async (id: string, signal?: AbortSignal) => {
-    try {
-      const response = await fetch(`/api/analyses/${id}`, {
-        cache: "no-store",
-        signal,
-      });
-      if (!response.ok) return null;
-      const analysis = (await response.json()) as PublicAnalysis;
-      applyStatus(analysis);
-      return analysis;
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return null;
-      return null;
-    }
-  }, [applyStatus]);
-
-  const refreshCreditBalance = useCallback(async () => {
-    if (!initialUser) return;
-    const response = await fetch("/api/account?view=balance", {
-      cache: "no-store",
-    });
-    if (!response.ok) return;
-    const account = await response.json();
-    if (typeof account.creditBalance === "number") {
-      setCreditBalance(account.creditBalance);
-    }
-  }, [initialUser]);
-
-  const confirmCreditPurchase = useCallback(async (id: string) => {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      await new Promise((resolve) => window.setTimeout(resolve, 1500));
-      const response = await fetch(`/api/analyses/${id}`, { cache: "no-store" });
-      if (!response.ok) continue;
-      const analysis = (await response.json()) as PublicAnalysis;
-      if (analysis.status !== "awaiting_payment") {
-        applyStatus(analysis);
-        setCheckoutBusy(false);
-        void refreshCreditBalance();
-        return;
-      }
-    }
-    setCheckoutBusy(false);
-    setFlow("checkout");
-    setCheckoutPromptOpen(true);
-    setMessage("Payment is complete. Your credits are still being confirmed; try again shortly.");
-  }, [applyStatus, refreshCreditBalance]);
-
-  useEffect(() => {
-    const handleHostedCheckoutCompleted = () => {
-      if (!analysisId) return;
-      setCheckoutBusy(true);
-      setFlow("verifying");
-      void confirmCreditPurchase(analysisId);
-    };
-    window.addEventListener(
-      PADDLE_CHECKOUT_COMPLETED_EVENT,
-      handleHostedCheckoutCompleted,
-    );
-    return () =>
-      window.removeEventListener(
-        PADDLE_CHECKOUT_COMPLETED_EVENT,
-        handleHostedCheckoutCompleted,
-      );
-  }, [analysisId, confirmCreditPurchase]);
-
-  useEffect(() => {
-    if (
-      paymentChannel !== "google_play" ||
-      !initialUser ||
-      playRestoreAttempted.current
-    ) {
-      return;
-    }
-    playRestoreAttempted.current = true;
-    void restoreGooglePlayPurchases(analysisId ?? undefined)
-      .then((restored) => {
-        const resumed = restored.find((purchase) => purchase.analysisId);
-        if (resumed?.analysisId) {
-          setFlow("verifying");
-          void confirmCreditPurchase(resumed.analysisId);
-        } else if (restored.length > 0) {
-          void refreshCreditBalance();
-        }
-      })
-      .catch(() => undefined);
-  }, [
-    analysisId,
-    confirmCreditPurchase,
-    initialUser,
-    paymentChannel,
-    refreshCreditBalance,
-  ]);
+  const heroDemo = useHeroDemo();
+  const creditBalance = workflow.snapshot.creditBalance;
+  const workflowAnalysis =
+    workflow.snapshot.analysis?.id === analysisId
+      ? workflow.snapshot.analysis
+      : null;
+  const visibleFlow: FlowState = flowForWorkflow(
+    { ...workflow.snapshot, analysis: workflowAnalysis },
+    flow,
+  );
+  const visiblePhoto = workflowAnalysis?.photoUrl ?? photo;
+  const visibleResult = workflowAnalysis?.result ?? result;
+  const workflowMessage =
+    workflowAnalysis?.status === "photo_rejected"
+      ? workflowAnalysis.rejectionMessage ||
+        "The AI could not use this photo. This response used one card credit."
+      : workflowAnalysis?.status === "refund_pending"
+        ? "Refund started. Your payment provider may need to approve it."
+        : workflowAnalysis?.status === "refunded"
+          ? "Your refund was approved."
+          : workflowAnalysis?.status === "failed"
+            ? "A technical failure stopped this card. Your credit was returned."
+            : null;
+  const visibleMessage = workflowMessage ?? message;
+  const refreshWorkflow = workflow.refresh;
 
   const uploadNewAnalysis = useCallback(async (file: File) => {
     setMessage(null);
@@ -286,7 +170,7 @@ export function RarityApp({
           : "checkout";
     setFlow(nextFlow);
     setCheckoutPromptOpen(nextFlow === "checkout");
-  }, []);
+  }, [setAnalysisId]);
 
   const acceptPhoto = useCallback(async (file: File) => {
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
@@ -294,6 +178,7 @@ export function RarityApp({
       return;
     }
     setMessage(null);
+    setCheckoutBusy(false);
 
     const preview = await readPhoto(file);
     setPhoto(preview);
@@ -317,86 +202,25 @@ export function RarityApp({
     setFlow(hasCredit ? "naming" : "checkout");
     setCheckoutPromptOpen(!hasCredit);
     await uploadNewAnalysis(file);
-  }, [creditBalance, initialUser, uploadNewAnalysis]);
+  }, [creditBalance, initialUser, setAnalysisId, uploadNewAnalysis]);
 
-  useEffect(() => {
-    if (
-      photo ||
-      result ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      return;
-    }
-    const timer = window.setInterval(() => {
-      setHeroDemoIndex((current) => (current + 1) % HERO_CARD_DEMOS.length);
-    }, 3600);
-    return () => window.clearInterval(timer);
-  }, [photo, result]);
-
-  useEffect(() => {
-    if (!initialUser || !supabaseConfigured) return;
-
-    if (initialAnalysis) {
-      setPendingPhotoHint(false);
-      clearResumeQuery();
-      void clearPendingPhoto().catch(() => undefined);
-      return;
-    }
-    if (!shouldRestorePendingPhoto) return;
-
-    let cancelled = false;
-    void loadPendingPhoto()
-      .then(async (pending) => {
-        if (cancelled) return;
-        if (!pending) {
-          setPendingPhotoHint(false);
-          clearResumeQuery();
-          setFlow("idle");
-          return;
-        }
-        setSelectedFile(pending.file);
-        setPhoto(await readPhoto(pending.file));
-        if (cancelled) return;
-        await uploadNewAnalysis(pending.file);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setFlow("error");
-        setMessage("Your saved photo could not be restored. Please add it again.");
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    initialAnalysis,
-    initialUser,
-    shouldRestorePendingPhoto,
-    supabaseConfigured,
-    uploadNewAnalysis,
-  ]);
-
-  useEffect(() => {
-    if (
-      !analysisId ||
-      !["processing", "refund_pending"].includes(flow)
-    ) {
-      return;
-    }
-    let cancelled = false;
-    let timer: number | undefined;
-    const controller = new AbortController();
-    const poll = async () => {
-      await refreshAnalysis(analysisId, controller.signal);
-      if (!cancelled) timer = window.setTimeout(poll, 2000);
-    };
-    timer = window.setTimeout(poll, 2000);
-    return () => {
-      cancelled = true;
-      controller.abort();
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, [analysisId, flow, refreshAnalysis]);
+  const restorePendingPhoto = useCallback(async (pending: {
+    file: File;
+  }) => {
+    setSelectedFile(pending.file);
+    setPhoto(await readPhoto(pending.file));
+    await uploadNewAnalysis(pending.file);
+  }, [uploadNewAnalysis]);
+  const handleMissingPendingPhoto = useCallback(() => setFlow("idle"), []);
+  const handlePendingPhotoError = useCallback(() => {
+    setFlow("error");
+    setMessage("Your saved photo could not be restored. Please add it again.");
+  }, []);
+  const confirmCreditPurchase = useCallback(() => {
+    setCheckoutBusy(false);
+    setFlow("verifying");
+    void refreshWorkflow();
+  }, [refreshWorkflow]);
 
   async function startCheckout(
     provider: "paddle" | "google_play",
@@ -437,8 +261,7 @@ export function RarityApp({
           purchaseId: payload.purchaseId,
           analysisId,
         });
-        setFlow("verifying");
-        void confirmCreditPurchase(analysisId);
+        confirmCreditPurchase();
       } catch (error) {
         setCheckoutBusy(false);
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -457,8 +280,7 @@ export function RarityApp({
         environment: paddleEnvironment,
         eventCallback: (event) => {
           if (event.name === "checkout.completed") {
-            setFlow("verifying");
-            void confirmCreditPurchase(analysisId);
+            confirmCreditPurchase();
           } else if (event.name === "checkout.closed") {
             setCheckoutBusy(false);
           }
@@ -540,6 +362,12 @@ export function RarityApp({
       }),
     });
     const payload = await response.json();
+    if (typeof payload.creditBalance === "number") {
+      workflow.setSnapshot({
+        ...workflow.snapshot,
+        creditBalance: payload.creditBalance,
+      });
+    }
     if (!response.ok) {
       setMessage(payload.error || "That name could not be saved.");
       if (payload.needsCredits) {
@@ -549,14 +377,12 @@ export function RarityApp({
       return;
     }
     setPetName(name);
-    if (typeof payload.creditBalance === "number") {
-      setCreditBalance(payload.creditBalance);
-    }
     setFlow("processing");
+    void refreshWorkflow();
   }
 
   async function shareResult() {
-    if (!result || !exportCardRef.current || shareBusy) return;
+    if (!visibleResult || !exportCardRef.current || shareBusy) return;
     setShareBusy(true);
     setShareLabel("Preparing share…");
     try {
@@ -567,8 +393,8 @@ export function RarityApp({
       if (navigator.share && navigator.canShare?.({ files: [asset.file] })) {
         await navigator.share({
           files: [asset.file],
-          title: `${result.petName || "My pet"} — ${result.cardTitle}`,
-          text: `${result.fieldNote || result.signatureRead.thought} Not built to blend in.`,
+          title: `${visibleResult.petName || "My pet"} — ${visibleResult.cardTitle}`,
+          text: `${visibleResult.fieldNote || visibleResult.signatureRead.thought} Not built to blend in.`,
         });
         setShareLabel("Shared");
       } else {
@@ -625,6 +451,7 @@ export function RarityApp({
     setPhoto(null);
     setResult(null);
     setMessage(null);
+    setCheckoutBusy(false);
     setFlow("idle");
     window.history.replaceState(null, "", window.location.pathname);
   }
@@ -656,8 +483,8 @@ export function RarityApp({
       ? "Payment is complete. We are confirming it before their card begins."
       : "One credit is reserved. A technical failure returns it automatically.";
   const progressStage = flow === "processing" ? 1 : 0;
-  const heroCardResult = result || (photo ? PENDING_CARD_RESULT : heroDemo.result);
-  const heroCardPhoto = photo || heroDemo.image;
+  const heroCardResult = visibleResult || (visiblePhoto ? PENDING_CARD_RESULT : heroDemo.result);
+  const heroCardPhoto = visiblePhoto || heroDemo.image;
   const checkoutAvailable =
     (paymentChannel === "google_play" && googlePlayConfigured) ||
     (paymentChannel === "web" && paddleConfigured);
@@ -672,9 +499,20 @@ export function RarityApp({
     <main className="app">
       <div className="dot-field" aria-hidden="true" />
 
+      <PendingPhotoResume
+        enabled={Boolean(
+          initialUser &&
+            supabaseConfigured &&
+            (initialAnalysis || shouldRestorePendingPhoto),
+        )}
+        initialAnalysis={initialAnalysis}
+        onMissing={handleMissingPendingPhoto}
+        onRestore={restorePendingPhoto}
+        onError={handlePendingPhotoError}
+      />
       <RarityFlowLayers
-        flow={flow}
-        photo={photo}
+        flow={visibleFlow}
+        photo={visiblePhoto}
         petName={petName}
         busyLabel={busyLabel}
         busyCopy={busyCopy}
@@ -695,7 +533,7 @@ export function RarityApp({
         googlePlayConfigured={googlePlayConfigured}
         uploadInput={uploadInput}
         onCloseCheckout={() => setCheckoutPromptOpen(false)}
-        message={message}
+        message={visibleMessage}
         creditBalance={creditBalance}
         onSubmitPetName={submitPetName}
         petNameInput={petNameInput}
@@ -704,9 +542,9 @@ export function RarityApp({
         onPetPronounsChange={setPetPronouns}
       />
       <RarityResultScreen
-        flow={flow}
-        photo={photo}
-        result={result}
+        flow={visibleFlow}
+        photo={visiblePhoto}
+        result={visibleResult}
         exportCardRef={exportCardRef}
         onShare={() => void shareResult()}
         shareBusy={shareBusy}
@@ -731,12 +569,12 @@ export function RarityApp({
         cameraInput={cameraInput}
         onFileChange={handleFile}
         selectedFile={selectedFile}
-        flow={flow}
+        flow={visibleFlow}
         onOpenCheckout={() => setCheckoutPromptOpen(true)}
         checkoutPrice={checkoutPrice}
-        message={message}
-        photo={photo}
-        result={result}
+        message={visibleMessage}
+        photo={visiblePhoto}
+        result={visibleResult}
         heroDemoImage={heroDemo.image}
         heroCardPhoto={heroCardPhoto}
         heroCardResult={heroCardResult}
