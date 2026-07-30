@@ -130,14 +130,47 @@ export const ShareCard = forwardRef<
 
 export type ShareAsset = { dataUrl: string; file: File };
 
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("card_photo_read_failed"));
+    });
+    reader.addEventListener("error", () => reject(reader.error));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function loadEmbeddedImage(image: HTMLImageElement) {
+  if (!image.complete) await image.decode();
+  if (image.naturalWidth === 0 || image.naturalHeight === 0) {
+    throw new Error("card_photo_decode_failed");
+  }
+
+  const response = await fetch(image.currentSrc || image.src, {
+    cache: "no-store",
+    credentials: "same-origin",
+  });
+  if (!response.ok) throw new Error("card_photo_fetch_failed");
+
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/")) {
+    throw new Error("card_photo_type_invalid");
+  }
+  return blobToDataUrl(blob);
+}
+
 export async function createShareAsset(card: HTMLElement): Promise<ShareAsset> {
   const { toPng } = await import("html-to-image");
-  await Promise.all(
-    Array.from(card.querySelectorAll("img")).map((image) =>
-      image.complete ? Promise.resolve() : image.decode(),
-    ),
-  );
+  const sourceImages = Array.from(card.querySelectorAll("img"));
+  const embeddedImages = await Promise.all(sourceImages.map(loadEmbeddedImage));
   const exportCard = card.cloneNode(true) as HTMLElement;
+  Array.from(exportCard.querySelectorAll("img")).forEach((image, index) => {
+    image.removeAttribute("srcset");
+    image.removeAttribute("sizes");
+    image.src = embeddedImages[index];
+  });
   exportCard.classList.add("story-card-export");
   Object.assign(exportCard.style, {
     position: "fixed",
@@ -149,6 +182,14 @@ export async function createShareAsset(card: HTMLElement): Promise<ShareAsset> {
   document.body.appendChild(exportCard);
   let dataUrl: string;
   try {
+    await Promise.all(
+      Array.from(exportCard.querySelectorAll("img")).map(async (image) => {
+        await image.decode();
+        if (image.naturalWidth === 0 || image.naturalHeight === 0) {
+          throw new Error("card_photo_embed_failed");
+        }
+      }),
+    );
     dataUrl = await toPng(exportCard, {
       width: 360,
       height: 640,
