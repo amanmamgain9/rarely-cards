@@ -36,18 +36,8 @@ export async function getLatestResumableAnalysis(
     });
     if (resumed) status = "awaiting_name";
   }
-  let photoUrl: string | null = null;
-  if (data.object_path) {
-    const { data: signedPhoto, error: signedPhotoError } = await admin.storage
-      .from("analysis-photos")
-      .createSignedUrl(data.object_path, 60 * 60);
-    if (signedPhotoError) {
-      throw new Error("resume_photo_unavailable");
-    }
-    photoUrl = signedPhoto.signedUrl;
-  }
-
-  if (!photoUrl) throw new Error("resume_photo_unavailable");
+  if (!data.object_path) throw new Error("resume_photo_unavailable");
+  const photoUrl = `/api/analyses/${data.id}/photo`;
 
   return {
     id: data.id,

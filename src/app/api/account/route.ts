@@ -78,21 +78,6 @@ export async function GET(request: Request) {
     return Response.json({ error: "Account could not be loaded." }, { status: 500 });
   }
 
-  const photoPaths = (analysisRows ?? [])
-    .map((row) => row.card_photo_path ?? row.object_path)
-    .filter((path): path is string => Boolean(path));
-  const { data: signedPhotos } =
-    photoPaths.length > 0
-      ? await admin.storage
-          .from("analysis-photos")
-          .createSignedUrls(photoPaths, 60 * 60)
-      : { data: [] };
-  const signedPhotoByPath = new Map(
-    (signedPhotos ?? []).flatMap((photo) =>
-      photo.path && photo.signedUrl ? [[photo.path, photo.signedUrl]] : [],
-    ),
-  );
-
   const cards = (analysisRows ?? []).map((row) => {
       const parsedResult = acceptedAnalysisSchema.safeParse(row.result_json);
       const visiblePhotoPath = row.card_photo_path ?? row.object_path;
@@ -105,9 +90,7 @@ export async function GET(request: Request) {
             ? parsedResult.data
             : { ...parsedResult.data, petName: row.pet_name }
           : null,
-        photoUrl: visiblePhotoPath
-          ? signedPhotoByPath.get(visiblePhotoPath) ?? null
-          : null,
+        photoUrl: visiblePhotoPath ? `/api/analyses/${row.id}/photo` : null,
         rejectionMessage: row.rejection_message,
         creditState: row.credit_state,
         createdAt: row.created_at,

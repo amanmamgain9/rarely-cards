@@ -79,15 +79,11 @@ export async function GET(request: Request, context: RouteContext) {
     parsedResult && !parsedResult.petName && data.pet_name
       ? { ...parsedResult, petName: data.pet_name }
       : parsedResult;
-  let photoUrl: string | null = null;
   const visiblePhotoPath =
-    status === "completed" ? data.card_photo_path : data.object_path;
-  if (visiblePhotoPath) {
-    const { data: signedPhoto } = await createAdminClient().storage
-      .from("analysis-photos")
-      .createSignedUrl(visiblePhotoPath, 60 * 60);
-    photoUrl = signedPhoto?.signedUrl ?? null;
-  }
+    status === "completed"
+      ? data.card_photo_path ?? data.object_path
+      : data.object_path;
+  const photoUrl = visiblePhotoPath ? `/api/analyses/${id}/photo` : null;
 
   const response: PublicAnalysis = {
     id: data.id,
