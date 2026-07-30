@@ -150,16 +150,34 @@ export async function runAnalysis(analysisId: string): Promise<void> {
     }
 
     const retainedPath = `${claimed.user_id}/${analysisId}/card-photo.jpg`;
+    const retainedBytes = Uint8Array.from(prepared).buffer;
     const { error: retainedPhotoError } = await admin.storage
       .from("analysis-photos")
-      .upload(retainedPath, prepared, {
+      .upload(retainedPath, retainedBytes, {
         contentType: "image/jpeg",
         cacheControl: "3600",
         upsert: true,
       });
-    const cardPhotoPath = retainedPhotoError
-      ? claimed.object_path
-      : retainedPath;
+    let cardPhotoPath = claimed.object_path;
+    if (!retainedPhotoError) {
+      let retainedPhotoIsValid = false;
+      const { data: retainedPhoto, error: retainedDownloadError } =
+        await admin.storage.from("analysis-photos").download(retainedPath);
+      if (!retainedDownloadError && retainedPhoto) {
+        try {
+          const retained = Buffer.from(await retainedPhoto.arrayBuffer());
+          await inspectImage(retained);
+          retainedPhotoIsValid = true;
+        } catch {
+          // Fall back to the validated original when Storage changed the bytes.
+        }
+      }
+      if (retainedPhotoIsValid) {
+        cardPhotoPath = retainedPath;
+      } else {
+        await admin.storage.from("analysis-photos").remove([retainedPath]);
+      }
+    }
 
     const { data: finalized, error: finalizeError } = await admin.rpc(
       "finalize_analysis_result",
