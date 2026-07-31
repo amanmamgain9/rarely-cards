@@ -13,7 +13,9 @@
 
 ## Product and API
 
-- Create an active repeatable one-time product named `five_card_credits`.
+- Create an active repeatable one-time product named `three_talking_pet_videos`.
+- Keep `five_card_credits` available for restoration of historical purchases,
+  but do not feature it or offer it in new checkout flows.
 - Configure the base price and review Play's localized prices.
 - Enable the Google Play Android Developer API.
 - Grant the backend service account app-level order and financial permissions
@@ -31,7 +33,7 @@
 - Complete Data Safety for account/email, user photos, purchases, app activity,
   and optional redacted diagnostics.
 - Complete content rating and the adults-only audience declaration.
-- State clearly that five digital card credits are a one-time purchase.
+- State clearly that three talking-pet video credits are a one-time purchase.
 
 ## Release gates
 

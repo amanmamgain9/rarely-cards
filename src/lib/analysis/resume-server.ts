@@ -8,23 +8,28 @@ import {
 import { isResumableAnalysisStatus } from "@/lib/analysis/resume";
 import { resumeAnalysisAfterGrantedPurchase } from "@/lib/payments/credit-purchases";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { petDialogueSuggestionsSchema } from "@/lib/video/dialogue";
 
 export async function getLatestResumableAnalysis(
   userId: string,
+  experienceKind?: "card" | "talking_video",
 ): Promise<PublicAnalysis | null> {
   const admin = createAdminClient();
-  const { data, error } = await admin
+  let query = admin
     .from("analysis_requests")
     .select(
-      "id, card_style, status, rejection_message, replacement_count, created_at, updated_at, object_path",
+      "id, card_style, experience_kind, pet_name, status, rejection_message, replacement_count, created_at, updated_at, object_path, dialogue_suggestions, selected_dialogue",
     )
     .eq("user_id", userId)
     .not("photo_uploaded_at", "is", null)
     // Decide from the newest card attempt. Filtering to unfinished rows first
     // can resurrect an older abandoned flow after a newer card was completed.
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+  if (experienceKind) {
+    query = query.eq("experience_kind", experienceKind);
+  }
+  const { data, error } = await query.maybeSingle();
 
   if (error) throw new Error(`resume_analysis_unavailable:${error.code}`);
   if (!data) return null;
@@ -43,7 +48,9 @@ export async function getLatestResumableAnalysis(
 
   return {
     id: data.id,
+    petName: data.pet_name,
     cardStyle: cardStyleSchema.parse(data.card_style),
+    experienceKind: data.experience_kind,
     status,
     result: null,
     rejectionMessage: data.rejection_message,
@@ -52,5 +59,8 @@ export async function getLatestResumableAnalysis(
     updatedAt: data.updated_at,
     photoUrl,
     refundState: status === "refund_pending" ? "pending" : "none",
+    dialogueSuggestions:
+      petDialogueSuggestionsSchema.safeParse(data.dialogue_suggestions).data ?? [],
+    selectedDialogue: data.selected_dialogue,
   };
 }

@@ -41,7 +41,10 @@ async function processCompletedTransaction(data: TransactionData) {
   if (
     data.items.length !== 1 ||
     data.items[0]?.quantity !== 1 ||
-    data.items[0]?.price?.id !== env.paddlePriceId
+    !data.items[0]?.price?.id ||
+    ![env.paddlePriceId, ...env.paddleLegacyCardPriceIds].includes(
+      data.items[0].price.id,
+    )
   ) {
     throw new Error("webhook_catalog_mismatch");
   }
@@ -91,11 +94,18 @@ async function processCreditPurchase(data: TransactionData) {
     !purchaseIdSchema.safeParse(purchaseId).success ||
     typeof userId !== "string" ||
     !userIdSchema.safeParse(userId).success ||
-    data.customData?.entitlement !== "five_card_credits" ||
-    data.customData?.credits !== 5
+    !["five_card_credits", "three_talking_pet_videos"].includes(
+      String(data.customData?.entitlement),
+    ) ||
+    ![3, 5].includes(Number(data.customData?.credits))
   ) {
     throw new Error("webhook_invalid_credit_purchase");
   }
+  const isVideoPack = data.customData?.entitlement === "three_talking_pet_videos";
+  const expectedCredits = isVideoPack ? 3 : 5;
+  const acceptedPriceIds = isVideoPack
+    ? [env.paddlePriceId]
+    : env.paddleLegacyCardPriceIds;
   if (
     analysisId !== null &&
     analysisId !== undefined &&
@@ -107,7 +117,8 @@ async function processCreditPurchase(data: TransactionData) {
   if (
     data.items.length !== 1 ||
     data.items[0]?.quantity !== 1 ||
-    data.items[0]?.price?.id !== env.paddlePriceId
+    !data.items[0]?.price?.id ||
+    !acceptedPriceIds.includes(data.items[0].price.id)
   ) {
     throw new Error("webhook_catalog_mismatch");
   }
@@ -118,6 +129,7 @@ async function processCreditPurchase(data: TransactionData) {
     userId,
     transactionId: data.id,
     analysisId: typeof analysisId === "string" ? analysisId : undefined,
+    credits: expectedCredits,
   });
 }
 
@@ -249,7 +261,8 @@ export async function POST(request: Request) {
     if (event.eventType === "transaction.completed") {
       const transaction = event.data as TransactionData;
       const isCreditPurchase =
-        transaction.customData?.entitlement === "five_card_credits";
+        transaction.customData?.entitlement === "five_card_credits" ||
+        transaction.customData?.entitlement === "three_talking_pet_videos";
       const processed = isCreditPurchase
         ? await processCreditPurchase(transaction)
         : {
@@ -300,4 +313,3 @@ export async function POST(request: Request) {
     return Response.json({ error: "Webhook processing failed." }, { status: 500 });
   }
 }
-

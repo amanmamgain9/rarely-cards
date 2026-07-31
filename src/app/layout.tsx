@@ -28,11 +28,11 @@ export const metadata: Metadata = {
   ),
   title: "Rarely — Not Built to Blend In",
   description:
-    "Turn one photograph of your cat or dog into a funny, heartfelt, one-of-one rarity card.",
+    "Turn one pet photo and one perfect line into an eight-second talking-pet video.",
   openGraph: {
     title: "Rarely — Not Built to Blend In",
     description:
-      "We read the pet, the posture, the light, and the world they claimed—then make their one-of-one card.",
+      "Upload a pet photo, pick what they say, and get a vertical talking-pet video made for sharing.",
     url: "/",
     siteName: "Rarely",
     type: "website",
@@ -41,26 +41,26 @@ export const metadata: Metadata = {
         url: "/social/rarely-pets.jpg",
         width: 1200,
         height: 630,
-        alt: "Rarely pet story cards featuring a cat at sunset and a dog carrying a flower",
+        alt: "Rarely talking-pet video featuring a cat at sunset and a dog carrying a flower",
       },
       {
         url: "/social/rarely-dog.jpg",
         width: 1200,
         height: 630,
-        alt: "Rarely dog story card",
+        alt: "Rarely talking-dog video",
       },
       {
         url: "/social/rarely-cat.jpg",
         width: 1200,
         height: 630,
-        alt: "Rarely cat story card",
+        alt: "Rarely talking-cat video",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Rarely — Not Built to Blend In",
-    description: "Make the one-of-one card only your pet could carry.",
+    description: "One pet photo. One perfect line. One tiny talking-pet video.",
     images: ["/social/rarely-pets.jpg"],
   },
   appleWebApp: {
@@ -85,9 +85,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${nunito.variable} ${bungee.variable} ${dmMono.variable} h-full antialiased`}
+      className={`${nunito.variable} ${bungee.variable} ${dmMono.variable} h-full scroll-smooth antialiased`}
     >
-      <body className="min-h-full">
+      <body className="min-h-full overflow-x-hidden bg-background font-sans text-ink">
         <AppProviders>
           {children}
           <ServiceWorkerRegistration />

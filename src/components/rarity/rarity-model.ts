@@ -6,7 +6,6 @@ import { PET_DEMO_RESULT } from "@/lib/rarity/pet-config";
 export type FlowState =
   | "idle"
   | "restoring"
-  | "auth"
   | "checkout"
   | "verifying"
   | "naming"
@@ -18,13 +17,13 @@ export type FlowState =
   | "error";
 
 export type RarityAppProps = {
-  initialUser: { id: string; email: string | null } | null;
-  initialCreditBalance: number;
+  initialUser: { id: string; email: string | null };
+  legacyCardMode: boolean;
   initialAnalysis: PublicAnalysis | null;
   shouldRestorePendingPhoto: boolean;
-  supabaseConfigured: boolean;
   paddleConfigured: boolean;
   googlePlayConfigured: boolean;
+  seedanceConfigured: boolean;
   zazzlePrintEnabled: boolean;
   paddleEnvironment: "sandbox" | "production";
 };
@@ -161,9 +160,19 @@ export function flowForWorkflow(
 
   const serverFlow =
     snapshot.analysis.status === "awaiting_payment" &&
-    snapshot.creditBalance > 0
+    (snapshot.analysis.experienceKind === "talking_video"
+      ? snapshot.creditBalance > 0
+      : snapshot.legacyCardCreditBalance > 0)
       ? "naming"
       : flowForAnalysis(snapshot.analysis);
+  if (
+    transientFlow === "checkout" &&
+    snapshot.analysis.experienceKind === "talking_video" &&
+    snapshot.creditBalance === 0 &&
+    serverFlow === "naming"
+  ) {
+    return "checkout";
+  }
   if (
     transientFlow === "verifying" &&
     ["checkout", "verifying"].includes(serverFlow)

@@ -66,3 +66,21 @@ export async function prepareImageForGemini(buffer: Buffer) {
     .toBuffer();
 }
 
+export async function prepareImageForSeedance(buffer: Buffer) {
+  // ModelArk requires both dimensions >= 300px and an input aspect ratio in
+  // [0.4, 2.5]. A fixed portrait canvas preserves the full user photo while
+  // making every Rarely-valid upload safe to submit without user crop controls.
+  return sharp(buffer, {
+    failOn: "error",
+    limitInputPixels: MAX_IMAGE_PIXELS,
+  })
+    .rotate()
+    .resize({
+      width: 1280,
+      height: 1600,
+      fit: "contain",
+      background: { r: 24, g: 20, b: 18 },
+    })
+    .jpeg({ quality: 90, mozjpeg: true })
+    .toBuffer();
+}

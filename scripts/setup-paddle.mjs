@@ -5,6 +5,7 @@ import {
 
 const apiKey = process.env.PADDLE_API_KEY;
 if (!apiKey) throw new Error("Set PADDLE_API_KEY before running this script.");
+const legacyPriceId = process.env.PADDLE_PRICE_ID?.trim() || null;
 
 const environment =
   process.env.PADDLE_ENVIRONMENT === "production"
@@ -14,34 +15,38 @@ const paddle = new Paddle(apiKey, { environment });
 
 let product = null;
 for await (const candidate of paddle.products.list({ include: ["prices"] })) {
-  if (candidate.status === "active" && candidate.customData?.app === "rarely") {
+  if (
+    candidate.status === "active" &&
+    candidate.customData?.app === "rarely" &&
+    candidate.customData?.entitlement === "three_talking_pet_videos"
+  ) {
     product = candidate;
     break;
   }
 }
 
 product ??= await paddle.products.create({
-  name: "Rarely Five-Card Pack",
+  name: "Rarely Talking Pet Video Pack",
   description:
-    "Five AI pet-card credits for cat or dog photographs. One-time purchase; no subscription.",
+    "Three eight-second vertical talking-pet videos with sound. One-time purchase; no subscription.",
   taxCategory: "standard",
   customData: {
     app: "rarely",
-    entitlement: "five_card_credits",
-    credits: 5,
+    entitlement: "three_talking_pet_videos",
+    credits: 3,
   },
 });
 
 const existingPrices = product.prices ?? [];
 product = await paddle.products.update(product.id, {
-  name: "Rarely Five-Card Pack",
+  name: "Rarely Talking Pet Video Pack",
   description:
-    "Five AI pet-card credits for cat or dog photographs. One-time purchase; no subscription.",
+    "Three eight-second vertical talking-pet videos with sound. One-time purchase; no subscription.",
   taxCategory: "standard",
   customData: {
     app: "rarely",
-    entitlement: "five_card_credits",
-    credits: 5,
+    entitlement: "three_talking_pet_videos",
+    credits: 3,
   },
 });
 
@@ -49,31 +54,31 @@ let price = existingPrices.find(
   (candidate) =>
     candidate.status === "active" &&
     candidate.billingCycle === null &&
-    candidate.unitPrice.amount === "500" &&
+    candidate.unitPrice.amount === "1000" &&
     candidate.unitPrice.currencyCode === "USD",
 );
 
 price ??= await paddle.prices.create({
   productId: product.id,
-  description: "Rarely five-card credit pack — USD 5.00 one time",
-  name: "Five pet-card credits",
+  description: "Rarely three talking-pet videos — USD 10.00 one time",
+  name: "Three talking-pet videos",
   billingCycle: null,
-  unitPrice: { amount: "500", currencyCode: "USD" },
+  unitPrice: { amount: "1000", currencyCode: "USD" },
   quantity: { minimum: 1, maximum: 1 },
   customData: {
     app: "rarely",
-    entitlement: "five_card_credits",
-    credits: 5,
+    entitlement: "three_talking_pet_videos",
+    credits: 3,
   },
 });
 
 price = await paddle.prices.update(price.id, {
-  description: "Rarely five-card credit pack — USD 5.00 one time",
-  name: "Five pet-card credits",
+  description: "Rarely three talking-pet videos — USD 10.00 one time",
+  name: "Three talking-pet videos",
   customData: {
     app: "rarely",
-    entitlement: "five_card_credits",
-    credits: 5,
+    entitlement: "three_talking_pet_videos",
+    credits: 3,
   },
 });
 
@@ -92,4 +97,6 @@ clientToken ??= await paddle.clientTokens.create({
 
 console.log(`PADDLE_PRICE_ID=${price.id}`);
 console.log(`NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=${clientToken.token}`);
-
+if (legacyPriceId && legacyPriceId !== price.id) {
+  console.log(`PADDLE_LEGACY_CARD_PRICE_IDS=${legacyPriceId}`);
+}

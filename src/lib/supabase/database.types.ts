@@ -37,6 +37,7 @@ type AnalysisRequestRow = {
   id: string;
   user_id: string;
   card_style: CardStyle;
+  experience_kind: "card" | "talking_video";
   pet_name: string | null;
   pet_pronouns: "he" | "she" | "they" | null;
   status: AnalysisStatus;
@@ -77,12 +78,15 @@ type AnalysisRequestRow = {
   refund_attempt_id: string | null;
   refund_attempted_at: string | null;
   expires_at: string | null;
+  dialogue_suggestions: Json | null;
+  selected_dialogue: string | null;
 };
 
 type AnalysisRequestInsert = {
   id?: string;
   user_id: string;
   card_style: CardStyle;
+  experience_kind?: "card" | "talking_video";
   pet_name?: string | null;
   pet_pronouns?: "he" | "she" | "they" | null;
   status?: AnalysisStatus;
@@ -123,6 +127,8 @@ type AnalysisRequestInsert = {
   refund_attempt_id?: string | null;
   refund_attempted_at?: string | null;
   expires_at?: string | null;
+  dialogue_suggestions?: Json | null;
+  selected_dialogue?: string | null;
 };
 
 type AnalysisRequestUpdate = Partial<AnalysisRequestInsert>;
@@ -156,6 +162,7 @@ export type Database = {
           status: CreditPurchaseStatus;
           credits_granted: number;
           credits_remaining: number;
+          credit_kind: "card" | "talking_video";
           revoked_credits_remaining: number | null;
           amount_cents: number;
           currency: string;
@@ -186,6 +193,7 @@ export type Database = {
           status?: CreditPurchaseStatus;
           credits_granted?: number;
           credits_remaining?: number;
+          credit_kind?: "card" | "talking_video";
           revoked_credits_remaining?: number | null;
           amount_cents?: number;
           currency?: string;
@@ -316,6 +324,91 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      video_generations: {
+        Row: {
+          id: string;
+          analysis_id: string;
+          user_id: string;
+          provider: "seedance";
+          status: "submitting" | "running" | "succeeded" | "failed";
+          provider_task_id: string | null;
+          prompt: string;
+          output_path: string | null;
+          error_code: string | null;
+          attempt_count: number;
+          last_synced_at: string | null;
+          sync_token: string | null;
+          sync_started_at: string | null;
+          submitted_at: string | null;
+          completed_at: string | null;
+          usage_total_tokens: number | null;
+          pricing_usd_per_million_tokens: number | null;
+          estimated_cost_usd_micros: number | null;
+          provider_model: string | null;
+          duration_seconds: number;
+          resolution: string;
+          aspect_ratio: string;
+          generate_audio: boolean;
+          credit_refunded_at: string | null;
+          discard_requested_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          analysis_id: string;
+          user_id: string;
+          provider?: "seedance";
+          status?: "submitting" | "running" | "succeeded" | "failed";
+          provider_task_id?: string | null;
+          prompt: string;
+          output_path?: string | null;
+          error_code?: string | null;
+          attempt_count?: number;
+          last_synced_at?: string | null;
+          sync_token?: string | null;
+          sync_started_at?: string | null;
+          submitted_at?: string | null;
+          completed_at?: string | null;
+          usage_total_tokens?: number | null;
+          pricing_usd_per_million_tokens?: number | null;
+          estimated_cost_usd_micros?: number | null;
+          provider_model?: string | null;
+          duration_seconds?: number;
+          resolution?: string;
+          aspect_ratio?: string;
+          generate_audio?: boolean;
+          credit_refunded_at?: string | null;
+          discard_requested_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: "submitting" | "running" | "succeeded" | "failed";
+          provider_task_id?: string | null;
+          prompt?: string;
+          output_path?: string | null;
+          error_code?: string | null;
+          attempt_count?: number;
+          last_synced_at?: string | null;
+          sync_token?: string | null;
+          sync_started_at?: string | null;
+          submitted_at?: string | null;
+          completed_at?: string | null;
+          usage_total_tokens?: number | null;
+          pricing_usd_per_million_tokens?: number | null;
+          estimated_cost_usd_micros?: number | null;
+          provider_model?: string | null;
+          duration_seconds?: number;
+          resolution?: string;
+          aspect_ratio?: string;
+          generate_audio?: boolean;
+          credit_refunded_at?: string | null;
+          discard_requested_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -334,6 +427,22 @@ export type Database = {
       consume_analysis_credit: {
         Args: { p_analysis_id: string };
         Returns: boolean;
+      };
+      reserve_and_create_talking_video: {
+        Args: {
+          p_user_id: string;
+          p_analysis_id: string;
+          p_pet_name: string;
+          p_dialogue: string;
+          p_prompt: string;
+          p_provider_model: string;
+          p_pricing_usd_per_million_tokens: number | null;
+        };
+        Returns: {
+          video_id: string | null;
+          reserved: boolean;
+          remaining_balance: number;
+        }[];
       };
       claim_payment_event: {
         Args: {
@@ -440,6 +549,23 @@ export type Database = {
           remaining_balance: number;
         }[];
       };
+      reserve_talking_video_credit: {
+        Args: {
+          p_user_id: string;
+          p_analysis_id: string;
+          p_pet_name: string;
+          p_dialogue: string;
+        };
+        Returns: {
+          reserved: boolean;
+          purchase_id: string | null;
+          remaining_balance: number;
+        }[];
+      };
+      restore_talking_video_credit: {
+        Args: { p_analysis_id: string };
+        Returns: boolean;
+      };
       restore_analysis_credit: {
         Args: { p_analysis_id: string };
         Returns: boolean;
@@ -498,4 +624,3 @@ export type Database = {
     CompositeTypes: Record<string, never>;
   };
 };
-

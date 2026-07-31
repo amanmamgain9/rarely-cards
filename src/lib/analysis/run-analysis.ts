@@ -146,6 +146,9 @@ export async function runAnalysis(analysisId: string): Promise<void> {
       if (!["finalized", "already_finalized"].includes(finalized)) {
         throw new Error(`analysis_finalize_${finalized}`);
       }
+      await admin.rpc("restore_talking_video_credit", {
+        p_analysis_id: analysisId,
+      });
       return;
     }
 

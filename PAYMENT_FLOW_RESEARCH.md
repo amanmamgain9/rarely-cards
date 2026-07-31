@@ -25,7 +25,7 @@ resolutions.
    unique index prevents duplicate pending rows for the same user, provider, and
    optional analysis.
 3. Paddle creates a transaction carrying server-authored purchase/user metadata;
-   its signed webhook grants five credits. Google Play returns a purchase token;
+   its signed webhook grants three talking-video credits. Google Play returns a purchase token;
    the authenticated verify route checks ProductPurchaseV2 and Order data,
    records the token, grants credits, and consumes the product.
 4. `grant_credit_purchase` locks the purchase row and grants exactly five

@@ -96,6 +96,7 @@ export async function POST(request: Request) {
         userId: custom.user_id,
         transactionId: event.data.id,
         analysisId: custom.analysis_request_id,
+        credits: 5,
       });
       purchaseId = processed.purchaseId;
       analysisId = processed.analysisId;

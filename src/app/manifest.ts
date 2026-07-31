@@ -3,11 +3,11 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Rarely — Pet Rarity Cards",
+    name: "Rarely — Talking Pet Videos",
     short_name: "Rarely",
     description:
-      "Turn one photograph of your cat or dog into a one-of-one rarity card.",
-    start_url: "/",
+      "Turn one pet photo and one perfect line into a talking-pet video.",
+    start_url: "/app",
     scope: "/",
     display: "standalone",
     background_color: "#fff8ee",

@@ -10,6 +10,7 @@ export type AccountPurchase = {
   status: CreditPurchaseStatus;
   creditsGranted: number;
   creditsRemaining: number;
+  creditKind: "card" | "talking_video";
   amountCents: number;
   currency: string;
   purchasedAt: string | null;
@@ -24,6 +25,10 @@ export type AccountCard = {
   petName: string | null;
   result: AcceptedAnalysis | null;
   photoUrl: string | null;
+  videoUrl: string | null;
+  videoStatus: "submitting" | "running" | "succeeded" | "failed" | null;
+  videoEligible: boolean;
+  creditKind: "card" | "talking_video";
   rejectionMessage: string | null;
   creditState: "reserved" | "consumed" | "restored" | "revoked" | null;
   createdAt: string;
@@ -33,6 +38,7 @@ export type AccountCard = {
 export type AccountData = {
   email: string | null;
   creditBalance: number;
+  legacyCardCreditBalance: number;
   purchases: AccountPurchase[];
   cards: AccountCard[];
 };

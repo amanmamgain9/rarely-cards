@@ -2,7 +2,7 @@
 
 const PLAY_BILLING_METHOD = "https://play.google.com/billing";
 export const GOOGLE_PLAY_PRODUCT_ID =
-  process.env.NEXT_PUBLIC_GOOGLE_PLAY_PRODUCT_ID || "five_card_credits";
+  process.env.NEXT_PUBLIC_GOOGLE_PLAY_PRODUCT_ID || "three_talking_pet_videos";
 
 type PlayProduct = {
   itemId: string;
@@ -32,7 +32,7 @@ export async function getGooglePlayProduct(): Promise<PlayProduct> {
   const service = await getService();
   const [detail] = await service.getDetails([GOOGLE_PLAY_PRODUCT_ID]);
   if (!detail || detail.itemId !== GOOGLE_PLAY_PRODUCT_ID) {
-    throw new Error("The five-credit pack is unavailable in Google Play.");
+    throw new Error("The three-video pack is unavailable in Google Play.");
   }
   return {
     ...detail,
@@ -42,6 +42,7 @@ export async function getGooglePlayProduct(): Promise<PlayProduct> {
 
 async function verifyPurchase(
   purchaseToken: string,
+  productId: string,
   purchaseId?: string,
   analysisId?: string,
 ) {
@@ -52,7 +53,7 @@ async function verifyPurchase(
       purchaseToken,
       purchaseId,
       analysisId,
-      productId: GOOGLE_PLAY_PRODUCT_ID,
+      productId,
     }),
   });
   const payload = await response.json().catch(() => ({}));
@@ -76,7 +77,7 @@ export async function startGooglePlayPurchase(input: {
     ],
     {
       total: {
-        label: product.title || "Rarely five-card credits",
+        label: product.title || "Rarely three talking-pet videos",
         amount: {
           currency: product.price.currency,
           value: product.price.value,
@@ -99,6 +100,7 @@ export async function startGooglePlayPurchase(input: {
   try {
     const result = await verifyPurchase(
       purchaseToken,
+      GOOGLE_PLAY_PRODUCT_ID,
       input.purchaseId,
       input.analysisId,
     );
@@ -115,14 +117,18 @@ export async function restoreGooglePlayPurchases(analysisId?: string) {
   const purchases = await service.listPurchases();
   const restored: { purchaseId: string; analysisId: string | null }[] = [];
   for (const purchase of purchases) {
-    if (purchase.itemId !== GOOGLE_PLAY_PRODUCT_ID) continue;
-    restored.push(
-      await verifyPurchase(
+    try {
+      restored.push(await verifyPurchase(
         purchase.purchaseToken,
+        purchase.itemId,
         undefined,
         analysisId,
-      ),
-    );
+      ));
+    } catch {
+      // Play can retain unrelated or retired one-time items. Verification is
+      // catalog-authoritative per item, so one unknown SKU must not prevent
+      // current or historical Rarely purchases from being restored.
+    }
   }
   return restored;
 }

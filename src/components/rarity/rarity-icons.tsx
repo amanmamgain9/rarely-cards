@@ -52,3 +52,13 @@ export function Printer() {
     </svg>
   );
 }
+
+export function Film() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4" stroke="currentColor" strokeWidth="1.6" />
+      <path d="m11 9 4 3-4 3V9Z" fill="currentColor" />
+    </svg>
+  );
+}

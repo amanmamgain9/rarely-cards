@@ -3,24 +3,12 @@
 import Image from "next/image";
 import { forwardRef } from "react";
 import type { AcceptedAnalysis } from "@/lib/analysis/types";
-import { getRarityTier } from "@/lib/rarity/score";
 
 function Star() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path
         d="m12 1.5 2.65 7.22 7.65.28-6.02 4.73 2.1 7.35L12 16.8l-6.38 4.28 2.1-7.35L1.7 9l7.65-.28L12 1.5Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function Spark() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M12 1.5c.7 6.3 4.2 9.8 10.5 10.5-6.3.7-9.8 4.2-10.5 10.5C11.3 16.2 7.8 12.7 1.5 12 7.8 11.3 11.3 7.8 12 1.5Z"
         fill="currentColor"
       />
     </svg>
@@ -40,7 +28,6 @@ export const ShareCard = forwardRef<
   ref,
 ) {
   const petName = result.petName || "Your pet";
-  const rarityTier = getRarityTier(result.rarityScore);
   const isOptimizableDemo = photo.startsWith("/pets/");
   const pendingPhrases: Record<string, string> = {
     aura: "Their Whole Mood",
@@ -51,28 +38,28 @@ export const ShareCard = forwardRef<
 
   return (
     <article
-      className={`story-card story-card--rarity-${rarityTier}`}
+      className="relative grid aspect-[9/16] w-[min(360px,calc(100vw-1.5rem))] grid-rows-[52px_minmax(0,1fr)_94px_108px_14px] gap-2 overflow-hidden rounded-[22px] border-[3px] border-ink bg-yellow p-3 text-ink shadow-[7px_8px_0_#241a44]"
       ref={ref}
     >
-      <div className="story-holo" aria-hidden="true" />
-      <header className="story-header">
-        <div className="story-identity">
-          <span>
+      <div className="story-holo pointer-events-none absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-purple/20" aria-hidden="true" />
+      <header className="relative z-10 flex min-w-0 items-center justify-between gap-2">
+        <div className="min-w-0">
+          <span className="block truncate font-mono text-[6px] font-bold uppercase">
             {petName.toUpperCase()} ·{" "}
             {(pending ? "PET" : result.species || "PET").toUpperCase()} ·{" "}
             {(pending ? "ONE PHOTO" : result.energy || "ONE OF ONE").toUpperCase()}
           </span>
-          <h2>{pending ? "Their Story Starts Here" : result.cardTitle}</h2>
+          <h2 className="truncate font-display text-[13px] font-normal">{pending ? "Their Story Starts Here" : result.cardTitle}</h2>
         </div>
-        <div className="story-score">
-          <span>RARITY</span>
-          <strong>{pending ? "??" : result.rarityScore}</strong>
-          <i><Spark /></i>
+        <div className="flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-ink bg-cream">
+          <span className="font-mono text-[5px]">RARITY</span>
+          <strong className="font-display text-lg leading-none">{pending ? "??" : result.rarityScore}</strong>
         </div>
       </header>
-      <div className="story-portrait">
+      <div className="relative z-10 overflow-hidden rounded-xl border-[3px] border-pink bg-purple shadow-[0_0_16px_#f4458f]">
         {isOptimizableDemo ? (
           <Image
+            className="object-cover"
             src={photo}
             alt={`${petName} in their rarity card photograph`}
             fill
@@ -84,6 +71,7 @@ export const ShareCard = forwardRef<
           // Blob and signed storage URLs are already resized by the app pipeline.
           // eslint-disable-next-line @next/next/no-img-element
           <img
+            className="size-full object-cover"
             src={photo}
             alt={`${petName} in their rarity card photograph`}
             width={720}
@@ -92,27 +80,27 @@ export const ShareCard = forwardRef<
             fetchPriority={photoPriority ? "high" : "auto"}
           />
         )}
-        <span className="story-spark story-spark-two"><Star /></span>
+        <span className="absolute bottom-3 right-3 w-6 text-yellow drop-shadow-[2px_2px_0_#241a44]"><Star /></span>
       </div>
-      <section className="story-thought">
-        <div className="story-thought-heading">
+      <section className="relative z-10 rounded-xl border-2 border-ink bg-cream p-2">
+        <div className="flex items-center justify-between font-mono text-[6px] font-bold text-pink">
           <span>
             {pending ? "THEIR TAKE" : <>{petName.toUpperCase()}&apos;S TAKE</>}
           </span>
-          <i aria-hidden="true"><Star /></i>
+          <i className="w-3" aria-hidden="true"><Star /></i>
         </div>
-        <h3>{pending ? "The Look You Know" : result.signatureRead.title}</h3>
-        <p>
+        <h3 className="my-1 font-display text-[11px] font-normal">{pending ? "The Look You Know" : result.signatureRead.title}</h3>
+        <p className="line-clamp-3 text-[7px] font-bold leading-tight text-ink-muted">
           {pending
             ? "You already know what this face means. Their card will put it into words."
             : result.signatureRead.thought}
         </p>
       </section>
-      <div className="story-stats">
+      <div className="relative z-10 grid grid-cols-2 gap-1.5">
         {result.ratings.map((stat) => (
-          <div className="story-stat" key={stat.key}>
-            <div className="story-stat-heading"><span>{stat.label}</span></div>
-            <p>
+          <div className="rounded-lg border border-ink bg-cream px-2 py-1" key={stat.key}>
+            <div className="font-mono text-[5px] font-bold uppercase text-pink"><span>{stat.label}</span></div>
+            <p className="mt-0.5 line-clamp-2 text-[6px] font-bold leading-tight">
               {pending
                 ? pendingPhrases[stat.key] || "Waiting For Their Read"
                 : stat.phrase}
@@ -120,7 +108,7 @@ export const ShareCard = forwardRef<
           </div>
         ))}
       </div>
-      <div className="story-footer">
+      <div className="relative z-10 flex items-center justify-between font-mono text-[6px] font-bold">
         <span>ONE OF ONE · NOT BUILT TO BLEND IN.</span>
         <span>RLY · 2026</span>
       </div>

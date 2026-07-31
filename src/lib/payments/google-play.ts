@@ -60,8 +60,9 @@ export async function getGooglePlayOrder(orderId: string) {
 
 export function validateGooglePlayPurchase(
   purchase: GooglePlayProductPurchase,
+  expectedProductId = googlePlayEnv().productId,
 ) {
-  return validatePurchaseData(purchase, googlePlayEnv().productId);
+  return validatePurchaseData(purchase, expectedProductId);
 }
 
 export async function consumeGooglePlayPurchase(
@@ -69,7 +70,7 @@ export async function consumeGooglePlayPurchase(
   purchaseToken: string,
 ) {
   const env = googlePlayEnv();
-  if (productId !== env.productId) {
+  if (productId !== env.productId && !env.legacyCardProductIds.includes(productId)) {
     throw new Error("google_play_product_mismatch");
   }
   const client = await getClient();

@@ -3,10 +3,8 @@ import type {
   DragEventHandler,
   RefObject,
 } from "react";
-import { ShareCard } from "@/components/share-card";
 import { Camera, Star, Upload } from "@/components/rarity/rarity-icons";
 import type { FlowState } from "@/components/rarity/rarity-model";
-import type { AcceptedAnalysis } from "@/lib/analysis/types";
 
 type RarityMakerProps = {
   signedIn: boolean;
@@ -21,13 +19,11 @@ type RarityMakerProps = {
   selectedFile: File | null;
   flow: FlowState;
   onOpenCheckout: () => void;
+  onGetStarted?: () => void;
   checkoutPrice: string | null;
   message: string | null;
   photo: string | null;
-  result: AcceptedAnalysis | null;
   heroDemoImage: string;
-  heroCardPhoto: string;
-  heroCardResult: AcceptedAnalysis;
 };
 
 export function RarityMaker({
@@ -43,22 +39,21 @@ export function RarityMaker({
   selectedFile,
   flow,
   onOpenCheckout,
+  onGetStarted,
   checkoutPrice,
   message,
   photo,
-  result,
   heroDemoImage,
-  heroCardPhoto,
-  heroCardResult,
 }: RarityMakerProps) {
   const creditedWorkspace = signedIn && creditBalance > 0;
+  const beginPublicJourney = onGetStarted ?? onOpenCheckout;
 
   return (
     <>
-      <header className={`nav ${creditedWorkspace ? "nav--workspace" : ""}`}>
-        <a className="brand" href="#">RARELY <span><Star /></span></a>
+      <header className="relative z-20 mx-auto flex min-h-20 w-[calc(100%-2.5rem)] max-w-[1420px] items-center justify-between gap-6 border-b-[3px] border-ink px-2 max-md:w-[calc(100%-1.5rem)]">
+        <a className="inline-flex items-center gap-2 font-display text-2xl text-pink" href="#">RARELY <span className="grid size-7 place-items-center rounded-full border-2 border-ink bg-yellow [&>svg]:w-4"><Star /></span></a>
         {!creditedWorkspace && (
-          <div className="nav-center">
+          <div className="flex items-center gap-6 font-mono text-[10px] font-medium uppercase text-ink-muted max-lg:hidden">
             <a href="#example">See an example</a>
             <a href="/pricing">Pricing</a>
             <a href="#stats">Why you&apos;ll keep it</a>
@@ -66,122 +61,158 @@ export function RarityMaker({
           </div>
         )}
         {signedIn ? (
-          <div className="nav-account">
-            <a href="/account"><i /> {creditBalance} credits · Account</a>
-            <button type="button" onClick={onSignOut}>Sign out</button>
+          <div className="flex items-center gap-4 font-mono text-[10px] font-bold uppercase">
+            <a className="inline-flex items-center gap-2" href="/account"><i className="size-2 rounded-full border border-ink bg-[#66d68d]" /> {creditBalance} credits · Account</a>
+            <button className="border-0 bg-transparent text-pink" type="button" onClick={onSignOut}>Sign out</button>
           </div>
         ) : (
-          <a className="nav-button" href="#maker">
-            Make a card <span>→</span>
-          </a>
+          <button className="hidden rounded-xl border-2 border-ink bg-yellow px-4 py-3 font-mono text-[10px] font-bold shadow-[3px_3px_0_#241a44] sm:block" type="button" onClick={beginPublicJourney}>
+            Make my pet talk <span>→</span>
+          </button>
         )}
       </header>
 
-      <section className={`hero ${creditedWorkspace ? "hero--workspace" : ""}`} id="maker">
+      <section className={`relative mx-auto grid min-h-[calc(100svh-5rem)] w-[calc(100%-2.5rem)] max-w-[1320px] items-center gap-16 overflow-hidden py-16 lg:grid-cols-[1.05fr_0.95fr] max-md:w-[calc(100%-1.5rem)] max-md:gap-10 max-md:py-10 ${creditedWorkspace ? "bg-workspace" : ""}`} id="maker">
         {!creditedWorkspace && (
-          <div className="hero-burst burst-one" aria-hidden="true"><Star /></div>
+          <div className="absolute left-1/2 top-8 -z-10 w-20 rotate-12 text-yellow opacity-70" aria-hidden="true"><Star /></div>
         )}
-        <div className="hero-content">
-          <div className="mini-tag">
-            <span>{creditedWorkspace ? "READY TO MAKE ONE" : "AI PET CARDS"}</span>
+        <div className="relative z-10 max-w-2xl">
+          <div className="mb-5 flex w-fit items-center gap-3 rounded-full border-2 border-ink bg-cream px-3 py-2 font-mono text-[9px] font-bold uppercase shadow-[3px_3px_0_#241a44]">
+            <span className="rounded-full bg-pink px-2 py-1 text-white">{creditedWorkspace ? "VIDEOS READY" : "AI TALKING PETS"}</span>
             {creditedWorkspace
-              ? `${creditBalance} CREDIT${creditBalance === 1 ? "" : "S"} READY · 1 PER CARD`
-              : "CAT OR DOG · 5 CARD CREDITS · $5"}
+              ? `${creditBalance} VIDEO${creditBalance === 1 ? "" : "S"} READY · 1 CREDIT EACH`
+              : "CAT OR DOG · 3 VIDEOS · $10"}
           </div>
-          <h1>
-            {creditedWorkspace ? "PICK A PHOTO." : "PET PHOTO"}
-            <span>{creditedWorkspace ? "GET THEIR CARD." : "→ STORY CARD."}</span>
+          <h1 className="font-display text-[2.5rem] font-normal leading-[0.88] tracking-[-0.055em] sm:text-[3.6rem] lg:text-[6.5rem]">
+            {creditedWorkspace ? "PICK A PHOTO." : "ONE PET PHOTO."}
+            <span className="mt-2 block text-pink [text-shadow:5px_5px_0_#ffe36e]">{creditedWorkspace ? "MAKE THEM TALK." : "THEY SAY THE REST."}</span>
           </h1>
-          <p className="hero-copy">
+          <p className="my-6 max-w-xl text-base font-bold leading-relaxed text-ink-muted sm:text-lg">
             {creditedWorkspace
-              ? "Choose one clear photo of your cat or dog. Add their name, and we’ll turn that look into their one-of-one card."
-              : "Upload the photo that feels most like them. We turn that one look into a one-of-one card with the voice you already hear in your head—funny, specific, and unmistakably theirs."}
+              ? "Choose one clear photo. Pick one line inspired by that look—or write your own—and get an eight-second talking-pet reel."
+              : "Upload one photo. Pick what your pet says. Watch them say it in an eight-second video made for sharing."}
           </p>
           {creditedWorkspace ? (
-            <p className="workspace-flow">
-              01 Photo <b>→</b> 02 Name <b>→</b> 03 Card
+            <p className="mb-5 font-mono text-[10px] font-bold uppercase text-pink">
+              01 Photo <b>→</b> 02 Pick a line <b>→</b> 03 Video
             </p>
           ) : (
-            <div className="upload-instruction">
-              <span>01</span>
+            <div className="mb-5 grid grid-cols-[40px_1fr_auto] items-center gap-3 rounded-xl border-2 border-ink bg-cream p-3 shadow-[4px_4px_0_#241a44]">
+              <span className="font-display text-xl text-pink">01</span>
               <div>
-                <small>SHOW US THEIR WORLD</small>
-                <strong>ADD THEIR PHOTO</strong>
-                <p>Close-up or full scene. One clear cat or dog. Let the room tell on them.</p>
+                <small className="block font-mono text-[8px] text-ink-muted">OPEN YOUR VIDEO BOOTH</small>
+                <strong className="block">GET THREE CREDITS</strong>
+                <p className="text-xs text-ink-muted">Sign in and get the video pack. You choose their photo next.</p>
               </div>
               <i aria-hidden="true">↓</i>
             </div>
           )}
           <div
-            className={`photo-actions ${dragging ? "is-dragging" : ""}`}
-            onDragOver={(event) => { event.preventDefault(); onDraggingChange(true); }}
-            onDragLeave={() => onDraggingChange(false)}
-            onDrop={onDrop}
+            className={`grid items-center gap-3 rounded-2xl border-2 border-dashed p-3 sm:grid-cols-[1fr_auto_1fr] ${dragging ? "border-pink bg-pink/10" : "border-ink/30"}`}
+            onDragOver={(event) => {
+              event.preventDefault();
+              if (creditedWorkspace) onDraggingChange(true);
+            }}
+            onDragLeave={() => creditedWorkspace && onDraggingChange(false)}
+            onDrop={(event) => {
+              if (creditedWorkspace) onDrop(event);
+              else {
+                event.preventDefault();
+                beginPublicJourney();
+              }
+            }}
           >
             <input ref={uploadInput} type="file" accept="image/png,image/jpeg,image/webp" onChange={onFileChange} hidden />
             <input ref={cameraInput} type="file" accept="image/*" capture="environment" onChange={onFileChange} hidden />
-            <button className="action-button selfie-button" type="button" onClick={() => cameraInput.current?.click()}>
-              <span className="action-icon"><Camera /></span>
-              <span><b>TAKE THEIR PHOTO</b><small>Open your camera</small></span>
+            <button
+              className="flex min-h-20 items-center gap-3 rounded-xl border-2 border-ink bg-pink p-3 text-left text-white shadow-[3px_3px_0_#241a44]"
+              type="button"
+              onClick={() =>
+                creditedWorkspace
+                  ? cameraInput.current?.click()
+                  : beginPublicJourney()
+              }
+            >
+              <span className="grid size-10 shrink-0 place-items-center rounded-lg border-2 border-ink bg-yellow text-ink [&>svg]:w-5"><Camera /></span>
+              <span>
+                <b>{creditedWorkspace ? "TAKE THEIR PHOTO" : "SIGN IN TO START"}</b>
+                <small className="block text-[10px] opacity-80">{creditedWorkspace ? "Open your camera" : "Your account keeps every video"}</small>
+              </span>
             </button>
-            <span className="action-or">OR</span>
-            <button className="action-button upload-button" type="button" onClick={() => uploadInput.current?.click()}>
-              <span className="action-icon"><Upload /></span>
-              <span><b>{selectedFile ? "CHOOSE A DIFFERENT PHOTO" : "UPLOAD THEIR PHOTO"}</b><small>Pick from your camera roll</small></span>
-            </button>
+            <span className="font-mono text-[9px] font-bold text-ink-muted">OR</span>
+            {creditedWorkspace ? (
+              <button
+                className="flex min-h-20 items-center gap-3 rounded-xl border-2 border-ink bg-cream p-3 text-left text-ink shadow-[3px_3px_0_#241a44]"
+                type="button"
+                onClick={() => uploadInput.current?.click()}
+              >
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg border-2 border-ink bg-purple text-ink [&>svg]:w-5"><Upload /></span>
+                <span>
+                  <b>{selectedFile ? "CHOOSE A DIFFERENT PHOTO" : "UPLOAD THEIR PHOTO"}</b>
+                  <small className="block text-[10px] text-ink-muted">Pick from your camera roll</small>
+                </span>
+              </button>
+            ) : (
+              <a className="flex min-h-20 items-center gap-3 rounded-xl border-2 border-ink bg-cream p-3 text-left text-ink shadow-[3px_3px_0_#241a44]" href="/pricing">
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg border-2 border-ink bg-purple text-ink [&>svg]:w-5"><Upload /></span>
+                <span><b>SEE PRICING</b><small className="block text-[10px] text-ink-muted">3 video credits · no subscription</small></span>
+              </a>
+            )}
           </div>
-          <p className="upload-consent">
-            By adding a photo, you confirm you may use it and consent to private AI
-            processing under our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.
-          </p>
+          {creditedWorkspace && (
+            <p className="mt-3 text-[10px] font-bold leading-relaxed text-ink-muted [&_a]:underline">
+              By adding a photo, you confirm you may use it and consent to private AI
+              processing under our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.
+            </p>
+          )}
           {!creditedWorkspace && (
             <button
-              className="reveal-cta"
+              className="mt-5 flex min-h-14 w-full items-center justify-between rounded-xl border-[3px] border-ink bg-pink px-5 font-display text-[11px] text-white shadow-[5px_5px_0_#241a44]"
               type="button"
-              disabled={flow !== "checkout"}
-              onClick={onOpenCheckout}
+              onClick={beginPublicJourney}
             >
               <span>
-                {flow === "checkout"
-                  ? `Get 5 card credits${checkoutPrice ? ` — ${checkoutPrice}` : ""}`
-                  : selectedFile
-                    ? signedIn
-                      ? "Preparing secure checkout"
-                      : "Sign in to continue"
-                    : "Start with a pet photo ↑"}
+                {`Sign in to get 3 talking-pet videos${checkoutPrice ? ` — ${checkoutPrice}` : ""}`}
               </span>
-              <span className="cta-ball" aria-hidden="true"><i /></span>
+              <span className="grid size-8 place-items-center rounded-full border-2 border-ink bg-yellow" aria-hidden="true">→</span>
             </button>
           )}
-          <p className="privacy">
+          <p className="mt-4 font-mono text-[9px] text-ink-muted">
             <span>◆</span>{" "}
             {creditedWorkspace
-              ? "Private upload · Invalid files use no credit · Technical failures return it"
-              : "Private upload · Saved securely with completed cards · 5 attempts for $5"}
+              ? "Private upload · Failed generations return the video credit"
+              : "Private upload · 3 talking-pet videos for $10 · No subscription"}
           </p>
-          {message && flow !== "retry" && <p className="photo-error" role="alert">{message}</p>}
+          {message && flow !== "retry" && <p className="mt-4 rounded-lg border border-[#d73b75] bg-[#fff0f5] px-4 py-3 text-[13px] font-extrabold text-[#8f1945]" role="alert">{message}</p>}
         </div>
 
-        <div className="card-zone">
-          <div className="card-label label-top">
+        <div className="relative mx-auto w-full max-w-[430px]">
+          <div className="absolute -top-5 left-4 z-10 rotate-[-2deg] rounded-md border-2 border-ink bg-yellow px-3 py-2 font-mono text-[8px] font-bold">
             {photo
-              ? "YOUR PHOTO"
+              ? "YOUR PET"
               : creditedWorkspace
-                ? "YOUR CARD APPEARS HERE"
-                : "REAL CARD PREVIEW"}{" "}<span>★</span>
+                ? "YOUR VIDEO STARTS HERE"
+                : "THE PHOTO BECOMES THE REEL"}{" "}<span>★</span>
           </div>
-          <div className="card-label label-side">
-            {creditedWorkspace ? "PHOTO → NAME → CARD" : "DOWNLOADABLE · 9:16"}
+          <div className="absolute -right-12 top-1/2 z-10 rotate-90 rounded-md border-2 border-ink bg-cream px-3 py-2 font-mono text-[8px] font-bold max-sm:hidden">
+            {creditedWorkspace ? "PHOTO → LINE → TALKING VIDEO" : "8 SEC · 9:16 · SOUND"}
           </div>
-          <div className="hero-story-card" key={photo || result ? "active-card" : heroDemoImage}>
-            <ShareCard
-              photo={heroCardPhoto}
-              result={heroCardResult}
-              pending={Boolean(photo && !result)}
-              photoPriority
-            />
+          <div className="relative aspect-[9/16] overflow-hidden rounded-[28px] border-4 border-ink bg-purple shadow-[10px_11px_0_#241a44,18px_19px_0_#f4458f]" key={photo || heroDemoImage}>
+            {/* Blob previews and signed account URLs are intentionally rendered directly. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="size-full object-cover" src={photo || heroDemoImage} alt={photo ? "Your selected pet" : "A pet ready to become a talking video"} />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-ink/90" aria-hidden="true" />
+            <span className="absolute left-4 top-4 rounded-full bg-ink/70 px-3 py-1 font-mono text-[8px] text-white">RARELY · ORIGINAL AUDIO</span>
+            <button type="button" tabIndex={-1} aria-hidden="true" className="absolute left-1/2 top-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-[3px] border-ink bg-yellow shadow-[4px_4px_0_#f4458f]">
+              <i className="ml-1 size-0 border-y-[9px] border-l-[14px] border-y-transparent border-l-ink" />
+            </button>
+            <blockquote className="absolute bottom-16 left-5 right-5 m-0 text-center font-display text-xl leading-tight text-white">
+              {photo ? "Reading that face…" : "I heard the treat bag. Continue."}
+            </blockquote>
+            <div className="absolute bottom-6 left-6 right-6 flex h-5 items-center justify-center gap-1" aria-hidden="true">
+              {Array.from({ length: 18 }, (_, index) => <i className="w-1 rounded-full bg-yellow" style={{ height: `${6 + ((index * 7) % 15)}px` }} key={index} />)}
+            </div>
           </div>
-          <div className="card-shadow-pink" aria-hidden="true" />
         </div>
       </section>
     </>

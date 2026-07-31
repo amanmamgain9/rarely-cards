@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { googlePlayEnv } from "@/lib/env";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { grantCreditPurchase } from "@/lib/payments/credit-purchases";
+import { googlePlayCreditKind } from "@/lib/payments/catalog";
 import {
   consumeGooglePlayPurchase,
   getGooglePlayOrder,
@@ -40,13 +41,19 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid Google Play purchase." }, { status: 400 });
   }
   const env = googlePlayEnv();
-  if (body.data.productId !== env.productId) {
+  const expectedCreditKind = googlePlayCreditKind(
+    body.data.productId,
+    env.productId,
+    env.legacyCardProductIds,
+  );
+  if (!expectedCreditKind) {
     return Response.json({ error: "Unknown Google Play product." }, { status: 400 });
   }
+  const isVideoPack = expectedCreditKind === "talking_video";
 
   try {
     const purchase = await getGooglePlayPurchase(body.data.purchaseToken);
-    const verified = validateGooglePlayPurchase(purchase);
+    const verified = validateGooglePlayPurchase(purchase, body.data.productId);
     const order = await getGooglePlayOrder(verified.orderId);
     if (
       order.orderId !== verified.orderId ||
@@ -96,13 +103,13 @@ export async function POST(request: Request) {
           status: string;
           resume_analysis_id: string | null;
           payment_provider: string;
+          credit_kind: "card" | "talking_video";
         }
       | null = null;
-
     if (creditPurchaseId) {
       const { data } = await admin
         .from("credit_purchases")
-        .select("id, status, resume_analysis_id, payment_provider")
+        .select("id, status, resume_analysis_id, payment_provider, credit_kind")
         .eq("id", creditPurchaseId)
         .eq("user_id", user.id)
         .maybeSingle();
@@ -110,10 +117,11 @@ export async function POST(request: Request) {
     } else {
       let pendingQuery = admin
         .from("credit_purchases")
-        .select("id, status, resume_analysis_id, payment_provider")
+        .select("id, status, resume_analysis_id, payment_provider, credit_kind")
         .eq("user_id", user.id)
         .eq("payment_provider", "google_play")
         .eq("status", "checkout_pending")
+        .eq("credit_kind", expectedCreditKind)
         .order("created_at", { ascending: false })
         .limit(1);
       pendingQuery = body.data.analysisId
@@ -133,21 +141,26 @@ export async function POST(request: Request) {
           resume_analysis_id: body.data.analysisId ?? null,
           checkout_scope_id:
             body.data.analysisId ?? ACCOUNT_CHECKOUT_SCOPE,
+          // A verified restoration must not contend with an unrelated checkout
+          // that is still being prepared for the same account/scope.
+          pending_checkout_guarded: false,
           status: "checkout_pending",
-          credits_granted: 5,
+          credit_kind: isVideoPack ? "talking_video" : "card",
+          credits_granted: isVideoPack ? 3 : 5,
           credits_remaining: 0,
           amount_cents: 0,
           currency: order.total?.currencyCode?.toUpperCase() || "USD",
         })
-        .select("id, status, resume_analysis_id, payment_provider")
+        .select("id, status, resume_analysis_id, payment_provider, credit_kind")
         .single();
       if (error?.code === "23505") {
         let existingQuery = admin
           .from("credit_purchases")
-          .select("id, status, resume_analysis_id, payment_provider")
+          .select("id, status, resume_analysis_id, payment_provider, credit_kind")
           .eq("user_id", user.id)
           .eq("payment_provider", "google_play")
           .eq("status", "checkout_pending")
+          .eq("credit_kind", expectedCreditKind)
           .order("created_at", { ascending: false })
           .limit(1);
         existingQuery = body.data.analysisId
@@ -166,6 +179,7 @@ export async function POST(request: Request) {
 
     if (
       creditPurchase.payment_provider !== "google_play" ||
+      creditPurchase.credit_kind !== expectedCreditKind ||
       !creditPurchaseId ||
       (body.data.analysisId &&
         creditPurchase.resume_analysis_id !== body.data.analysisId)
@@ -271,6 +285,7 @@ export async function POST(request: Request) {
         body.data.analysisId ??
         creditPurchase.resume_analysis_id ??
         undefined,
+      credits: isVideoPack ? 3 : 5,
     });
 
     if (!verified.consumed) {

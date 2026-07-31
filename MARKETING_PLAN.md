@@ -9,7 +9,7 @@ build a repeatable organic acquisition loop before spending meaningfully on ads.
 
 | Outcome | Day 30 | Day 60 | Day 90 |
 | --- | ---: | ---: | ---: |
-| Paid five-card packs | 50 | 150 cumulative | 350 cumulative |
+| Paid three-video packs | 50 | 150 cumulative | 350 cumulative |
 | Completed cards | 150 | 500 cumulative | 1,200 cumulative |
 | Card share rate | 20% | 25% | 30% |
 | Purchase-to-first-card rate | 70% | 80% | 85% |
@@ -23,7 +23,7 @@ after the first 100 purchases establish a real baseline.
 
 **Product:** Rarely turns one cat or dog photo into a downloadable 9:16 rarity
 card with a name, title, rarity score, signature trait, ratings, and an imagined
-inner voice. Five attempts cost $5 as a one-time purchase; there is no
+spoken line. Three talking-pet videos cost $10 as a one-time purchase; there is no
 subscription.
 
 **Primary audience:** English-speaking cat and dog owners aged 18–44 who already
@@ -33,7 +33,7 @@ post, save, or send pet photos.
 
 1. Pet owners whose friends already recognize their pet's distinct personality.
 2. Pet-focused creators with 2,000–50,000 followers.
-3. Multi-pet households, because a five-card pack has an obvious use.
+3. Multi-pet households, because a three-video pack has an obvious use.
 4. People marking an adoption anniversary, birthday, or pet memorial.
 
 **Positioning statement:**
@@ -47,7 +47,7 @@ post, save, or send pet photos.
 
 - The result reads the pet's expression, posture, and surroundings.
 - Every completed result is a polished, downloadable 9:16 card.
-- Five attempts cost $5 once, with no subscription.
+- Three talking-pet videos cost $10 once, with no subscription.
 - Photos and cards remain private unless the owner chooses to share them.
 - Purchases have a 14-day full-refund guarantee.
 
@@ -62,7 +62,7 @@ Lead with the emotional result, not the technology.
 
 1. **Recognition:** "You know that look. Rarely puts it into words."
 2. **Output:** A one-of-one pet card made to save, send, or post.
-3. **Value:** Five card attempts for $5.
+3. **Value:** Three talking-pet videos for $10.
 4. **Risk reversal:** One payment, no subscription, 14-day refund guarantee.
 5. **Trust:** Private upload; the owner decides whether to share.
 6. **Mechanism:** AI reads visible details to create the card.
@@ -79,7 +79,7 @@ Lead with the emotional result, not the technology.
 ### Calls to action
 
 - Primary: **Make their card**
-- Value-led: **Get 5 card credits — $5**
+- Value-led: **Get 3 talking-pet videos — $10**
 - Social: **Show us the look only you understand**
 
 Avoid vague calls to action such as "Try AI" or "Generate now."
@@ -109,7 +109,7 @@ clear reveal within five seconds.
 Build a list of 100 creators whose audiences comment on the pet's personality,
 not merely its appearance. Contact 15–20 per week.
 
-Offer a complimentary five-card pack with no posting requirement. Ask for
+Offer a complimentary three-video pack with no posting requirement. Ask for
 permission to repost only after they receive a result they like. For creators
 who post successfully, test a manually tracked 20% revenue share before
 building a full affiliate system.
@@ -155,7 +155,7 @@ channel at launch.
 - Title: **Rarely: Pet Rarity Cards**
 - Short description: **Turn one cat or dog photo into a funny, one-of-one card.**
 - Screenshots should tell one story: upload, personality read, finished card,
-  save/share, five credits with no subscription.
+  save/share, three videos with no subscription.
 - Ask for a rating only after a user successfully completes and saves a card.
 - Build search pages only for genuine intent, such as pet birthday cards or
   personalized digital pet keepsakes. Do not create thin breed pages at scale.
@@ -294,10 +294,10 @@ Start with a maximum test budget of **$300–$500 for the first month**:
 | Content tools, props, or editing | $50 |
 | Community or shelter pilot | $0–$50 |
 
-At a $5 pack price, broad cold advertising is unlikely to work on the first
+At a $10 pack price, broad cold advertising still needs measured payback on the first
 purchase alone. Calculate the real contribution margin after payment fees, tax
 handling, refunds, and AI costs. Set the acquisition ceiling from that number;
-do not assume the full $5 is available.
+do not assume the full $10 is available.
 
 ## 9. Experiments backlog
 
@@ -305,7 +305,7 @@ Run one major variable at a time and require a clear success metric.
 
 1. **Hook:** "You know that look" versus "What is your pet thinking?"
 2. **Proof:** Finished card first versus photo-to-card reveal.
-3. **Value:** "$1 per attempt" versus "Five attempts for $5."
+3. **Value:** "$3.33 per video" versus "Three videos for $10."
 4. **Risk reversal:** No-subscription message versus refund guarantee.
 5. **Audience:** Single-pet story versus five-pet household set.
 6. **Creator format:** Owner reaction versus narrated card reveal.

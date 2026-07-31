@@ -1,8 +1,16 @@
 # Rarely
 
-Rarely turns a pet photo into a one-of-one digital card. The app uses Supabase
-Auth and Storage, Gemini for analysis, and a five-credit one-time purchase sold
-through Paddle on the web.
+Rarely turns a pet photo and one short line into an eight-second vertical
+talking-pet video. Gemini suggests funny, sweet, and chaotic lines from the
+photo; Seedance 2.0 generates synchronized speech.
+
+New purchases are USD $10 one-time packs of three video credits. Historical
+five-card purchases remain stored as `card` credits and keep their existing
+refund/entitlement records. Video generation is hidden unless
+`BYTEPLUS_ARK_API_KEY` is configured. Apply the latest Supabase migration to
+create the private `generated-videos` bucket and video job table; generated MP4s
+are copied out of ModelArk as soon as they finish so provider URL expiry does
+not affect saved videos.
 
 ## Getting started
 
@@ -19,11 +27,13 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Paddle
 
-Run `npm run paddle:setup` to create or find the five-card product, price, and
+Run `npm run paddle:setup` to create or find the three-video product, $10 price, and
 client token. Set the printed values plus `PADDLE_WEBHOOK_SECRET`, and register
 `https://your-domain/api/webhooks/paddle` for transaction and adjustment events.
 The Paddle API key must include customer read/write access as well as the
-existing product, price, transaction, adjustment, and client-token permissions;
+existing product, price, transaction, adjustment, and client-token permissions.
+Set `PADDLE_LEGACY_CARD_PRICE_IDS` to old card-pack price IDs so delayed legacy
+transactions remain fulfillable;
 checkout uses it to bind each transaction to the signed-in account email.
 
 The legacy `/api/webhooks/lemon-squeezy` endpoint remains enabled only to honor
@@ -35,11 +45,13 @@ have been reconciled or canceled; the app cannot create new Lemon checkouts.
 
 The Android app is a Bubblewrap Trusted Web Activity in `android/`, using the
 permanent package ID `cards.rarely.app`. Digital credits in that app are sold
-only through the repeatable one-time Play product `five_card_credits`; web
+only through the repeatable one-time Play product `three_talking_pet_videos`; web
 browsers use Paddle.
 
 1. Apply `20260724170000_google_play_billing.sql`.
-2. In Play Console, create the app and the `five_card_credits` one-time product.
+2. In Play Console, create `three_talking_pet_videos` at the localized equivalent
+   of USD $10. Keep `five_card_credits` active only for restoration and add it to
+   `GOOGLE_PLAY_LEGACY_CARD_PRODUCT_IDS`.
 3. Grant an Android Publisher service account access to the app. Store its JSON
    (or base64-encoded JSON) in `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`; set the other
    `GOOGLE_PLAY_*` variables from `.env.example`.
@@ -62,10 +74,10 @@ adds Android's notification permission to the generated wrapper. Rarely does
 not request or send notifications; the enabled service is used for the Digital
 Goods bridge.
 
-## Optional Zazzle printing
+## Legacy Zazzle printing
 
-Zazzle printing is disabled by default and is separate from Rarely's digital
-card payment. When enabled, Rarely sends the rendered card to a Zazzle product
+Zazzle printing is disabled by default and remains available only for historical
+card customers. When enabled, Rarely sends the rendered card to a Zazzle product
 template and redirects the customer to Zazzle for payment, tax, shipping,
 fulfillment, and support.
 
@@ -75,8 +87,8 @@ fulfillment, and support.
    `ZAZZLE_IMAGE_PARAMETER`. `ZAZZLE_ASSOCIATE_ID` is optional.
 4. Set `ZAZZLE_PRINT_ENABLED=true` only after ordering and reviewing a sample.
 
-Turning `ZAZZLE_PRINT_ENABLED` back to `false` removes all print-order actions
-without affecting card generation or existing digital purchases.
+Turning `ZAZZLE_PRINT_ENABLED` back to `false` removes all legacy print-order
+actions without affecting existing digital purchases.
 
 ## Verification
 

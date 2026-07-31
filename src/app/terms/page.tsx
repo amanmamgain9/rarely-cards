@@ -1,4 +1,4 @@
-import { PublicFooter, PublicHeader } from "@/components/public-chrome";
+import { LegalArticle, LegalEyebrow, LegalHeading, LegalShell, LegalTitle } from "@/components/legal-shell";
 
 export const metadata = {
   title: "Terms — Rarely",
@@ -6,11 +6,10 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <main className="legal-page">
-      <PublicHeader />
-      <article>
-        <span className="pixel-label">EFFECTIVE JULY 23, 2026</span>
-        <h1>The deal, without the fine-print theatre.</h1>
+    <LegalShell>
+      <LegalArticle>
+        <LegalEyebrow>EFFECTIVE JULY 30, 2026</LegalEyebrow>
+        <LegalTitle>The deal, without the fine-print theatre.</LegalTitle>
         <p>
           Rarely is operated by Aman Mamgain, sole proprietor. Rarely is a
           playful AI entertainment product. Its scores are
@@ -19,7 +18,16 @@ export default function TermsPage() {
           of fact about an animal&apos;s personality.
         </p>
 
-        <h2>Your upload</h2>
+        <LegalHeading>AI talking-pet videos</LegalHeading>
+        <p>
+          Each video credit includes one Seedance generation. Choosing “Make my pet talk” authorizes Rarely to send the
+          pet photo and chosen line to BytePlus Seedance for generation. AI video
+          can alter motion, speech, or visible details and is
+          entertainment output, not a faithful record of an event. Availability,
+          duration, and provider may change as the service develops.
+        </p>
+
+        <LegalHeading>Your upload</LegalHeading>
         <p>
           You must be at least 18 and own the photo or have permission to use
           it. Submit one clearly visible cat or dog and avoid identifiable
@@ -30,21 +38,26 @@ export default function TermsPage() {
           or relationship with you.
         </p>
 
-        <h2>The five-card pack</h2>
+        <LegalHeading>The three-video pack</LegalHeading>
         <p>
-          One checkout adds five card credits to your Rarely account. The web
-          price is $5 USD; Google Play shows the Android price in your local
+          One checkout adds three talking-pet video credits to your Rarely account. The web
+          price is $10 USD; Google Play shows the Android price in your local
           currency before purchase. It is a one-time purchase, not a
           subscription, and you may buy additional packs whenever you want. One
-          credit is used whenever the AI returns a valid accepted or rejected
-          response. Invalid files do not use a credit. If a provider or worker
-          failure prevents a valid response, Rarely returns the reserved credit
-          automatically.
+          credit is reserved when you choose “Make my pet talk” and used by a
+          completed video. Invalid files, rejected photos, and provider or worker
+          failures return the reserved credit automatically. A credit buys one
+          generation attempt; it does not include unlimited rerolls.
+        </p>
+        <p>
+          Historical five-card purchases remain usable as card entitlements and
+          keep their original refund treatment. Rarely does not convert them into
+          video credits without the customer&apos;s agreement.
         </p>
 
-        <h2>Refunds</h2>
+        <LegalHeading>Refunds</LegalHeading>
         <p>
-          You may request a full refund within 14 days of a five-card pack
+          You may request a full refund within 14 days of a three-video pack
           purchase, even if some or all credits were used. Requests are handled
           under our Refund Policy and processed by the provider used at
           checkout—Google Play or Paddle. A provider may mark a refund as
@@ -52,7 +65,7 @@ export default function TermsPage() {
           Refunded or disputed purchases lose any unused credits.
         </p>
 
-        <h2>Availability and acceptable use</h2>
+        <LegalHeading>Availability and acceptable use</LegalHeading>
         <p>
           We may rate-limit abuse, reject unsupported images, pause service, or
           remove unlawful content. Do not reverse engineer safeguards, automate
@@ -61,7 +74,7 @@ export default function TermsPage() {
           insurance, identification, or other consequential decisions.
         </p>
 
-        <h2>Liability</h2>
+        <LegalHeading>Liability</LegalHeading>
         <p>
           The service is provided as available. To the extent permitted by law,
           Rarely is not liable for indirect or consequential losses. Our total
@@ -69,9 +82,7 @@ export default function TermsPage() {
           purchase. Consumer rights that cannot legally be waived still apply.
           Contact amanmamgain9@gmail.com with legal, billing, or product questions.
         </p>
-      </article>
-      <PublicFooter />
-    </main>
+      </LegalArticle>
+    </LegalShell>
   );
 }
-

@@ -8,6 +8,7 @@ import {
   cardStyleSchema,
   type PublicAnalysis,
 } from "@/lib/analysis/types";
+import { petDialogueSuggestionsSchema } from "@/lib/video/dialogue";
 import { reportServerError } from "@/lib/observability";
 import { startFullRefund } from "@/lib/paddle";
 import { resumeAnalysisAfterGrantedPurchase } from "@/lib/payments/credit-purchases";
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const { data: purchases, error: purchaseError } = await admin
     .from("credit_purchases")
-    .select("credits_remaining")
+    .select("credits_remaining, credit_kind")
     .eq("user_id", user.id)
     .eq("status", "active");
   if (purchaseError) {
@@ -53,13 +54,19 @@ export async function GET(request: Request) {
     );
   }
   const creditBalance = (purchases ?? []).reduce(
-    (sum, purchase) => sum + purchase.credits_remaining,
+    (sum, purchase) =>
+      sum + (purchase.credit_kind === "talking_video" ? purchase.credits_remaining : 0),
+    0,
+  );
+  const legacyCardCreditBalance = (purchases ?? []).reduce(
+    (sum, purchase) =>
+      sum + (purchase.credit_kind === "card" ? purchase.credits_remaining : 0),
     0,
   );
 
   if (!analysisId?.success) {
     return Response.json(
-      { creditBalance, analysis: null } satisfies WorkflowSnapshot,
+      { creditBalance, legacyCardCreditBalance, analysis: null } satisfies WorkflowSnapshot,
       { headers: { "Cache-Control": "private, no-store" } },
     );
   }
@@ -67,7 +74,7 @@ export async function GET(request: Request) {
   const { data, error } = await admin
     .from("analysis_requests")
     .select(
-      "id, user_id, card_style, pet_name, status, result_json, rejection_message, replacement_count, created_at, updated_at, processing_started_at, refund_attempted_at, card_photo_path, object_path",
+      "id, user_id, card_style, experience_kind, pet_name, status, result_json, rejection_message, replacement_count, created_at, updated_at, processing_started_at, refund_attempted_at, card_photo_path, object_path, dialogue_suggestions, selected_dialogue",
     )
     .eq("id", analysisId.data)
     .eq("user_id", user.id)
@@ -77,7 +84,7 @@ export async function GET(request: Request) {
   }
 
   let status = analysisStatusSchema.parse(data.status);
-  if (status === "awaiting_payment" && creditBalance > 0) {
+  if (status === "awaiting_payment") {
     const resumed = await resumeAnalysisAfterGrantedPurchase({
       userId: user.id,
       analysisId: data.id,
@@ -99,7 +106,9 @@ export async function GET(request: Request) {
       : data.object_path;
   const analysis: PublicAnalysis = {
     id: data.id,
+    petName: data.pet_name,
     cardStyle: cardStyleSchema.parse(data.card_style),
+    experienceKind: data.experience_kind,
     status,
     result,
     rejectionMessage: data.rejection_message,
@@ -113,6 +122,9 @@ export async function GET(request: Request) {
         : status === "refunded"
           ? "completed"
           : "none",
+    dialogueSuggestions:
+      petDialogueSuggestionsSchema.safeParse(data.dialogue_suggestions).data ?? [],
+    selectedDialogue: data.selected_dialogue,
   };
 
   const processingIsStale =
@@ -121,6 +133,13 @@ export async function GET(request: Request) {
     Date.now() - new Date(data.processing_started_at).getTime() > 10 * 60_000;
   if (status === "paid" || processingIsStale) {
     after(() => runAnalysis(data.id));
+  }
+  if (status === "photo_rejected") {
+    after(() =>
+      admin.rpc("restore_talking_video_credit", {
+        p_analysis_id: data.id,
+      }),
+    );
   }
   const refundReconciliationIsDue =
     (status === "refund_pending" || status === "refunded") &&
@@ -140,7 +159,7 @@ export async function GET(request: Request) {
   }
 
   return Response.json(
-    { creditBalance, analysis } satisfies WorkflowSnapshot,
+    { creditBalance, legacyCardCreditBalance, analysis } satisfies WorkflowSnapshot,
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

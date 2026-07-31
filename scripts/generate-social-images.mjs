@@ -26,7 +26,7 @@ const background = Buffer.from(`
     <text x="62" y="326" font-family="DejaVu Sans" font-size="25" font-weight="800" fill="#241a44">We read the stare, posture, light, and room—</text>
     <text x="62" y="363" font-family="DejaVu Sans" font-size="25" font-weight="800" fill="#241a44">then make the card that feels like them.</text>
     <rect x="58" y="405" width="400" height="76" rx="16" fill="#fffdf8" stroke="#241a44" stroke-width="5"/>
-    <text x="83" y="437" font-family="DejaVu Sans Mono" font-size="14" font-weight="700" fill="#f4458f">ONE CAT OR DOG · ONE FRAME · $5</text>
+    <text x="83" y="437" font-family="DejaVu Sans Mono" font-size="14" font-weight="700" fill="#f4458f">ONE PET PHOTO · THREE TALKING VIDEOS · $10</text>
     <text x="83" y="463" font-family="DejaVu Sans" font-size="17" font-weight="900" fill="#241a44">Funny first. Then strangely true.</text>
     <text x="58" y="607" font-family="DejaVu Sans" font-size="25" font-weight="900" fill="#fffdf8">RARELY.CARDS</text>
     <text x="1142" y="607" text-anchor="end" font-family="DejaVu Sans Mono" font-size="16" font-weight="700" fill="#ffe36e">NOT BUILT TO BLEND IN.</text>

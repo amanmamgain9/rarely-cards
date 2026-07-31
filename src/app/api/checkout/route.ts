@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import {
   hasGooglePlayEnv,
   hasPaddleEnv,
+  hasSeedanceEnv,
   paddleEnv,
 } from "@/lib/env";
 import { getOrCreatePaddleCustomerId, getPaddle } from "@/lib/paddle";
@@ -33,6 +34,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid checkout request." }, { status: 400 });
   }
   const provider = body.data.provider;
+  if (!hasSeedanceEnv()) {
+    return Response.json(
+      { error: "Talking-pet video checkout is not available yet." },
+      { status: 503 },
+    );
+  }
   if (
     (provider === "paddle" && !hasPaddleEnv()) ||
     (provider === "google_play" && !hasGooglePlayEnv())
@@ -65,7 +72,7 @@ export async function POST(request: Request) {
   if (body.data.analysisId) {
     const { data: analysis, error } = await admin
       .from("analysis_requests")
-      .select("id, user_id, status")
+      .select("id, user_id, status, selected_dialogue")
       .eq("id", body.data.analysisId)
       .single();
     if (error || !analysis || analysis.user_id !== user.id) {
@@ -77,6 +84,15 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+    if (!analysis.selected_dialogue) {
+      return Response.json(
+        {
+          error:
+            "New purchases are video credits. Use an existing legacy card credit for this card.",
+        },
+        { status: 409 },
+      );
+    }
   }
 
   let pendingQuery = admin
@@ -85,6 +101,7 @@ export async function POST(request: Request) {
     .eq("user_id", user.id)
     .eq("payment_provider", provider)
     .eq("status", "checkout_pending")
+    .eq("credit_kind", "talking_video")
     .order("created_at", { ascending: false })
     .limit(1);
   pendingQuery = body.data.analysisId
@@ -184,9 +201,10 @@ export async function POST(request: Request) {
       resume_analysis_id: body.data.analysisId ?? null,
       checkout_scope_id: body.data.analysisId ?? ACCOUNT_CHECKOUT_SCOPE,
       status: "checkout_pending",
-      credits_granted: 5,
+      credit_kind: "talking_video",
+      credits_granted: 3,
       credits_remaining: 0,
-      amount_cents: 500,
+      amount_cents: 1000,
       currency: "USD",
     })
     .select("id")
@@ -224,8 +242,8 @@ export async function POST(request: Request) {
         user_id: user.id,
         credit_purchase_id: purchase.id,
         analysis_request_id: body.data.analysisId ?? null,
-        entitlement: "five_card_credits",
-        credits: 5,
+        entitlement: "three_talking_pet_videos",
+        credits: 3,
       },
       checkout: {
         url: body.data.analysisId ? env.appUrl : `${env.appUrl}/account`,

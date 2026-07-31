@@ -9,14 +9,68 @@ import {
   type PetPronouns,
 } from "@/lib/analysis/types";
 import { validateAnalysisContract } from "@/lib/analysis/validate-result";
-import { serverEnv } from "@/lib/env";
+import { geminiEnv } from "@/lib/env";
 import { buildPetRarityPrompt } from "@/lib/rarity/pet-prompt";
+import {
+  buildDialogueSuggestionPrompt,
+  petDialogueSuggestionsJsonSchema,
+  petDialogueSuggestionsSchema,
+  type PetDialogueSuggestion,
+} from "@/lib/video/dialogue";
 
 let geminiClient: GoogleGenAI | null = null;
 
 function getGemini() {
-  geminiClient ??= new GoogleGenAI({ apiKey: serverEnv().geminiApiKey });
+  geminiClient ??= new GoogleGenAI({ apiKey: geminiEnv().geminiApiKey });
   return geminiClient;
+}
+
+export async function suggestPetDialogue(
+  image: Buffer,
+): Promise<PetDialogueSuggestion[]> {
+  const env = geminiEnv();
+  let transientRetries = 0;
+  let schemaRetries = 0;
+  for (;;) {
+    try {
+      const response = await getGemini().models.generateContent({
+        model: env.geminiModel,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: buildDialogueSuggestionPrompt() },
+              {
+                inlineData: {
+                  mimeType: "image/jpeg",
+                  data: image.toString("base64"),
+                },
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseJsonSchema: petDialogueSuggestionsJsonSchema,
+        },
+      });
+      try {
+        return petDialogueSuggestionsSchema.parse(
+          JSON.parse(response.text ?? ""),
+        );
+      } catch {
+        if (schemaRetries >= 1) throw new Error("invalid_dialogue_schema");
+        schemaRetries += 1;
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message === "invalid_dialogue_schema") {
+        throw error;
+      }
+      if (!isTransient(error) || transientRetries >= 2) throw error;
+      await wait(500 * 2 ** transientRetries);
+      transientRetries += 1;
+    }
+  }
 }
 
 function isTransient(error: unknown) {
@@ -46,7 +100,7 @@ export async function analyzePet({
   petName: string;
   pronouns: PetPronouns;
 }): Promise<AnalysisResult> {
-  const env = serverEnv();
+  const env = geminiEnv();
   if (style !== "pet") throw new Error("invalid_model_schema");
   const prompt = buildPetRarityPrompt(petName, pronouns);
   let transientRetries = 0;

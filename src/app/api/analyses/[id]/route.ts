@@ -11,11 +11,17 @@ import {
   petPronounsSchema,
   type PublicAnalysis,
 } from "@/lib/analysis/types";
+import { hasSeedanceEnv } from "@/lib/env";
 import { reportServerError } from "@/lib/observability";
 import { startFullRefund } from "@/lib/paddle";
 import { resumeAnalysisAfterGrantedPurchase } from "@/lib/payments/credit-purchases";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import {
+  petDialogueSchema,
+  petDialogueSuggestionsSchema,
+} from "@/lib/video/dialogue";
+import { cancelOrDeleteSeedanceVideo } from "@/lib/video/seedance";
 
 const routeIdSchema = z.string().uuid();
 const updateSchema = z.discriminatedUnion("action", [
@@ -24,6 +30,11 @@ const updateSchema = z.discriminatedUnion("action", [
     action: z.literal("set_pet_name"),
     petName: petNameSchema,
     pronouns: petPronounsSchema,
+  }),
+  z.object({
+    action: z.literal("start_talking_video"),
+    petName: petNameSchema,
+    dialogue: petDialogueSchema,
   }),
 ]);
 
@@ -52,7 +63,7 @@ export async function GET(request: Request, context: RouteContext) {
   const { data, error } = await supabase
     .from("analysis_requests")
     .select(
-      "id, card_style, pet_name, status, result_json, rejection_message, replacement_count, created_at, updated_at, processing_started_at, refund_attempted_at, card_photo_path, object_path",
+      "id, card_style, experience_kind, pet_name, status, result_json, rejection_message, replacement_count, created_at, updated_at, processing_started_at, refund_attempted_at, card_photo_path, object_path, dialogue_suggestions, selected_dialogue",
     )
     .eq("id", id)
     .single();
@@ -87,7 +98,9 @@ export async function GET(request: Request, context: RouteContext) {
 
   const response: PublicAnalysis = {
     id: data.id,
+    petName: data.pet_name,
     cardStyle: cardStyleSchema.parse(data.card_style),
+    experienceKind: data.experience_kind,
     status,
     result,
     rejectionMessage: data.rejection_message,
@@ -101,6 +114,9 @@ export async function GET(request: Request, context: RouteContext) {
         : status === "refunded"
           ? "completed"
           : "none",
+    dialogueSuggestions:
+      petDialogueSuggestionsSchema.safeParse(data.dialogue_suggestions).data ?? [],
+    selectedDialogue: data.selected_dialogue,
   };
 
   const processingIsStale =
@@ -109,6 +125,13 @@ export async function GET(request: Request, context: RouteContext) {
     Date.now() - new Date(data.processing_started_at).getTime() > 10 * 60 * 1000;
   if (status === "paid" || processingIsStale) {
     after(() => runAnalysis(id));
+  }
+  if (status === "photo_rejected") {
+    after(() =>
+      createAdminClient().rpc("restore_talking_video_credit", {
+        p_analysis_id: id,
+      }),
+    );
   }
   const refundReconciliationIsDue =
     (status === "refund_pending" || status === "refunded") &&
@@ -143,6 +166,57 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const admin = createAdminClient();
+  if (body.data.action === "start_talking_video") {
+    if (!hasSeedanceEnv()) {
+      return Response.json(
+        { error: "Talking-pet videos are not enabled yet." },
+        { status: 503 },
+      );
+    }
+    const { data: reservation, error: reservationError } = await admin.rpc(
+      "reserve_talking_video_credit",
+      {
+        p_user_id: user.id,
+        p_analysis_id: id,
+        p_pet_name: body.data.petName,
+        p_dialogue: body.data.dialogue,
+      },
+    );
+    if (reservationError) {
+      return Response.json(
+        { error: "This pet is not waiting for a line." },
+        { status: 409 },
+      );
+    }
+    const reserved = reservation?.[0];
+    if (!reserved?.reserved) {
+      await admin
+        .from("analysis_requests")
+        .update({
+          status: "awaiting_payment",
+          pet_name: body.data.petName,
+          pet_pronouns: "they",
+          selected_dialogue: body.data.dialogue,
+        })
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .in("status", ["awaiting_name", "awaiting_payment"]);
+      return Response.json(
+        {
+          error: "Get three talking-pet videos to continue.",
+          needsCredits: true,
+          creditBalance: 0,
+        },
+        { status: 402 },
+      );
+    }
+    after(() => runAnalysis(id));
+    return Response.json({
+      id,
+      status: "paid",
+      creditBalance: reserved.remaining_balance,
+    });
+  }
   if (body.data.action === "set_pet_name") {
     const { data: current } = await admin
       .from("analysis_requests")
@@ -229,7 +303,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const { data: analysis, error } = await admin
     .from("analysis_requests")
-    .select("id, user_id, status, object_path, paddle_transaction_id")
+    .select("id, user_id, status, object_path, paddle_transaction_id, experience_kind")
     .eq("id", id)
     .single();
 
@@ -253,19 +327,26 @@ export async function PATCH(request: Request, context: RouteContext) {
     const image = await inspectImage(buffer);
     const { data: purchases } = await admin
       .from("credit_purchases")
-      .select("credits_remaining")
+      .select("credits_remaining, credit_kind")
       .eq("user_id", user.id)
       .eq("status", "active");
-    const hasCredits =
+    const hasVideoCredits =
       (purchases ?? []).reduce(
-        (sum, purchase) => sum + purchase.credits_remaining,
+        (sum, purchase) =>
+          sum + (purchase.credit_kind === "talking_video" ? purchase.credits_remaining : 0),
         0,
       ) > 0;
-    const nextStatus = analysis.paddle_transaction_id
-      ? "paid"
-      : hasCredits
-        ? "awaiting_name"
-        : "awaiting_payment";
+    const hasLegacyCredits =
+      (purchases ?? []).reduce(
+        (sum, purchase) =>
+          sum + (purchase.credit_kind === "card" ? purchase.credits_remaining : 0),
+        0,
+      ) > 0;
+    const hasRequiredCredits =
+      analysis.experience_kind === "talking_video"
+        ? hasVideoCredits
+        : hasLegacyCredits;
+    const nextStatus = hasRequiredCredits ? "awaiting_name" : "awaiting_payment";
     const { data: updated, error: updateError } = await admin
       .from("analysis_requests")
       .update({
@@ -295,6 +376,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       id,
       status: updated.status,
       needsCredits: updated.status === "awaiting_payment",
+      hasVideoCredits,
     });
   } catch {
     await admin.storage.from("analysis-photos").remove([analysis.object_path]);
@@ -364,6 +446,65 @@ export async function DELETE(request: Request, context: RouteContext) {
       `${user.id}/${analysis.id}/zazzle-card.png`,
     ]),
   );
+
+  const { data: video, error: videoLookupError } = await admin
+    .from("video_generations")
+    .select("id, status, provider_task_id, error_code, discard_requested_at")
+    .eq("analysis_id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (videoLookupError) {
+    return Response.json(
+      { error: "Saved video state could not be checked." },
+      { status: 502 },
+    );
+  }
+
+  if (
+    !video ||
+    (video.status === "failed" &&
+      !video.discard_requested_at &&
+      video.error_code !== "discarded_by_user")
+  ) {
+    // No provider task exists, or the provider has already established that
+    // it cannot deliver a video, so the reserved entitlement is safe to return.
+    await admin.rpc("restore_talking_video_credit", { p_analysis_id: id });
+  }
+  if (video) {
+    if (video.provider_task_id) {
+      await cancelOrDeleteSeedanceVideo(video.provider_task_id);
+    }
+    // User-requested deletion after submission still consumes the attempt,
+    // even when ModelArk accepts cancellation.
+    // Keep a tombstone until reconciliation confirms provider deletion. This
+    // also prevents a concurrent DELETE from mistaking a delivered video for
+    // an analysis that never created a video row and restoring its credit.
+    const { error: videoDeleteError } = await admin
+      .from("video_generations")
+      .update({
+        discard_requested_at: new Date().toISOString(),
+        output_path: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", video.id)
+      .eq("user_id", user.id);
+    if (videoDeleteError) {
+      return Response.json(
+        { error: "Saved photo and video could not be deleted." },
+        { status: 502 },
+      );
+    }
+  }
+  const deterministicVideoPath = `${user.id}/${analysis.id}/seedance.mp4`;
+  const { error: videoStorageError } = await admin.storage
+    .from("generated-videos")
+    .remove([deterministicVideoPath]);
+  if (videoStorageError) {
+    return Response.json(
+      { error: "Saved photo and video could not be deleted." },
+      { status: 502 },
+    );
+  }
 
   const { error: storageError } = await admin.storage
     .from("analysis-photos")

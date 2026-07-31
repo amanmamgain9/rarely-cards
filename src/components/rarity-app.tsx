@@ -5,6 +5,7 @@ import {
   DragEvent,
   FormEvent,
   useCallback,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -18,10 +19,9 @@ import {
   downloadShareAsset,
   type ShareAsset,
 } from "@/components/share-card";
-import type {
-  AcceptedAnalysis,
-  PetPronouns,
-} from "@/lib/analysis/types";
+import type { AcceptedAnalysis } from "@/lib/analysis/types";
+import type { PublicVideoGeneration } from "@/lib/video/types";
+import type { PetDialogueSuggestion } from "@/lib/video/dialogue";
 import {
   startGooglePlayPurchase,
 } from "@/lib/payments/google-play-client";
@@ -31,9 +31,9 @@ import {
   RarityFlowLayers,
   RarityResultScreen,
 } from "@/components/rarity/rarity-flow-layers";
-import { RarityMaker } from "@/components/rarity/rarity-maker";
-import { RarityMarketing } from "@/components/rarity/rarity-marketing";
-import { useHeroDemo } from "@/components/rarity/hero-demo-store";
+import { CreditGate } from "@/components/rarity/credit-gate";
+import { VideoWorkspace } from "@/components/rarity/video-workspace";
+import { VoiceWorkspace } from "@/components/rarity/voice-workspace";
 import { PendingPhotoResume } from "@/components/rarity/workflow-effects";
 import { useRarelyWorkflowContext } from "@/components/rarity/rarely-workflow-provider";
 import {
@@ -41,7 +41,6 @@ import {
   clearResumeQuery,
   flowForAnalysis,
   flowForWorkflow,
-  PENDING_CARD_RESULT,
   readPhoto,
   setPendingPhotoHint,
   type FlowState,
@@ -55,29 +54,28 @@ async function getSupabaseClient() {
 
 export function RarityApp({
   initialUser,
-  initialCreditBalance,
+  legacyCardMode,
   initialAnalysis,
   shouldRestorePendingPhoto,
-  supabaseConfigured,
   paddleConfigured,
   googlePlayConfigured,
+  seedanceConfigured,
   zazzlePrintEnabled,
   paddleEnvironment,
 }: RarityAppProps) {
   const { channel: paymentChannel, playPrice } = usePaymentRuntime();
   const [flow, setFlow] = useState<FlowState>(() =>
     initialAnalysis
-      ? initialAnalysis.status === "awaiting_payment" && initialCreditBalance > 0
-        ? "naming"
-        : flowForAnalysis(initialAnalysis)
+      ? flowForAnalysis(initialAnalysis)
       : shouldRestorePendingPhoto
         ? "restoring"
         : "idle",
   );
   const [checkoutPromptOpen, setCheckoutPromptOpen] = useState(
-    initialAnalysis?.status === "awaiting_payment" && initialCreditBalance === 0,
+    initialAnalysis?.status === "awaiting_payment",
   );
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [dismissedNamingId, setDismissedNamingId] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string | null>(
     initialAnalysis?.photoUrl ?? null,
   );
@@ -87,23 +85,46 @@ export function RarityApp({
   const [result, setResult] = useState<AcceptedAnalysis | null>(
     initialAnalysis?.result ?? null,
   );
-  const [petName, setPetName] = useState("");
-  const [petPronouns, setPetPronouns] = useState<PetPronouns>("they");
+  const [petName, setPetName] = useState(initialAnalysis?.petName ?? "");
+  const [petPronouns, setPetPronouns] = useState<"he" | "she" | "they">(
+    initialAnalysis?.result?.pronouns ?? "they",
+  );
+  const [dialogueSuggestions, setDialogueSuggestions] = useState<PetDialogueSuggestion[]>(
+    initialAnalysis?.dialogueSuggestions ?? [],
+  );
+  const [selectedDialogue, setSelectedDialogue] = useState(
+    initialAnalysis?.selectedDialogue ?? "",
+  );
+  const [customDialogue, setCustomDialogue] = useState("");
+  const [suggestionsBusy, setSuggestionsBusy] = useState(
+    initialAnalysis?.status === "awaiting_name" &&
+      (initialAnalysis.dialogueSuggestions?.length ?? 0) === 0,
+  );
+  const [suggestionAttempt, setSuggestionAttempt] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [email, setEmail] = useState("");
-  const [authSent, setAuthSent] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
   const [shareLabel, setShareLabel] = useState("Share my card");
   const [printLabel, setPrintLabel] = useState("Order a printed card");
   const [printBusy, setPrintBusy] = useState(false);
+  const [videoGeneration, setVideoGeneration] =
+    useState<PublicVideoGeneration | null>(null);
+  const [videoBusy, setVideoBusy] = useState(false);
+  const [videoShareBusy, setVideoShareBusy] = useState(false);
+  const [videoMessage, setVideoMessage] = useState<string | null>(null);
+  const [videoMessageAnalysisId, setVideoMessageAnalysisId] =
+    useState<string | null>(null);
+  const [videoRefreshKey, setVideoRefreshKey] = useState(0);
+  const resumedPaidVideo = useRef<string | null>(null);
   const uploadInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const petNameInput = useRef<HTMLInputElement>(null);
   const exportCardRef = useRef<HTMLElement>(null);
   const cachedShareAsset = useRef<ShareAsset | null>(null);
-  const heroDemo = useHeroDemo();
   const creditBalance = workflow.snapshot.creditBalance;
+  const resultCreditBalance = legacyCardMode
+    ? workflow.snapshot.legacyCardCreditBalance
+    : creditBalance;
   const workflowAnalysis =
     workflow.snapshot.analysis?.id === analysisId
       ? workflow.snapshot.analysis
@@ -117,16 +138,124 @@ export function RarityApp({
   const workflowMessage =
     workflowAnalysis?.status === "photo_rejected"
       ? workflowAnalysis.rejectionMessage ||
-        "The AI could not use this photo. This response used one card credit."
+        "The AI could not use this photo. Your video credit was returned."
       : workflowAnalysis?.status === "refund_pending"
         ? "Refund started. Your payment provider may need to approve it."
         : workflowAnalysis?.status === "refunded"
           ? "Your refund was approved."
           : workflowAnalysis?.status === "failed"
-            ? "A technical failure stopped this card. Your credit was returned."
+            ? "A technical failure stopped this video. Your credit was returned."
             : null;
   const visibleMessage = workflowMessage ?? message;
+  const visibleVideoGeneration =
+    videoGeneration?.analysisId === analysisId ? videoGeneration : null;
+  const visibleVideoMessage =
+    videoMessageAnalysisId === analysisId ? videoMessage : null;
   const refreshWorkflow = workflow.refresh;
+
+  useEffect(() => {
+    if (!seedanceConfigured || visibleFlow !== "completed" || !analysisId) {
+      return;
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const loadVideo = async () => {
+      try {
+        const response = await fetch(`/api/analyses/${analysisId}/video`, {
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("video_status_failed");
+        const payload = (await response.json()) as PublicVideoGeneration | null;
+        if (cancelled) return;
+        if (!payload && workflowAnalysis?.selectedDialogue) {
+          const started = await fetch(`/api/analyses/${analysisId}/video`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ dialogue: workflowAnalysis.selectedDialogue }),
+          });
+          const startedPayload = await started.json().catch(() => ({}));
+          if (!started.ok) {
+            if (started.status === 409) {
+              timer = setTimeout(loadVideo, 2_000);
+              return;
+            }
+            throw new Error(startedPayload.error || "video_start_failed");
+          }
+          if (!cancelled) setVideoGeneration(startedPayload as PublicVideoGeneration);
+          timer = setTimeout(loadVideo, 8_000);
+          return;
+        }
+        setVideoGeneration(payload);
+        if (payload?.status === "submitting" || payload?.status === "running") {
+          timer = setTimeout(loadVideo, 8_000);
+        }
+      } catch {
+        if (!cancelled) {
+          setVideoMessageAnalysisId(analysisId);
+          setVideoMessage("Video status paused. Refresh to check again.");
+        }
+      }
+    };
+    void loadVideo();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [analysisId, seedanceConfigured, videoRefreshKey, visibleFlow, workflowAnalysis?.selectedDialogue]);
+
+  useEffect(() => {
+    if (!seedanceConfigured || legacyCardMode || visibleFlow !== "naming" || !analysisId || dialogueSuggestions.length > 0) return;
+    let cancelled = false;
+    void fetch(`/api/analyses/${analysisId}/dialogue`, { method: "POST" })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || "Suggestions could not be made.");
+        if (!cancelled) {
+          setDialogueSuggestions(payload.suggestions);
+          setSelectedDialogue(payload.suggestions[0]?.line ?? "");
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setMessage(error instanceof Error ? error.message : "Suggestions could not be made.");
+      })
+      .finally(() => {
+        if (!cancelled) setSuggestionsBusy(false);
+      });
+    return () => { cancelled = true; };
+  }, [analysisId, dialogueSuggestions.length, legacyCardMode, seedanceConfigured, suggestionAttempt, visibleFlow]);
+
+  useEffect(() => {
+    const dialogue = workflowAnalysis?.selectedDialogue;
+    if (
+      visibleFlow !== "naming" ||
+      legacyCardMode ||
+      !analysisId ||
+      !dialogue ||
+      creditBalance < 1 ||
+      resumedPaidVideo.current === analysisId
+    ) {
+      return;
+    }
+    resumedPaidVideo.current = analysisId;
+    void fetch(`/api/analyses/${analysisId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "start_talking_video",
+        petName: petName.trim() || workflowAnalysis.petName || "My pet",
+        dialogue,
+      }),
+    }).then(async (response) => {
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        resumedPaidVideo.current = null;
+        setMessage(payload.error || "Your video could not continue after checkout.");
+        return;
+      }
+      setFlow("processing");
+      void refreshWorkflow();
+    });
+  }, [analysisId, creditBalance, legacyCardMode, petName, refreshWorkflow, visibleFlow, workflowAnalysis?.petName, workflowAnalysis?.selectedDialogue]);
 
   const uploadNewAnalysis = useCallback(async (file: File) => {
     setMessage(null);
@@ -135,6 +264,7 @@ export function RarityApp({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cardStyle: AUTOMATIC_CARD_STYLE,
+        experienceKind: legacyCardMode ? "card" : "talking_video",
         mimeType: file.type,
         size: file.size,
       }),
@@ -171,10 +301,15 @@ export function RarityApp({
           ? "naming"
           : "checkout";
     setFlow(nextFlow);
+    setSuggestionsBusy(nextFlow === "naming");
     setCheckoutPromptOpen(nextFlow === "checkout");
-  }, [setAnalysisId]);
+  }, [legacyCardMode, setAnalysisId]);
 
   const acceptPhoto = useCallback(async (file: File) => {
+    if (!seedanceConfigured && !legacyCardMode) {
+      setMessage("Talking-pet videos are temporarily unavailable. Please try again shortly.");
+      return;
+    }
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       setMessage("Choose a JPEG, PNG, or WebP photo.");
       return;
@@ -187,6 +322,10 @@ export function RarityApp({
     setSelectedFile(file);
     setAnalysisId(null);
     setResult(null);
+    setDialogueSuggestions([]);
+    setPetPronouns("they");
+    setSelectedDialogue("");
+    setCustomDialogue("");
     setCheckoutPromptOpen(false);
     cachedShareAsset.current = null;
     setShareBusy(false);
@@ -196,15 +335,11 @@ export function RarityApp({
     await savePendingPhoto(file, AUTOMATIC_CARD_STYLE);
     setPendingPhotoHint(true);
 
-    if (!initialUser) {
-      setFlow("auth");
-      return;
-    }
     const hasCredit = creditBalance > 0;
     setFlow(hasCredit ? "naming" : "checkout");
     setCheckoutPromptOpen(!hasCredit);
     await uploadNewAnalysis(file);
-  }, [creditBalance, initialUser, setAnalysisId, uploadNewAnalysis]);
+  }, [creditBalance, legacyCardMode, seedanceConfigured, setAnalysisId, uploadNewAnalysis]);
 
   const restorePendingPhoto = useCallback(async (pending: {
     file: File;
@@ -220,16 +355,52 @@ export function RarityApp({
   }, []);
   const confirmCreditPurchase = useCallback(() => {
     setCheckoutBusy(false);
-    setFlow("verifying");
+    if (analysisId) setFlow("verifying");
     void refreshWorkflow();
-  }, [refreshWorkflow]);
+  }, [analysisId, refreshWorkflow]);
+
+  useEffect(() => {
+    if (!legacyCardMode || visibleFlow !== "completed" || !visiblePhoto || !visibleResult) return;
+
+    let cancelled = false;
+    cachedShareAsset.current = null;
+
+    const frame = requestAnimationFrame(() => {
+      setShareBusy(true);
+      setShareLabel("Preparing share…");
+      const card = exportCardRef.current;
+      if (!card) {
+        setShareBusy(false);
+        setShareLabel("Try sharing again");
+        return;
+      }
+
+      void createShareAsset(card)
+        .then((asset) => {
+          if (cancelled) return;
+          cachedShareAsset.current = asset;
+          setShareLabel("Share my card");
+        })
+        .catch(() => {
+          if (!cancelled) setShareLabel("Try sharing again");
+        })
+        .finally(() => {
+          if (!cancelled) setShareBusy(false);
+        });
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [legacyCardMode, visibleFlow, visiblePhoto, visibleResult]);
 
   async function startCheckout(
     provider: "paddle" | "google_play",
+    attachAnalysis = true,
   ) {
     if (checkoutBusy) return;
     if (
-      !analysisId ||
       (provider === "paddle" && !paddleConfigured) ||
       (provider === "google_play" &&
         (paymentChannel !== "google_play" || !googlePlayConfigured))
@@ -244,7 +415,10 @@ export function RarityApp({
       response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysisId, provider }),
+        body: JSON.stringify({
+          provider,
+          ...(attachAnalysis && analysisId ? { analysisId } : {}),
+        }),
       });
     } catch {
       setMessage("Checkout could not be opened. Check your connection and try again.");
@@ -261,7 +435,7 @@ export function RarityApp({
       try {
         await startGooglePlayPurchase({
           purchaseId: payload.purchaseId,
-          analysisId,
+          ...(attachAnalysis && analysisId ? { analysisId } : {}),
         });
         confirmCreditPurchase();
       } catch (error) {
@@ -304,19 +478,6 @@ export function RarityApp({
     }
   }
 
-  async function signInWithGoogle() {
-    if (!supabaseConfigured) {
-      setMessage("Authentication is not configured yet.");
-      return;
-    }
-    const redirectTo = `${window.location.origin}/auth/callback?next=/?resume=1`;
-    const supabase = await getSupabaseClient();
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-  }
-
   async function signOut() {
     const supabase = await getSupabaseClient();
     const { error } = await supabase.auth.signOut();
@@ -329,27 +490,11 @@ export function RarityApp({
     window.location.replace("/");
   }
 
-  async function sendMagicLink(event: FormEvent) {
-    event.preventDefault();
-    if (!email || !supabaseConfigured) return;
-    const redirectTo = `${window.location.origin}/auth/callback?next=/?resume=1`;
-    const supabase = await getSupabaseClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo },
-    });
-    if (error) {
-      setMessage("That sign-in link could not be sent.");
-      return;
-    }
-    setAuthSent(true);
-  }
-
   async function submitPetName(event: FormEvent) {
     event.preventDefault();
-    const name = petName.trim();
-    if (!analysisId || !name) {
-      petNameInput.current?.focus();
+    const name = petName.trim() || "My pet";
+    const dialogue = customDialogue.trim() || selectedDialogue.trim();
+    if (!analysisId || (!legacyCardMode && !dialogue)) {
       return;
     }
 
@@ -357,17 +502,19 @@ export function RarityApp({
     const response = await fetch(`/api/analyses/${analysisId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "set_pet_name",
-        petName: name,
-        pronouns: petPronouns,
-      }),
+      body: JSON.stringify(
+        legacyCardMode
+          ? { action: "set_pet_name", petName: name, pronouns: petPronouns }
+          : { action: "start_talking_video", petName: name, dialogue },
+      ),
     });
     const payload = await response.json();
     if (typeof payload.creditBalance === "number") {
       workflow.setSnapshot({
         ...workflow.snapshot,
-        creditBalance: payload.creditBalance,
+        ...(legacyCardMode
+          ? { legacyCardCreditBalance: payload.creditBalance }
+          : { creditBalance: payload.creditBalance }),
       });
     }
     if (!response.ok) {
@@ -375,10 +522,12 @@ export function RarityApp({
       if (payload.needsCredits) {
         setFlow("checkout");
         setCheckoutPromptOpen(true);
+        void refreshWorkflow();
       }
       return;
     }
     setPetName(name);
+    setSelectedDialogue(dialogue);
     setFlow("processing");
     void refreshWorkflow();
   }
@@ -411,6 +560,73 @@ export function RarityApp({
       );
     } finally {
       setShareBusy(false);
+    }
+  }
+
+  async function generateVideo() {
+    if (!analysisId || videoBusy) return;
+    setVideoBusy(true);
+    setVideoMessageAnalysisId(analysisId);
+    setVideoMessage(null);
+    try {
+      const response = await fetch(`/api/analyses/${analysisId}/video`, {
+        method: "POST",
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "The video could not start.");
+      }
+      setVideoGeneration(payload as PublicVideoGeneration);
+      setVideoRefreshKey((key) => key + 1);
+    } catch (error) {
+      setVideoMessage(
+        error instanceof Error ? error.message : "The video could not start. Try again.",
+      );
+      setVideoRefreshKey((key) => key + 1);
+    } finally {
+      setVideoBusy(false);
+    }
+  }
+
+  async function shareVideo() {
+    if (!visibleVideoGeneration?.videoUrl || videoShareBusy) return;
+    setVideoShareBusy(true);
+    setVideoMessageAnalysisId(analysisId);
+    setVideoMessage(null);
+    let objectUrl: string | null = null;
+    try {
+      const response = await fetch(visibleVideoGeneration.videoUrl);
+      if (!response.ok) throw new Error("The saved video could not be opened.");
+      const blob = await response.blob();
+      const petSlug = (visibleResult?.petName || "my-pet")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      const file = new File([blob], `rarely-${petSlug || "pet"}.mp4`, {
+        type: "video/mp4",
+      });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `${visibleResult?.petName || "My pet"} came to life`,
+          text: "One photo. One little movie. Made with Rarely.",
+        });
+      } else {
+        objectUrl = URL.createObjectURL(blob);
+        const download = document.createElement("a");
+        download.href = objectUrl;
+        download.download = file.name;
+        download.click();
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        setVideoMessage(
+          error instanceof Error ? error.message : "The video could not be shared.",
+        );
+      }
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setVideoShareBusy(false);
     }
   }
 
@@ -449,6 +665,10 @@ export function RarityApp({
     setSelectedFile(null);
     setPhoto(null);
     setResult(null);
+    setDialogueSuggestions([]);
+    setPetPronouns("they");
+    setSelectedDialogue("");
+    setCustomDialogue("");
     setMessage(null);
     setCheckoutBusy(false);
     setFlow("idle");
@@ -476,32 +696,55 @@ export function RarityApp({
   }
 
   const busyLabel =
-    flow === "verifying" ? "Confirming your payment" : "Making their card";
+    flow === "verifying" ? "Confirming your payment" : "Getting your pet camera-ready";
   const busyCopy =
     flow === "verifying"
-      ? "Payment is complete. We are confirming it before their card begins."
-      : "One credit is reserved. A technical failure returns it automatically.";
+      ? "Payment is complete. We are confirming it before their video begins."
+      : "We are turning the chosen line into their talking-pet video.";
   const progressStage = flow === "processing" ? 1 : 0;
-  const heroCardResult = visibleResult || (visiblePhoto ? PENDING_CARD_RESULT : heroDemo.result);
-  const heroCardPhoto = visiblePhoto || heroDemo.image;
   const checkoutAvailable =
-    (paymentChannel === "google_play" && googlePlayConfigured) ||
-    (paymentChannel === "web" && paddleConfigured);
+    seedanceConfigured &&
+    ((paymentChannel === "google_play" && googlePlayConfigured) ||
+      (paymentChannel === "web" && paddleConfigured));
   const primaryProvider =
     paymentChannel === "google_play"
       ? ("google_play" as const)
       : ("paddle" as const);
   const checkoutPrice =
-    paymentChannel === "google_play" ? playPrice : paymentChannel === "web" ? "$5" : null;
+    paymentChannel === "google_play" ? playPrice : paymentChannel === "web" ? "$10" : null;
+
+  const needsCreditGate =
+    !legacyCardMode &&
+    creditBalance === 0 &&
+    (!workflowAnalysis ||
+      ["awaiting_upload", "awaiting_payment"].includes(workflowAnalysis.status));
+
+  if (needsCreditGate) {
+    return (
+      <main className="relative overflow-hidden">
+        <div className="fixed inset-0 -z-10 bg-soft-pink" aria-hidden="true" />
+        <CreditGate
+          creditPrice={checkoutPrice}
+          busy={checkoutBusy}
+          available={checkoutAvailable}
+          paymentChannel={paymentChannel}
+          googlePlayConfigured={googlePlayConfigured}
+          message={visibleMessage}
+          onBuy={() => void startCheckout(primaryProvider, false)}
+          onSignOut={() => void signOut()}
+        />
+      </main>
+    );
+  }
 
   return (
-    <main className="app">
-      <div className="dot-field" aria-hidden="true" />
+    <main className="relative overflow-hidden">
+      <div className="fixed inset-0 -z-10 bg-soft-pink" aria-hidden="true" />
 
       <PendingPhotoResume
         enabled={Boolean(
           initialUser &&
-            supabaseConfigured &&
+            creditBalance > 0 &&
             (initialAnalysis || shouldRestorePendingPhoto),
         )}
         initialAnalysis={initialAnalysis}
@@ -510,18 +753,16 @@ export function RarityApp({
         onError={handlePendingPhotoError}
       />
       <RarityFlowLayers
-        flow={visibleFlow}
+        flow={
+          visibleFlow === "naming" && legacyCardMode && dismissedNamingId === analysisId
+            ? "idle"
+            : visibleFlow
+        }
         photo={visiblePhoto}
         petName={petName}
         busyLabel={busyLabel}
         busyCopy={busyCopy}
         progressStage={progressStage}
-        onSignInWithGoogle={() => void signInWithGoogle()}
-        onSendMagicLink={sendMagicLink}
-        email={email}
-        onEmailChange={setEmail}
-        authSent={authSent}
-        onDismissAuth={() => setFlow("idle")}
         checkoutPromptOpen={checkoutPromptOpen}
         checkoutPrice={checkoutPrice}
         checkoutBusy={checkoutBusy}
@@ -533,12 +774,13 @@ export function RarityApp({
         uploadInput={uploadInput}
         onCloseCheckout={() => setCheckoutPromptOpen(false)}
         message={visibleMessage}
-        creditBalance={creditBalance}
+        onCloseNaming={() => setDismissedNamingId(analysisId)}
         onSubmitPetName={submitPetName}
         petNameInput={petNameInput}
         onPetNameChange={setPetName}
         petPronouns={petPronouns}
         onPetPronounsChange={setPetPronouns}
+        legacyCardMode={legacyCardMode}
       />
       <RarityResultScreen
         flow={visibleFlow}
@@ -552,34 +794,72 @@ export function RarityApp({
         onOrderPrint={() => void orderPrint()}
         printBusy={printBusy}
         printLabel={printLabel}
-        creditBalance={creditBalance}
+        creditBalance={resultCreditBalance}
         uploadInput={uploadInput}
         onReturnHome={returnToHomepage}
+        seedanceConfigured={
+          seedanceConfigured && Boolean(workflowAnalysis?.selectedDialogue)
+        }
+        videoGeneration={visibleVideoGeneration}
+        videoBusy={
+          videoBusy ||
+          Boolean(
+            workflowAnalysis?.selectedDialogue &&
+              !visibleVideoGeneration &&
+              !visibleVideoMessage,
+          )
+        }
+        videoShareBusy={videoShareBusy}
+        videoMessage={visibleVideoMessage}
+        onGenerateVideo={() => void generateVideo()}
+        onShareVideo={() => void shareVideo()}
+        legacyCardMode={legacyCardMode}
       />
 
-      <RarityMaker
-        signedIn={Boolean(initialUser)}
-        creditBalance={creditBalance}
-        onSignOut={() => void signOut()}
-        dragging={dragging}
-        onDraggingChange={setDragging}
-        onDrop={handleDrop}
-        uploadInput={uploadInput}
-        cameraInput={cameraInput}
-        onFileChange={handleFile}
-        selectedFile={selectedFile}
-        flow={visibleFlow}
-        onOpenCheckout={() => setCheckoutPromptOpen(true)}
-        checkoutPrice={checkoutPrice}
-        message={visibleMessage}
-        photo={visiblePhoto}
-        result={visibleResult}
-        heroDemoImage={heroDemo.image}
-        heroCardPhoto={heroCardPhoto}
-        heroCardResult={heroCardResult}
-      />
+      {visibleFlow === "naming" && !legacyCardMode ? (
+        <VoiceWorkspace
+          creditBalance={creditBalance}
+          onSignOut={() => void signOut()}
+          photo={visiblePhoto}
+          petName={petName}
+          analysisId={analysisId}
+          dialogueSuggestions={dialogueSuggestions}
+          selectedDialogue={selectedDialogue}
+          onSelectDialogue={(line) => {
+            setSelectedDialogue(line);
+            setCustomDialogue("");
+          }}
+          customDialogue={customDialogue}
+          onCustomDialogueChange={(line) => {
+            setCustomDialogue(line);
+            if (line) setSelectedDialogue("");
+          }}
+          suggestionsBusy={suggestionsBusy}
+          onRetrySuggestions={() => {
+            setMessage(null);
+            setSuggestionsBusy(true);
+            setSuggestionAttempt((attempt) => attempt + 1);
+          }}
+          onSubmit={submitPetName}
+          uploadInput={uploadInput}
+          message={visibleMessage}
+        />
+      ) : (
+        <VideoWorkspace
+          creditBalance={creditBalance}
+          onSignOut={() => void signOut()}
+          dragging={dragging}
+          onDraggingChange={setDragging}
+          onDrop={handleDrop}
+          uploadInput={uploadInput}
+          cameraInput={cameraInput}
+          onFileChange={handleFile}
+          selectedFile={selectedFile}
+          flow={visibleFlow}
+          message={visibleMessage}
+        />
+      )}
 
-      {!(initialUser && creditBalance > 0) && <RarityMarketing />}
     </main>
   );
 }

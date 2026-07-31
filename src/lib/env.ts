@@ -53,6 +53,10 @@ export function paddleEnv() {
     paddleClientToken: required("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN"),
     paddleWebhookSecret: required("PADDLE_WEBHOOK_SECRET"),
     paddlePriceId: required("PADDLE_PRICE_ID"),
+    paddleLegacyCardPriceIds: (process.env.PADDLE_LEGACY_CARD_PRICE_IDS || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
   };
 }
 
@@ -88,6 +92,35 @@ export function hasGooglePlayEnv(): boolean {
   );
 }
 
+export function hasSeedanceEnv(): boolean {
+  return Boolean(
+    process.env.BYTEPLUS_ARK_API_KEY?.trim() &&
+      process.env.BYTEPLUS_WEBHOOK_SECRET?.trim() &&
+      process.env.NEXT_PUBLIC_APP_URL?.trim(),
+  );
+}
+
+export function seedanceEnv() {
+  const configuredTokenPrice = Number(
+    process.env.SEEDANCE_USD_PER_MILLION_TOKENS,
+  );
+  return {
+    apiKey: required("BYTEPLUS_ARK_API_KEY"),
+    appUrl: required("NEXT_PUBLIC_APP_URL").replace(/\/$/, ""),
+    webhookSecret: required("BYTEPLUS_WEBHOOK_SECRET"),
+    baseUrl:
+      process.env.BYTEPLUS_ARK_BASE_URL?.trim() ||
+      "https://ark.ap-southeast.bytepluses.com",
+    model:
+      process.env.SEEDANCE_MODEL?.trim() ||
+      "dreamina-seedance-2-0-260128",
+    pricingUsdPerMillionTokens:
+      Number.isFinite(configuredTokenPrice) && configuredTokenPrice > 0
+        ? configuredTokenPrice
+        : null,
+  };
+}
+
 export function googlePlayEnv() {
   const rawCredentials = required("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON");
   let credentials: { client_email: string; private_key: string };
@@ -108,6 +141,10 @@ export function googlePlayEnv() {
   return {
     packageId: required("GOOGLE_PLAY_PACKAGE_ID"),
     productId: required("NEXT_PUBLIC_GOOGLE_PLAY_PRODUCT_ID"),
+    legacyCardProductIds: (process.env.GOOGLE_PLAY_LEGACY_CARD_PRODUCT_IDS || "five_card_credits")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
     credentials,
     pubSubAudience: process.env.GOOGLE_PLAY_PUBSUB_AUDIENCE?.trim() || null,
     pubSubServiceAccount:
@@ -115,11 +152,8 @@ export function googlePlayEnv() {
   };
 }
 
-export function serverEnv() {
+export function geminiEnv() {
   return {
-    ...publicSupabaseEnv(),
-    ...paddleEnv(),
-    serviceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
     geminiApiKey: required("GEMINI_API_KEY"),
     geminiModel: process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL,
   };

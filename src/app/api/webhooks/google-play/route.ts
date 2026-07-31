@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { googlePlayEnv } from "@/lib/env";
 import { googlePlayPaymentEventIdentity } from "@/lib/payments/google-play-events";
+import { googlePlayCreditKind } from "@/lib/payments/catalog";
 import {
   getGooglePlayPurchase,
   verifyGooglePlayPubSubToken,
@@ -144,7 +145,14 @@ export async function POST(request: Request) {
 
   try {
     const oneTime = notification.oneTimeProductNotification;
-    if (oneTime?.sku === env.productId) {
+    if (
+      oneTime &&
+      googlePlayCreditKind(
+        oneTime.sku,
+        env.productId,
+        env.legacyCardProductIds,
+      )
+    ) {
       const { data: stored, error: lookupError } = await admin
         .from("google_play_purchases")
         .select("credit_purchase_id")

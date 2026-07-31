@@ -10,6 +10,7 @@ import {
 } from "@/lib/payments/google-play-client";
 import { PADDLE_CHECKOUT_COMPLETED_EVENT } from "@/lib/payments/paddle-client-events";
 import { usePaymentChannel } from "@/lib/payments/use-payment-channel";
+import { PublicFooter } from "@/components/public-chrome";
 import { clearPendingPhoto } from "@/lib/pending-photo";
 import { createZazzlePrintCheckout } from "@/lib/printing/zazzle-client";
 import {
@@ -22,6 +23,7 @@ import {
 type AccountDashboardProps = {
   paddleConfigured: boolean;
   googlePlayConfigured: boolean;
+  seedanceConfigured: boolean;
   zazzlePrintEnabled: boolean;
   paddleEnvironment: "sandbox" | "production";
 };
@@ -45,22 +47,46 @@ function date(value: string | null) {
 function SavedCard({
   card,
   onPhotoDeleted,
+  onVideoStarted,
   zazzlePrintEnabled,
 }: {
   card: AccountCard;
   onPhotoDeleted: () => void;
+  onVideoStarted: () => void;
   zazzlePrintEnabled: boolean;
 }) {
+  const legacyCard = card.creditKind === "card";
   const cardRef = useRef<HTMLElement>(null);
+  const cachedShareAsset = useRef<
+    Awaited<ReturnType<typeof createShareAsset>> | null
+  >(null);
+  const pendingShareAsset = useRef<ReturnType<typeof createShareAsset> | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  function prepareShareAsset() {
+    if (cachedShareAsset.current) return Promise.resolve(cachedShareAsset.current);
+    if (pendingShareAsset.current) return pendingShareAsset.current;
+    if (!cardRef.current) return Promise.reject(new Error("Card is not ready"));
+
+    const pending = createShareAsset(cardRef.current)
+      .then((asset) => {
+        cachedShareAsset.current = asset;
+        return asset;
+      })
+      .finally(() => {
+        pendingShareAsset.current = null;
+      });
+    pendingShareAsset.current = pending;
+    return pending;
+  }
 
   async function download() {
     if (!cardRef.current) return;
     setBusy(true);
     setMessage(null);
     try {
-      const asset = await createShareAsset(cardRef.current);
+      const asset = await prepareShareAsset();
       downloadShareAsset(asset, `${card.petName || "rarely"}-card.png`);
     } catch {
       setMessage("The card image could not be downloaded. Try again.");
@@ -74,7 +100,7 @@ function SavedCard({
     setBusy(true);
     setMessage(null);
     try {
-      const asset = await createShareAsset(cardRef.current);
+      const asset = await prepareShareAsset();
       if (canUseNativeFileShare(asset.file)) {
         await navigator.share({
           files: [asset.file],
@@ -91,12 +117,68 @@ function SavedCard({
     }
   }
 
+  async function shareVideo() {
+    if (!card.videoUrl) return;
+    setBusy(true);
+    setMessage(null);
+    let objectUrl: string | null = null;
+    try {
+      const response = await fetch(card.videoUrl);
+      if (!response.ok) throw new Error("video_download_failed");
+      const blob = await response.blob();
+      const file = new File([blob], `${card.petName || "rarely"}-video.mp4`, {
+        type: "video/mp4",
+      });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `${card.petName || "My pet"}'s Rarely video`,
+        });
+      } else {
+        objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = file.name;
+        anchor.click();
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        setMessage("The video could not be shared. Try again.");
+      }
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setBusy(false);
+    }
+  }
+
+  async function startVideo() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/analyses/${card.id}/video`, {
+        method: "POST",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || "The video could not start.");
+      }
+      setMessage("Your talking-pet video is processing.");
+      onVideoStarted();
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "The video could not start.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function orderPrint() {
     if (!cardRef.current || !zazzlePrintEnabled) return;
     setBusy(true);
     setMessage(null);
     try {
-      const asset = await createShareAsset(cardRef.current);
+      const asset = await prepareShareAsset();
       const checkoutUrl = await createZazzlePrintCheckout(card.id, asset.file);
       window.location.assign(checkoutUrl);
     } catch (error) {
@@ -110,7 +192,7 @@ function SavedCard({
   }
 
   async function deletePhoto() {
-    if (!window.confirm("Delete this saved photo? The text result will remain.")) return;
+    if (!window.confirm("Delete this saved photo and its pet video? The text result will remain.")) return;
     setBusy(true);
     setMessage(null);
     const response = await fetch(`/api/analyses/${card.id}`, { method: "DELETE" });
@@ -124,43 +206,84 @@ function SavedCard({
   }
 
   return (
-    <article className="account-card-item">
-      <div className="account-card-frame">
+    <article
+      className="min-w-0"
+      onPointerEnter={() => legacyCard && void prepareShareAsset().catch(() => undefined)}
+      onFocusCapture={() => legacyCard && void prepareShareAsset().catch(() => undefined)}
+    >
+      {legacyCard && <div className="grid min-h-[520px] place-items-center">
         {card.photoUrl && card.result ? (
           <ShareCard ref={cardRef} photo={card.photoUrl} result={card.result} />
         ) : (
-          <div className="account-card-missing">
-            <span>PHOTO DELETED</span>
-            <strong>{card.result?.cardTitle || card.petName || "Saved card"}</strong>
+          <div className="flex aspect-[9/16] w-[292px] flex-col items-center justify-center rounded-[22px] border-4 border-ink bg-purple p-6 text-center shadow-[7px_8px_0_#241a44]">
+            <span className="font-mono text-[9px]">PHOTO DELETED</span>
+            <strong className="my-3 font-display text-2xl font-normal">{card.result?.cardTitle || card.petName || "Saved card"}</strong>
             <p>Generation saved.</p>
           </div>
         )}
-      </div>
-      <div className="account-card-actions">
-        <div>
-          <strong>{card.petName || "Your pet"}</strong>
-          <span>{date(card.completedAt)}</span>
+      </div>}
+      {card.videoUrl && (
+        <div className={`relative mx-auto mt-3 rounded-2xl border-[3px] border-ink bg-purple shadow-[4px_4px_0_#f4458f] ${legacyCard ? "w-36" : "mt-0 w-[min(292px,calc(100vw-4rem))]"}`}>
+          <video className="block aspect-[9/16] w-full rounded-xl object-cover" src={card.videoUrl} controls playsInline preload="metadata" />
+          <span className="absolute bottom-1 right-1 rounded border border-ink bg-yellow px-1 py-0.5 font-mono text-[6px] font-bold text-ink">TALKING-PET VIDEO</span>
         </div>
-        {card.photoUrl && card.result && (
+      )}
+      {!legacyCard && !card.videoUrl && card.photoUrl && (
+        <div className="relative mx-auto w-[min(292px,calc(100vw-4rem))] rounded-2xl border-[3px] border-ink bg-purple shadow-[4px_4px_0_#f4458f]">
+          {/* Signed account media is intentionally rendered directly. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="block aspect-[9/16] w-full rounded-xl object-cover" src={card.photoUrl} alt={card.petName ? `${card.petName}'s selected photo` : "Selected pet"} />
+          <span className="absolute bottom-1 right-1 rounded border border-ink bg-yellow px-1 py-0.5 font-mono text-[6px] font-bold text-ink">{card.videoStatus === "failed" ? "VIDEO DID NOT FINISH" : "VIDEO PREVIEW"}</span>
+        </div>
+      )}
+      <div className="mt-4 flex flex-wrap items-center gap-2 max-sm:mx-auto max-sm:max-w-[310px]">
+        <div className="mr-auto grid">
+          <strong>{card.petName || "Your pet"}</strong>
+          <span className="font-mono text-[9px] uppercase text-ink-muted">{date(card.completedAt)}</span>
+        </div>
+        {legacyCard && card.photoUrl && card.result && (
           <>
-            <button type="button" disabled={busy} onClick={() => void download()}>
+            <button className="min-h-9 rounded-lg border-2 border-ink bg-pink px-3 font-mono text-[9px] font-bold text-white shadow-[3px_3px_0_#241a44]" type="button" disabled={busy} onClick={() => void download()}>
               Download
             </button>
-            <button type="button" disabled={busy} onClick={() => void share()}>
+            <button
+              className="min-h-9 rounded-lg border-2 border-ink bg-pink px-3 font-mono text-[9px] font-bold text-white shadow-[3px_3px_0_#241a44]"
+              type="button"
+              disabled={busy}
+              onClick={() => void share()}
+            >
               Share
             </button>
             {zazzlePrintEnabled && (
-              <button type="button" disabled={busy} onClick={() => void orderPrint()}>
+              <button className="min-h-9 rounded-lg border-2 border-ink bg-pink px-3 font-mono text-[9px] font-bold text-white shadow-[3px_3px_0_#241a44]" type="button" disabled={busy} onClick={() => void orderPrint()}>
                 Order print
               </button>
             )}
-            <button className="quiet" type="button" disabled={busy} onClick={() => void deletePhoto()}>
+            <button className="min-h-9 rounded-lg border-2 border-ink bg-cream px-3 font-mono text-[9px] font-bold text-ink shadow-[3px_3px_0_#241a44]" type="button" disabled={busy} onClick={() => void deletePhoto()}>
               Delete photo
             </button>
           </>
         )}
+        {card.videoUrl && (
+          <button className="min-h-9 rounded-lg border-2 border-ink bg-pink px-3 font-mono text-[9px] font-bold text-white shadow-[3px_3px_0_#241a44]" type="button" disabled={busy} onClick={() => void shareVideo()}>
+            Share video
+          </button>
+        )}
+        {!legacyCard && card.photoUrl && (
+          <button className="min-h-9 rounded-lg border-2 border-ink bg-cream px-3 font-mono text-[9px] font-bold text-ink shadow-[3px_3px_0_#241a44]" type="button" disabled={busy} onClick={() => void deletePhoto()}>
+            Delete photo & video
+          </button>
+        )}
+        {card.videoEligible && (
+          <button className="min-h-9 rounded-lg border-2 border-ink bg-pink px-3 font-mono text-[9px] font-bold text-white shadow-[3px_3px_0_#241a44]" type="button" disabled={busy} onClick={() => void startVideo()}>
+            Finish my talking video
+          </button>
+        )}
+        {card.videoStatus === "running" || card.videoStatus === "submitting" ? (
+          <span className="w-full font-mono text-[9px] uppercase text-ink-muted">Pet video processing</span>
+        ) : null}
       </div>
-      {message && <p className="account-message" role="alert">{message}</p>}
+      {message && <p className="mt-3 text-xs font-extrabold text-[#a51c55]" role="alert">{message}</p>}
     </article>
   );
 }
@@ -189,10 +312,12 @@ function PurchaseRow({
   }
 
   return (
-    <li>
-      <div>
-        <strong>5 credits</strong>
-        <span>
+    <li className="grid items-center gap-5 rounded-xl border-[3px] border-ink bg-white p-5 sm:grid-cols-[1fr_auto] lg:grid-cols-[minmax(170px,0.7fr)_minmax(220px,1.3fr)_auto]">
+      <div className="grid gap-0.5">
+        <strong>
+          {purchase.creditsGranted} {purchase.creditKind === "talking_video" ? "videos" : "legacy card credits"}
+        </strong>
+        <span className="font-mono text-[9px] uppercase text-ink-muted">
           {date(purchase.purchasedAt || purchase.createdAt)} ·{" "}
           {purchase.paymentProvider === "google_play"
             ? "Google Play"
@@ -201,12 +326,12 @@ function PurchaseRow({
               : "Paddle"}
         </span>
       </div>
-      <div>
+      <div className="grid gap-0.5 sm:text-right lg:text-right">
         <strong>{money(purchase.amountCents, purchase.currency)}</strong>
-        <span>{purchase.creditsRemaining} unused · {purchase.status.replace("_", " ")}</span>
+        <span className="font-mono text-[9px] uppercase text-ink-muted">{purchase.creditsRemaining} unused · {purchase.status.replace("_", " ")}</span>
       </div>
       {refundable && (
-        <button type="button" disabled={busy} onClick={() => void requestRefund()}>
+        <button className="min-h-10 rounded-lg border-2 border-ink bg-pink px-3 font-mono text-[9px] font-bold text-white shadow-[3px_3px_0_#241a44]" type="button" disabled={busy} onClick={() => void requestRefund()}>
           {busy
             ? "Requesting…"
             : purchase.status === "refund_pending"
@@ -214,7 +339,7 @@ function PurchaseRow({
               : "Request full refund"}
         </button>
       )}
-      {message && <p className="account-message" role="status">{message}</p>}
+      {message && <p className="mt-3 text-xs font-extrabold text-[#a51c55]" role="status">{message}</p>}
     </li>
   );
 }
@@ -222,6 +347,7 @@ function PurchaseRow({
 export function AccountDashboard({
   paddleConfigured,
   googlePlayConfigured,
+  seedanceConfigured,
   zazzlePrintEnabled,
   paddleEnvironment,
 }: AccountDashboardProps) {
@@ -285,6 +411,17 @@ export function AccountDashboard({
     };
   }, []);
 
+  useEffect(() => {
+    const videoRunning = account?.cards.some(
+      (card) => card.videoStatus === "submitting" || card.videoStatus === "running",
+    );
+    if (!videoRunning) return;
+    const timer = window.setInterval(() => {
+      void refresh().catch(() => undefined);
+    }, 8_000);
+    return () => window.clearInterval(timer);
+  }, [account?.cards, refresh]);
+
   const confirmPurchase = useCallback(async (
     previousBalance: number,
     transactionId?: string,
@@ -294,10 +431,10 @@ export function AccountDashboard({
       const next = await fetchCreditBalance(transactionId).catch(() => null);
       const confirmed = transactionId
         ? next?.transactionConfirmed === true
-        : next !== null && next.creditBalance >= previousBalance + 5;
+        : next !== null && next.creditBalance >= previousBalance + 3;
       if (confirmed) {
         await refresh().catch(() => null);
-        setMessage("Five new card credits are ready.");
+        setMessage("Three new talking-pet videos are ready.");
         setBuying(false);
         return;
       }
@@ -313,7 +450,7 @@ export function AccountDashboard({
       ).detail?.transactionId;
       if (!transactionId) return;
       setBuying(true);
-      setMessage("Payment complete. Adding five credits…");
+      setMessage("Payment complete. Adding three video credits…");
       void confirmPurchase(account?.creditBalance ?? 0, transactionId);
     };
     window.addEventListener(
@@ -396,7 +533,7 @@ export function AccountDashboard({
     if (provider === "google_play") {
       try {
         await startGooglePlayPurchase({ purchaseId: payload.purchaseId });
-        setMessage("Payment complete. Adding five credits…");
+        setMessage("Payment complete. Adding three video credits…");
         void confirmPurchase(previousBalance);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -420,7 +557,7 @@ export function AccountDashboard({
         environment: paddleEnvironment,
         eventCallback: (event) => {
           if (event.name === "checkout.completed") {
-            setMessage("Payment complete. Adding five credits…");
+            setMessage("Payment complete. Adding three video credits…");
             void confirmPurchase(previousBalance, payload.transactionId);
           } else if (event.name === "checkout.closed") {
             setBuying(false);
@@ -457,7 +594,7 @@ export function AccountDashboard({
   }
 
   async function deleteSavedPhoto(card: AccountCard) {
-    if (!window.confirm(`Delete the saved photo for ${card.petName || "this attempt"}?`)) {
+    if (!window.confirm(`Delete the saved photo and pet video for ${card.petName || "this attempt"}?`)) {
       return;
     }
     setMessage(null);
@@ -474,18 +611,19 @@ export function AccountDashboard({
   }
 
   if (loading) {
-    return <main className="account-page account-loading">Loading account…</main>;
+    return <main className="grid min-h-svh place-items-center bg-cream font-display text-xl text-ink">Loading account…</main>;
   }
 
   const checkoutAvailable =
-    (paymentChannel === "google_play" && googlePlayConfigured) ||
-    (paymentChannel === "web" && paddleConfigured);
+    seedanceConfigured &&
+    ((paymentChannel === "google_play" && googlePlayConfigured) ||
+      (paymentChannel === "web" && paddleConfigured));
   const primaryProvider =
     paymentChannel === "google_play"
       ? ("google_play" as const)
       : ("paddle" as const);
   const checkoutPrice =
-    paymentChannel === "google_play" ? playPrice : paymentChannel === "web" ? "$5" : null;
+    paymentChannel === "google_play" ? playPrice : paymentChannel === "web" ? "$10" : null;
   const completedCards = account?.cards.filter((card) => card.status === "completed") ?? [];
   const activity =
     account?.cards.filter((card) => card.status !== "completed") ?? [];
@@ -497,25 +635,32 @@ export function AccountDashboard({
   );
 
   return (
-    <main className="account-page">
-      <header className="account-nav">
-        <Link className="public-brand" href="/">RARELY <span>★</span></Link>
-        <nav>
-          <Link href="/">Make a card</Link>
-          <button type="button" onClick={() => void signOut()}>Sign out</button>
+    <main className="min-h-svh bg-cream pt-7 text-ink">
+      <header className="mx-auto grid min-h-20 w-[calc(100%-2.5rem)] max-w-[1180px] grid-cols-[auto_1fr] items-center gap-7 rounded-2xl border-[3px] border-ink bg-cream/95 px-5 py-3 shadow-[6px_7px_0_#241a44] max-sm:w-[calc(100%-1.75rem)] max-sm:gap-3 max-sm:px-3">
+        <Link className="font-display text-2xl leading-none text-pink [text-shadow:2px_2px_0_#ffe36e]" href="/">RARELY <span className="text-yellow">★</span></Link>
+        <nav className="flex flex-wrap items-center justify-end gap-5 font-mono text-[10px] font-medium uppercase text-ink-muted">
+          <Link href="/">Make my pet talk</Link>
+          <button className="border-0 bg-transparent p-0 font-bold uppercase text-pink" type="button" onClick={() => void signOut()}>Sign out</button>
         </nav>
       </header>
 
-      <section className="account-hero">
+      <section className="mx-auto grid w-[calc(100%-2.5rem)] max-w-6xl items-center gap-14 py-14 lg:grid-cols-[1fr_350px] max-sm:w-[calc(100%-1.75rem)]">
         <div>
-          <h1>Account</h1>
-          <p>{account?.email}</p>
+          <h1 className="mb-3 font-display text-[clamp(2.375rem,5vw,3.625rem)] font-normal leading-none tracking-tight">Account</h1>
+          <p className="font-mono text-[11px] text-ink-muted">{account?.email}</p>
         </div>
-        <aside>
-          <span>CREDITS</span>
-          <strong>{account?.creditBalance ?? 0}</strong>
-          <p>Completed and rejected generations use one credit. Technical failures don’t.</p>
+        <aside className="mx-auto w-full max-w-[420px] rotate-1 rounded-[20px] border-4 border-ink bg-yellow p-6 shadow-[8px_9px_0_#241a44,14px_15px_0_#f4458f]">
+          <span className="font-mono text-[10px] font-bold">VIDEO CREDITS</span>
+          <strong className="block font-display text-8xl font-normal leading-none">{account?.creditBalance ?? 0}</strong>
+          <p className="mb-5 text-xs font-extrabold leading-snug">Each finished talking-pet reel uses one credit. Rejected photos and technical failures return it.</p>
+          {(account?.legacyCardCreditBalance ?? 0) > 0 && (
+            <p className="mb-5 text-xs font-extrabold leading-snug">
+              {account?.legacyCardCreditBalance} legacy card credits remain.{" "}
+              <Link href="/?legacy=card">Use a legacy card credit</Link>
+            </p>
+          )}
           <button
+            className="min-h-10 w-full rounded-lg border-2 border-ink bg-pink px-3 font-mono text-[9px] font-bold text-white shadow-[3px_3px_0_#241a44]"
             type="button"
             disabled={buying || !checkoutAvailable}
             onClick={() => void buyCredits(primaryProvider)}
@@ -528,74 +673,79 @@ export function AccountDashboard({
                   ? "Google Play Billing unavailable"
                   : paymentChannel === "google_play" && !googlePlayConfigured
                     ? "Google Play checkout temporarily unavailable"
-                    : `Buy 5 credits${checkoutPrice ? ` — ${checkoutPrice}` : ""}`}
+                    : `Buy 3 videos${checkoutPrice ? ` — ${checkoutPrice}` : ""}`}
           </button>
           {paymentChannel === "play_unavailable" && (
-            <p>Update Chrome or reopen Rarely from Google Play to buy credits.</p>
+            <p className="mt-4 text-xs font-extrabold leading-snug">Update Chrome or reopen Rarely from Google Play to buy credits.</p>
+          )}
+          {!seedanceConfigured && (
+            <p className="mt-4 text-xs font-extrabold leading-snug">Talking-pet video checkout is temporarily unavailable.</p>
           )}
         </aside>
       </section>
 
-      {message && <p className="account-banner" role="status">{message}</p>}
+      {message && <p className="mx-auto mb-8 w-[calc(100%-2.5rem)] max-w-6xl rounded-xl border-2 border-ink bg-[#bdeef5] px-5 py-3 text-center font-extrabold" role="status">{message}</p>}
 
       {inProgress.length > 0 && (
-        <section className="account-section">
-          <div className="account-section-heading">
-            <h2>In progress</h2>
-            <span>{inProgress.length}</span>
+        <section className="mx-auto w-[calc(100%-2.5rem)] max-w-6xl border-t-[3px] border-ink py-16 max-sm:w-[calc(100%-1.75rem)]">
+          <div className="mb-8 flex items-baseline gap-3">
+            <h2 className="font-display text-[clamp(1.75rem,4vw,2.625rem)] font-normal leading-none">In progress</h2>
+            <span className="font-mono text-xs font-bold text-pink">{inProgress.length}</span>
           </div>
-          <div className="account-progress-list">
+          <div className="grid gap-3">
             {inProgress.map((card) => (
-              <article key={card.id}>
-                <div><strong>{card.petName || "New card"}</strong><span>{card.status.replace("_", " ")}</span></div>
-                <button type="button" onClick={() => continueCard(card.id)}>Continue →</button>
+              <article className="flex items-center justify-between gap-5 rounded-xl border-[3px] border-ink bg-white px-5 py-4 shadow-[4px_4px_0_#241a44]" key={card.id}>
+                <div className="grid gap-0.5"><strong>{card.petName || "New video"}</strong><span className="font-mono text-[9px] uppercase text-ink-muted">{card.status.replace("_", " ")}</span></div>
+                <button className="min-h-10 rounded-lg border-2 border-ink bg-pink px-3 font-mono text-[9px] font-bold text-white shadow-[3px_3px_0_#241a44]" type="button" onClick={() => continueCard(card.id)}>Continue →</button>
               </article>
             ))}
           </div>
         </section>
       )}
 
-      <section className="account-section">
-        <div className="account-section-heading">
-          <h2>My generations</h2>
-          <span>{completedCards.length}</span>
+      <section className="mx-auto w-[calc(100%-2.5rem)] max-w-6xl border-t-[3px] border-ink py-16 max-sm:w-[calc(100%-1.75rem)]">
+        <div className="mb-8 flex items-baseline gap-3">
+          <h2 className="font-display text-[clamp(1.75rem,4vw,2.625rem)] font-normal leading-none">My generations</h2>
+          <span className="font-mono text-xs font-bold text-pink">{completedCards.length}</span>
         </div>
         {completedCards.length > 0 ? (
-          <div className="account-card-grid">
+          <div className="grid items-start gap-7 sm:grid-cols-2 lg:grid-cols-3">
             {completedCards.map((card) => (
               <SavedCard
                 card={card}
                 key={card.id}
                 onPhotoDeleted={() => void refresh()}
+                onVideoStarted={() => void refresh()}
                 zazzlePrintEnabled={zazzlePrintEnabled}
               />
             ))}
           </div>
         ) : (
-          <div className="account-empty">
-            <strong>No generations yet.</strong>
-            <Link href="/">Make a card</Link>
+          <div className="rounded-2xl border-[3px] border-dashed border-ink bg-white/70 p-11 text-center">
+            <strong className="block font-display text-2xl font-normal">No generations yet.</strong>
+            <Link className="font-black text-pink" href="/">Make my pet talk</Link>
           </div>
         )}
       </section>
 
       {spentAttempts.length > 0 && (
-        <section className="account-section account-attempts">
-          <div className="account-section-heading">
-            <h2>Other attempts</h2>
-            <span>{spentAttempts.length}</span>
+        <section className="mx-auto w-[calc(100%-2.5rem)] max-w-6xl border-t-[3px] border-ink py-16 max-sm:w-[calc(100%-1.75rem)]">
+          <div className="mb-8 flex items-baseline gap-3">
+            <h2 className="font-display text-[clamp(1.75rem,4vw,2.625rem)] font-normal leading-none">Other attempts</h2>
+            <span className="font-mono text-xs font-bold text-pink">{spentAttempts.length}</span>
           </div>
-          <ul>
+          <ul className="grid list-none gap-3 p-0">
             {spentAttempts.map((card) => (
-              <li key={card.id}>
+              <li className="grid items-center gap-5 rounded-xl border-[3px] border-ink bg-white p-5 sm:grid-cols-[minmax(170px,0.7fr)_minmax(220px,1.3fr)_auto]" key={card.id}>
                 <strong>{card.petName || "Photo attempt"}</strong>
-                <span>
+                <span className="text-[13px] font-bold text-ink-muted">
                   {card.status === "photo_rejected"
-                    ? card.rejectionMessage || "The AI could not use this photo. One credit was used."
+                    ? card.rejectionMessage || "The AI could not use this photo. Your credit was returned."
                     : "A technical failure occurred. The reserved credit was returned."}
                 </span>
                 {card.photoUrl && (
                   <button
+                    className="min-h-10 rounded-lg border-2 border-ink bg-pink px-3 font-mono text-[9px] font-bold text-white shadow-[3px_3px_0_#241a44]"
                     type="button"
                     onClick={() => void deleteSavedPhoto(card)}
                   >
@@ -608,32 +758,23 @@ export function AccountDashboard({
         </section>
       )}
 
-      <section className="account-section account-purchases">
-        <div className="account-section-heading">
-          <h2>Purchases</h2>
-          <span>{account?.purchases.length ?? 0}</span>
+      <section className="mx-auto w-[calc(100%-2.5rem)] max-w-6xl border-t-[3px] border-ink py-16 max-sm:w-[calc(100%-1.75rem)]">
+        <div className="mb-8 flex items-baseline gap-3">
+          <h2 className="font-display text-[clamp(1.75rem,4vw,2.625rem)] font-normal leading-none">Purchases</h2>
+          <span className="font-mono text-xs font-bold text-pink">{account?.purchases.length ?? 0}</span>
         </div>
         {account?.purchases.length ? (
-          <ul>
+          <ul className="grid list-none gap-3 p-0">
             {account.purchases.map((purchase) => (
               <PurchaseRow purchase={purchase} key={purchase.id} onRefunded={() => void refresh()} />
             ))}
           </ul>
         ) : (
-          <div className="account-empty"><p>No purchases yet.</p></div>
+          <div className="rounded-2xl border-[3px] border-dashed border-ink bg-white/70 p-11 text-center"><p className="font-bold text-ink-muted">No purchases yet.</p></div>
         )}
       </section>
 
-      <footer className="public-footer">
-        <Link className="public-brand" href="/">RARELY <span>★</span></Link>
-        <p>© 2026 Rarely · Operated by Aman Mamgain, sole proprietor.</p>
-        <nav>
-          <Link href="/refund-policy">Refunds</Link>
-          <Link href="/privacy">Privacy</Link>
-          <Link href="/terms">Terms</Link>
-          <Link href="/contact">Contact</Link>
-        </nav>
-      </footer>
+      <PublicFooter />
     </main>
   );
 }

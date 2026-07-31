@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PetDialogueSuggestion } from "@/lib/video/dialogue";
 
 export const cardStyleSchema = z.enum(["feminine", "masculine", "pet"]);
 export type CardStyle = z.infer<typeof cardStyleSchema>;
@@ -97,7 +98,9 @@ export type AnalysisResult = z.infer<typeof analysisResultSchema>;
 
 export type PublicAnalysis = {
   id: string;
+  petName: string | null;
   cardStyle: CardStyle;
+  experienceKind: "card" | "talking_video";
   status: AnalysisStatus;
   result: AcceptedAnalysis | null;
   rejectionMessage: string | null;
@@ -106,5 +109,6 @@ export type PublicAnalysis = {
   updatedAt: string;
   photoUrl: string | null;
   refundState: "none" | "pending" | "completed";
+  dialogueSuggestions: PetDialogueSuggestion[];
+  selectedDialogue: string | null;
 };
-

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AccountDashboard } from "@/components/account-dashboard";
 import { requireUser } from "@/lib/auth";
-import { hasGooglePlayEnv, hasPaddleEnv } from "@/lib/env";
+import { hasGooglePlayEnv, hasPaddleEnv, hasSeedanceEnv } from "@/lib/env";
 import { isZazzlePrintEnabled } from "@/lib/printing/zazzle";
 
 export const metadata: Metadata = {
@@ -18,6 +18,7 @@ export default async function AccountPage() {
     <AccountDashboard
       paddleConfigured={hasPaddleEnv()}
       googlePlayConfigured={hasGooglePlayEnv()}
+      seedanceConfigured={hasSeedanceEnv()}
       zazzlePrintEnabled={isZazzlePrintEnabled()}
       paddleEnvironment={
         process.env.PADDLE_ENVIRONMENT === "production"

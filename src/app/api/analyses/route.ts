@@ -6,6 +6,7 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const createAnalysisSchema = z.object({
   cardStyle: z.literal("pet"),
+  experienceKind: z.enum(["card", "talking_video"]).default("talking_video"),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
   size: z.number().int().positive().max(MAX_IMAGE_BYTES),
 });
@@ -35,11 +36,34 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
+  if (parsed.data.experienceKind === "talking_video") {
+    const { data: purchases, error: creditsError } = await admin
+      .from("credit_purchases")
+      .select("credits_remaining")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .eq("credit_kind", "talking_video")
+      .gt("credits_remaining", 0);
+    if (creditsError) {
+      return Response.json(
+        { error: "Video credits could not be checked. Try again." },
+        { status: 503 },
+      );
+    }
+    if (!purchases?.some((purchase) => purchase.credits_remaining > 0)) {
+      return Response.json(
+        { error: "Get three talking-pet video credits before adding a photo." },
+        { status: 402 },
+      );
+    }
+  }
+
   const { data: analysis, error: insertError } = await admin
     .from("analysis_requests")
     .insert({
       user_id: user.id,
       card_style: parsed.data.cardStyle,
+      experience_kind: parsed.data.experienceKind,
       status: "awaiting_upload",
     })
     .select("id")
@@ -87,4 +111,3 @@ export async function POST(request: Request) {
     { status: 201 },
   );
 }
-

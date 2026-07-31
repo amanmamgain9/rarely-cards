@@ -1,4 +1,4 @@
-import { PublicFooter, PublicHeader } from "@/components/public-chrome";
+import { LegalArticle, LegalEyebrow, LegalHeading, LegalShell, LegalTitle } from "@/components/legal-shell";
 
 export const metadata = {
   title: "Privacy — Rarely",
@@ -6,52 +6,67 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="legal-page">
-      <PublicHeader />
-      <article>
-        <span className="pixel-label">EFFECTIVE JULY 23, 2026</span>
-        <h1>Privacy, without the fog.</h1>
+    <LegalShell>
+      <LegalArticle>
+        <LegalEyebrow>EFFECTIVE JULY 30, 2026</LegalEyebrow>
+        <LegalTitle>Privacy, without the fog.</LegalTitle>
         <p>
-          Rarely turns one photograph of a cat or dog into an
-          entertainment-only collectible card. We do not use the photo for
+          Rarely turns one photograph of a cat or dog and a short line you
+          choose into an entertainment-only talking-pet video. We do not use the photo for
           identity verification, biometric identification, veterinary or
           medical analysis, breed certification, or model training.
         </p>
 
-        <h2>What we handle</h2>
+        <LegalHeading>What we handle</LegalHeading>
         <p>
           We process your account identifier, email, the pet name and pronouns
-          you provide, payment status, analysis status, and the result shown on the card.
+          and line you provide, our suggested lines, payment status, generation
+          status, provider token usage, and the creative analysis used to make the video.
           Google Play or Paddle handles payment details; Rarely does not store
           full payment card data.
         </p>
 
-        <h2>Photo handling</h2>
+        <LegalHeading>Photo handling</LegalHeading>
         <p>
           Before sign-in, the selected photo may be stored in this browser for
           up to 24 hours. After sign-in it is uploaded to a private Supabase
           Storage bucket, sent to Google Gemini to read the visible pet and
-          scene, and retained privately in your account. Completed cards may
-          also have an optimized copy for faster reopening, downloading, and
-          sharing. Valid uploaded photos remain until you delete them or request
+          scene, and retained privately in your account. Valid uploaded photos
+          remain until you delete them or request
           account deletion. Files that are malformed or cannot be stored safely
           may be discarded.
         </p>
 
-        <h2>Sharing and retention</h2>
+        <LegalHeading>Talking-pet videos</LegalHeading>
+        <p>
+          When you choose “Make my pet talk,” Rarely sends the saved pet photo,
+          selected pet details, and your chosen line to BytePlus ModelArk
+          so its Seedance model can generate a short video. Rarely also sends a
+          one-way account identifier used for provider safety controls. BytePlus
+          temporarily hosts the generation task and output; Rarely copies a
+          successful video into your private Supabase storage promptly. We do
+          not send payment details, your email address, or your plain account ID
+          to BytePlus. This transfer happens only after you choose the video action.
+          Saved pet videos remain in your account until you delete the source
+          photo, request their deletion, or request account deletion.
+        </p>
+
+        <LegalHeading>Sharing and retention</LegalHeading>
         <p>
           Supabase provides authentication, database, and private storage;
-          Google processes the image for AI output; Google Play or Paddle
+          Google processes the image to suggest dialogue and describe the visible scene; BytePlus processes the
+          image and chosen line only when you request a talking-pet video;
+          Google Play or Paddle
           processes checkout and refunds; Vercel hosts the app; and Sentry may
-          receive redacted technical errors. We retain card results
+          receive redacted technical errors. We retain creative analysis results
           and transaction state for account access, support, fraud prevention,
-          and legal obligations. Saved card photos remain until you delete the
+          and legal obligations. Saved photos remain until you delete the
           photo or request account deletion. Error logs never intentionally
           include photos, auth tokens, payment secrets, or full model prompts
           and responses.
         </p>
 
-        <h2>Your choices</h2>
+        <LegalHeading>Your choices</LegalHeading>
         <p>
           Upload only a photo you own or are allowed to use. Avoid photographs
           containing identifiable people who have not agreed to appear. You may
@@ -61,15 +76,13 @@ export default function PrivacyPage() {
           must be retained where law requires.
         </p>
 
-        <h2>Age and changes</h2>
+        <LegalHeading>Age and changes</LegalHeading>
         <p>
           Rarely is for adults aged 18 or older. Material policy changes will
           be posted here with a new effective date. Contact
           amanmamgain9@gmail.com with privacy requests or questions.
         </p>
-      </article>
-      <PublicFooter />
-    </main>
+      </LegalArticle>
+    </LegalShell>
   );
 }
-
