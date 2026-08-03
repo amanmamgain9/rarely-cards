@@ -6,6 +6,7 @@ describe("buildPetVideoPrompt", () => {
     const prompt = buildPetVideoPrompt({
       petName: "Miso",
       dialogue: "I knew that snack was for me.",
+      petPronouns: "she",
     });
 
     expect(prompt).toContain("exact pet");
@@ -13,5 +14,6 @@ describe("buildPetVideoPrompt", () => {
     expect(prompt).toContain("preserve the exact identity");
     expect(prompt).toContain("I knew that snack was for me.");
     expect(prompt).toContain("Synchronize the mouth");
+    expect(prompt).toContain("girl pet");
   });
 });

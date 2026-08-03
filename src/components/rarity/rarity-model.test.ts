@@ -6,6 +6,7 @@ function analysis(status: PublicAnalysis["status"]): PublicAnalysis {
   return {
     id: "00000000-0000-4000-8000-000000000001",
     petName: null,
+    petPronouns: null,
     cardStyle: "pet",
     experienceKind: "talking_video",
     status,

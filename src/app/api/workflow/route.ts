@@ -72,7 +72,7 @@ export async function GET(request: Request) {
   const { data, error } = await admin
     .from("analysis_requests")
     .select(
-      "id, user_id, card_style, experience_kind, pet_name, status, result_json, rejection_message, replacement_count, created_at, updated_at, processing_started_at, refund_attempted_at, card_photo_path, object_path, dialogue_suggestions, selected_dialogue",
+      "id, user_id, card_style, experience_kind, pet_name, pet_pronouns, status, result_json, rejection_message, replacement_count, created_at, updated_at, processing_started_at, refund_attempted_at, card_photo_path, object_path, dialogue_suggestions, selected_dialogue",
     )
     .eq("id", analysisId.data)
     .eq("user_id", user.id)
@@ -105,6 +105,7 @@ export async function GET(request: Request) {
   const analysis: PublicAnalysis = {
     id: data.id,
     petName: data.pet_name,
+    petPronouns: data.pet_pronouns,
     cardStyle: cardStyleSchema.parse(data.card_style),
     experienceKind: data.experience_kind,
     status,

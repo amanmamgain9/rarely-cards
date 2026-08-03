@@ -99,6 +99,7 @@ export type AnalysisResult = z.infer<typeof analysisResultSchema>;
 export type PublicAnalysis = {
   id: string;
   petName: string | null;
+  petPronouns: PetPronouns | null;
   cardStyle: CardStyle;
   experienceKind: "card" | "talking_video";
   status: AnalysisStatus;

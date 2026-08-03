@@ -11,13 +11,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { petDialogueSuggestionsSchema } from "@/lib/video/dialogue";
 
 const resumeAnalysisSelection =
-  "id, card_style, experience_kind, pet_name, status, rejection_message, replacement_count, created_at, updated_at, object_path, dialogue_suggestions, selected_dialogue";
+  "id, card_style, experience_kind, pet_name, pet_pronouns, status, rejection_message, replacement_count, created_at, updated_at, object_path, dialogue_suggestions, selected_dialogue";
 
 type ResumableAnalysisRow = {
   id: string;
   card_style: string;
   experience_kind: "card" | "talking_video";
   pet_name: string | null;
+  pet_pronouns: "he" | "she" | "they" | null;
   status: string;
   rejection_message: string | null;
   replacement_count: number;
@@ -48,6 +49,7 @@ async function toResumableAnalysis(
   return {
     id: data.id,
     petName: data.pet_name,
+    petPronouns: data.pet_pronouns,
     cardStyle: cardStyleSchema.parse(data.card_style),
     experienceKind: data.experience_kind,
     status,

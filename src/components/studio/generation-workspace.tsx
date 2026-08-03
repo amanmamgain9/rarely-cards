@@ -16,6 +16,7 @@ import {
 import {
   createAnalysisFromPhoto,
 } from "@/lib/analysis/client";
+import type { PetPronouns } from "@/lib/analysis/types";
 import { StudioHeader } from "@/components/studio-header";
 import { RarityFlowLayers } from "@/components/rarity/rarity-flow-layers";
 import { VideoWorkspace } from "@/components/rarity/video-workspace";
@@ -54,6 +55,9 @@ export function GenerationWorkspace({
   const workflow = useRarelyWorkflowContext();
   const { analysisId, setAnalysisId } = workflow;
   const [petName, setPetName] = useState(initialAnalysis?.petName ?? "");
+  const [petPronouns, setPetPronouns] = useState<PetPronouns | null>(
+    initialAnalysis?.petPronouns ?? null,
+  );
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -143,6 +147,7 @@ export function GenerationWorkspace({
     setPhoto(preview);
     setSelectedFile(file);
     setAnalysisId(null);
+    setPetPronouns(null);
     resetDialogue();
     await savePendingPhoto(file, AUTOMATIC_CARD_STYLE);
     setPendingPhotoHint(true);
@@ -167,7 +172,7 @@ export function GenerationWorkspace({
     event.preventDefault();
     const name = petName.trim() || "My pet";
     const chosenDialogue = customDialogue.trim() || selectedDialogue.trim();
-    if (!analysisId || !chosenDialogue) {
+    if (!analysisId || !chosenDialogue || !petPronouns) {
       return;
     }
 
@@ -181,6 +186,7 @@ export function GenerationWorkspace({
         body: JSON.stringify({
           petName: name,
           dialogue: chosenDialogue,
+          petPronouns,
         }),
       });
       const payload = await response.json();
@@ -207,6 +213,7 @@ export function GenerationWorkspace({
     setAnalysisId(null);
     setSelectedFile(null);
     setPhoto(null);
+    setPetPronouns(null);
     resetDialogue();
     setMessage(null);
     setFlow("idle");
@@ -277,6 +284,8 @@ export function GenerationWorkspace({
           onSelectDialogue={selectDialogue}
           customDialogue={customDialogue}
           onCustomDialogueChange={writeCustomDialogue}
+          petPronouns={petPronouns}
+          onPetPronounsChange={setPetPronouns}
           suggestionsBusy={suggestionsBusy}
           onRetrySuggestions={retrySuggestions}
           onSubmit={submitPetName}

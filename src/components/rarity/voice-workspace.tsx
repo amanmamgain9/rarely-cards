@@ -1,5 +1,7 @@
 import type { FormEventHandler, RefObject } from "react";
 import { PetVoiceComposer } from "@/components/rarity/pet-voice-composer";
+import { PetGenderPicker } from "@/components/rarity/pet-gender-picker";
+import type { PetPronouns } from "@/lib/analysis/types";
 import type { PetDialogueSuggestion } from "@/lib/video/dialogue";
 
 export function VoiceWorkspace({
@@ -11,6 +13,8 @@ export function VoiceWorkspace({
   onSelectDialogue,
   customDialogue,
   onCustomDialogueChange,
+  petPronouns,
+  onPetPronounsChange,
   suggestionsBusy,
   onRetrySuggestions,
   onSubmit,
@@ -27,6 +31,8 @@ export function VoiceWorkspace({
   onSelectDialogue: (line: string) => void;
   customDialogue: string;
   onCustomDialogueChange: (line: string) => void;
+  petPronouns: PetPronouns | null;
+  onPetPronounsChange: (value: "he" | "she") => void;
   suggestionsBusy: boolean;
   onRetrySuggestions: () => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
@@ -36,7 +42,10 @@ export function VoiceWorkspace({
   message: string | null;
 }) {
   const canSubmit = Boolean(
-    !creating && analysisId && (customDialogue.trim() || selectedDialogue.trim()),
+    !creating &&
+      analysisId &&
+      petPronouns &&
+      (customDialogue.trim() || selectedDialogue.trim()),
   );
 
   return (
@@ -105,6 +114,7 @@ export function VoiceWorkspace({
 
             <div className="my-4 flex items-center gap-3 font-mono text-[8px] uppercase text-ink-muted before:h-px before:flex-1 before:bg-ink/15 after:h-px after:flex-1 after:bg-ink/15"><span>or add your own line</span></div>
             <PetVoiceComposer value={customDialogue} onChange={onCustomDialogueChange} />
+            <PetGenderPicker value={petPronouns} onChange={onPetPronounsChange} />
 
             <button className="mt-4 min-h-12 w-full rounded-xl border-2 border-ink bg-pink font-black text-white shadow-[3px_3px_0_#241a44] disabled:cursor-not-allowed disabled:opacity-45" type="submit" disabled={!canSubmit}>
               {creating ? "Starting…" : analysisId ? "Create video" : "Preparing photo…"}

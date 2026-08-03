@@ -11,6 +11,7 @@ import {
 } from "@/lib/video/generation";
 import { buildPetVideoPrompt } from "@/lib/video/prompt";
 import { petDialogueSchema } from "@/lib/video/dialogue";
+import { petPronounsSchema } from "@/lib/analysis/types";
 import { ensureDevelopmentVideoCredits } from "@/lib/payments/development-credits";
 import { submitSeedanceVideo } from "@/lib/video/submission";
 
@@ -25,6 +26,7 @@ const VIDEO_SELECT =
 const createVideoSchema = z.object({
   dialogue: petDialogueSchema.optional(),
   petName: z.string().trim().min(1).max(30).optional(),
+  petPronouns: petPronounsSchema.exclude(["they"]),
 });
 
 export async function GET(request: Request, context: RouteContext) {
@@ -135,7 +137,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
   const { data: analysis } = await admin
     .from("analysis_requests")
-    .select("id, user_id, status, card_photo_path, object_path, selected_dialogue, pet_name")
+    .select("id, user_id, status, card_photo_path, object_path, selected_dialogue, pet_name, pet_pronouns")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -173,7 +175,19 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const petName = body.data.petName ?? analysis.pet_name ?? "My pet";
-  const prompt = buildPetVideoPrompt({ petName, dialogue });
+  const petPronouns = body.data.petPronouns;
+  const { data: genderSaved, error: genderSaveError } = await admin
+    .from("analysis_requests")
+    .update({ pet_pronouns: petPronouns })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .in("status", ["awaiting_name", "paid", "processing", "completed"])
+    .select("id")
+    .maybeSingle();
+  if (genderSaveError || !genderSaved) {
+    return Response.json({ error: "This pet is no longer ready for a video." }, { status: 409 });
+  }
+  const prompt = buildPetVideoPrompt({ petName, dialogue, petPronouns });
   const providerConfig = seedanceEnv();
   const { data: reservation, error: reservationError } = await admin.rpc(
     "reserve_and_create_talking_video",
