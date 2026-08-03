@@ -134,10 +134,15 @@ export function GenerationWorkspace({
     await clearPendingPhoto().catch(() => undefined);
     setPendingPhotoHint(false);
     clearResumeQuery();
+    if (created.status === "awaiting_payment") {
+      setFlow("idle");
+      router.replace(`/studio/credits?draft=${created.id}`);
+      return;
+    }
     const nextFlow = created.status === "paid" ? "processing" : "naming";
     setFlow(nextFlow);
     resetDialogue({ busy: nextFlow === "naming" });
-  }, [resetDialogue, setAnalysisId]);
+  }, [resetDialogue, router, setAnalysisId]);
 
   const acceptPhoto = useCallback(async (file: File) => {
     if (!seedanceConfigured) {

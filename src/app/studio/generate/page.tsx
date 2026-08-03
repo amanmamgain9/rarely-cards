@@ -55,6 +55,9 @@ export default async function GeneratePage({ searchParams }: GeneratePageProps) 
       0,
     ),
   );
+  if (initialAnalysis && creditBalance === 0) {
+    redirect(`/studio/credits?draft=${initialAnalysis.id}`);
+  }
   const resumeRequested =
     params.resume === "1" ||
     (Array.isArray(params.resume) && params.resume.includes("1"));

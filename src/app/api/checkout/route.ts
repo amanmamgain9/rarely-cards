@@ -72,23 +72,18 @@ export async function POST(request: Request) {
   if (body.data.analysisId) {
     const { data: analysis, error } = await admin
       .from("analysis_requests")
-      .select("id, user_id, status, selected_dialogue")
+      .select("id, user_id, status, experience_kind")
       .eq("id", body.data.analysisId)
       .single();
     if (error || !analysis || analysis.user_id !== user.id) {
       return Response.json({ error: "Analysis not found." }, { status: 404 });
     }
-    if (!["awaiting_payment", "awaiting_name"].includes(analysis.status)) {
+    if (
+      analysis.experience_kind !== "talking_video" ||
+      !["awaiting_payment", "awaiting_name"].includes(analysis.status)
+    ) {
       return Response.json(
         { error: "This draft is not waiting for video credits." },
-        { status: 409 },
-      );
-    }
-    if (!analysis.selected_dialogue) {
-      return Response.json(
-        {
-          error: "This draft is not configured for talking-pet video.",
-        },
         { status: 409 },
       );
     }
