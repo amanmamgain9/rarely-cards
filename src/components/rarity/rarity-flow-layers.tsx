@@ -19,16 +19,6 @@ export function RarityFlowLayers({
 }: RarityFlowLayersProps) {
   return (
     <>
-      {flow === "restoring" && (
-        <section className="fixed inset-0 z-[120] grid place-items-center overflow-y-auto bg-ink/85 p-5 backdrop-blur-xl" aria-live="polite">
-          <div className="w-full max-w-lg rounded-3xl border-4 border-ink bg-cream p-9 text-center shadow-[10px_11px_0_#f4458f,17px_18px_0_#ffe36e]">
-            <span className="inline-flex rounded-md border-2 border-ink bg-yellow px-3 py-1 font-mono text-[9px] font-bold">RESTORING PHOTO</span>
-            <h2 className="my-5 font-display text-[clamp(2.375rem,8vw,3.625rem)] font-normal leading-none">Restoring your photo</h2>
-            <p className="font-extrabold text-ink-muted">Your video will continue from the last completed step.</p>
-          </div>
-        </section>
-      )}
-
       {flow === "processing" && photo && (
         <section className="fixed inset-0 z-[120] grid place-items-center overflow-y-auto bg-ink p-5 text-white" aria-live="polite">
           <div className="grid w-full max-w-4xl gap-7 rounded-3xl border-2 border-white/20 bg-white/5 p-6 md:grid-cols-[300px_1fr]">
