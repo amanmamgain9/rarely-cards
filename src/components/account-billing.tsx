@@ -1,14 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { CreditCheckout } from "@/components/payments/credit-checkout";
 import type { AccountData, AccountPurchase } from "@/lib/account-types";
-import {
-  getGooglePlayProduct,
-  restoreGooglePlayPurchases,
-  startGooglePlayPurchase,
-} from "@/lib/payments/google-play-client";
-import { PADDLE_CHECKOUT_COMPLETED_EVENT } from "@/lib/payments/paddle-client-events";
-import { usePaymentChannel } from "@/lib/payments/use-payment-channel";
 
 type AccountBillingProps = {
   paddleConfigured: boolean;
@@ -113,13 +107,9 @@ export function AccountBilling({
   seedanceConfigured,
   paddleEnvironment,
 }: AccountBillingProps) {
-  const paymentChannel = usePaymentChannel();
   const [account, setAccount] = useState<AccountData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [buying, setBuying] = useState(false);
-  const [playPrice, setPlayPrice] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const playRestoreAttempted = useRef(false);
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/account", { cache: "no-store" });
@@ -131,19 +121,6 @@ export function AccountBilling({
     if (!response.ok) throw new Error(payload.error || "Billing could not be loaded.");
     setAccount(payload as AccountData);
     return payload as AccountData;
-  }, []);
-
-  const fetchCreditBalance = useCallback(async (transactionId?: string) => {
-    const params = new URLSearchParams({ view: "balance" });
-    if (transactionId) params.set("transactionId", transactionId);
-    const response = await fetch(`/api/account?${params}`, { cache: "no-store" });
-    if (!response.ok) return null;
-    const payload = await response.json();
-    if (typeof payload.creditBalance !== "number") return null;
-    return {
-      creditBalance: payload.creditBalance,
-      transactionConfirmed: payload.transactionConfirmed === true,
-    };
   }, []);
 
   useEffect(() => {
@@ -172,157 +149,6 @@ export function AccountBilling({
     };
   }, []);
 
-  const confirmPurchase = useCallback(async (
-    previousBalance: number,
-    transactionId?: string,
-  ) => {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      await new Promise((resolve) => window.setTimeout(resolve, 1500));
-      const next = await fetchCreditBalance(transactionId).catch(() => null);
-      const confirmed = transactionId
-        ? next?.transactionConfirmed === true
-        : next !== null && next.creditBalance >= previousBalance + 3;
-      if (confirmed) {
-        await refresh().catch(() => null);
-        setMessage("Three new video credits are ready.");
-        setBuying(false);
-        return;
-      }
-    }
-    setMessage("Payment is complete. Your credits are still being confirmed; refresh shortly.");
-    setBuying(false);
-  }, [fetchCreditBalance, refresh]);
-
-  useEffect(() => {
-    const handleHostedCheckoutCompleted = (event: Event) => {
-      const transactionId = (
-        event as CustomEvent<{ transactionId?: string }>
-      ).detail?.transactionId;
-      if (!transactionId) return;
-      setBuying(true);
-      setMessage("Payment complete. Adding three video credits…");
-      void confirmPurchase(account?.creditBalance ?? 0, transactionId);
-    };
-    window.addEventListener(PADDLE_CHECKOUT_COMPLETED_EVENT, handleHostedCheckoutCompleted);
-    return () =>
-      window.removeEventListener(PADDLE_CHECKOUT_COMPLETED_EVENT, handleHostedCheckoutCompleted);
-  }, [account?.creditBalance, confirmPurchase]);
-
-  useEffect(() => {
-    if (paymentChannel !== "google_play") return;
-    let cancelled = false;
-    void getGooglePlayProduct()
-      .then((product) => {
-        if (!cancelled) setPlayPrice(product.formattedPrice);
-      })
-      .catch(() => {
-        if (!cancelled) setPlayPrice(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [paymentChannel]);
-
-  useEffect(() => {
-    if (paymentChannel !== "google_play" || playRestoreAttempted.current) return;
-    playRestoreAttempted.current = true;
-    void restoreGooglePlayPurchases()
-      .then((restored) => {
-        if (restored.length > 0) {
-          setMessage("A Google Play purchase was restored.");
-          void refresh();
-        }
-      })
-      .catch(() => undefined);
-  }, [paymentChannel, refresh]);
-
-  async function buyCredits(provider: "paddle" | "google_play") {
-    if (buying) return;
-    if (
-      (provider === "paddle" && !paddleConfigured) ||
-      (provider === "google_play" &&
-        (paymentChannel !== "google_play" || !googlePlayConfigured))
-    ) {
-      setMessage("Checkout is not configured yet.");
-      return;
-    }
-
-    setBuying(true);
-    setMessage(null);
-    let response: Response;
-    try {
-      response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider }),
-      });
-    } catch {
-      setMessage("Checkout could not be opened. Check your connection and try again.");
-      setBuying(false);
-      return;
-    }
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setMessage(payload.error || "Checkout could not be opened.");
-      setBuying(false);
-      return;
-    }
-
-    const previousBalance = account?.creditBalance ?? 0;
-    if (provider === "google_play") {
-      try {
-        await startGooglePlayPurchase({ purchaseId: payload.purchaseId });
-        setMessage("Payment complete. Adding three video credits…");
-        void confirmPurchase(previousBalance);
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          setBuying(false);
-          return;
-        }
-        setMessage(error instanceof Error ? error.message : "Google Play checkout could not be completed.");
-        setBuying(false);
-      }
-      return;
-    }
-
-    try {
-      const { initializePaddle } = await import("@paddle/paddle-js");
-      const paddle = await initializePaddle({
-        token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN!,
-        environment: paddleEnvironment,
-        eventCallback: (event) => {
-          if (event.name === "checkout.completed") {
-            setMessage("Payment complete. Adding three video credits…");
-            void confirmPurchase(previousBalance, payload.transactionId);
-          } else if (event.name === "checkout.closed") {
-            setBuying(false);
-          }
-        },
-        checkout: {
-          settings: {
-            displayMode: "overlay",
-            theme: "light",
-            allowLogout: false,
-            showAddDiscounts: false,
-          },
-        },
-      });
-      if (!paddle) throw new Error("paddle_not_initialized");
-      paddle.Checkout.open({ transactionId: payload.transactionId });
-    } catch {
-      setMessage("Checkout could not be opened. Try again.");
-      setBuying(false);
-    }
-  }
-
-  const checkoutAvailable =
-    seedanceConfigured &&
-    ((paymentChannel === "google_play" && googlePlayConfigured) ||
-      (paymentChannel === "web" && paddleConfigured));
-  const primaryProvider = paymentChannel === "google_play" ? "google_play" : "paddle";
-  const checkoutPrice =
-    paymentChannel === "google_play" ? playPrice : paymentChannel === "web" ? "$10" : null;
   const purchases =
     account?.purchases.filter((purchase) => purchase.creditKind === "talking_video") ?? [];
 
@@ -366,32 +192,23 @@ export function AccountBilling({
           </div>
 
           {!account?.developmentMode && (
-            <button
-              className="min-h-12 rounded-xl border-2 border-ink bg-pink px-5 text-sm font-black text-white shadow-[3px_3px_0_#241a44] disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={buying || loading || !checkoutAvailable}
-              onClick={() => void buyCredits(primaryProvider)}
-              type="button"
-            >
-              {buying
-                ? "Opening checkout…"
-                : paymentChannel === "loading"
-                  ? "Preparing checkout…"
-                  : paymentChannel === "play_unavailable"
-                    ? "Google Play unavailable"
-                    : paymentChannel === "google_play" && !googlePlayConfigured
-                      ? "Checkout unavailable"
-                      : `Buy 3 credits${checkoutPrice ? ` — ${checkoutPrice}` : ""}`}
-            </button>
+            <div className="w-full sm:w-64">
+              <CreditCheckout
+                currentBalance={account?.creditBalance ?? 0}
+                googlePlayConfigured={googlePlayConfigured}
+                paddleConfigured={paddleConfigured}
+                seedanceConfigured={seedanceConfigured}
+                paddleEnvironment={paddleEnvironment}
+                onConfirmed={async () => {
+                  await refresh();
+                }}
+              />
+            </div>
           )}
         </div>
         <div className="h-2 border-t-2 border-dashed border-ink/30 bg-cream/40" aria-hidden="true" />
       </section>
 
-      {paymentChannel === "play_unavailable" && (
-        <p className="mt-4 text-xs font-extrabold text-ink-muted">
-          Update Chrome or reopen Rarely from Google Play to buy credits.
-        </p>
-      )}
       {!seedanceConfigured && !account?.developmentMode && (
         <p className="mt-4 text-xs font-extrabold text-ink-muted">
           Talking-pet video checkout is temporarily unavailable.

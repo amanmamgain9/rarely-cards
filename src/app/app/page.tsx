@@ -5,16 +5,12 @@ export default async function LegacyAppPage({
 }: {
   searchParams: Promise<{
     resume?: string | string[];
-    legacy?: string | string[];
   }>;
 }) {
   const params = await searchParams;
   const query = new URLSearchParams();
   if (params.resume === "1" || (Array.isArray(params.resume) && params.resume.includes("1"))) {
     query.set("resume", "1");
-  }
-  if (params.legacy === "card" || (Array.isArray(params.legacy) && params.legacy.includes("card"))) {
-    query.set("legacy", "card");
   }
   redirect(`/studio/generate${query.size ? `?${query}` : ""}`);
 }

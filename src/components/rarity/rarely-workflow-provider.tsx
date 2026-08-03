@@ -2,15 +2,12 @@
 
 import {
   createContext,
-  useCallback,
   useContext,
   useState,
   type Dispatch,
   type ReactNode,
   type SetStateAction,
 } from "react";
-import { GooglePlayPurchaseRestorer } from "@/components/rarity/workflow-effects";
-import { usePaymentRuntime } from "@/lib/payments/use-payment-channel";
 import { useRarelyWorkflow } from "@/lib/workflow/use-rarely-workflow";
 import type { WorkflowSnapshot } from "@/lib/workflow/types";
 
@@ -34,22 +31,11 @@ export function RarelyWorkflowProvider({
     initialSnapshot.analysis?.id ?? null,
   );
   const workflow = useRarelyWorkflow({ userId, analysisId, initialSnapshot });
-  const { channel } = usePaymentRuntime();
-  const refreshWorkflow = workflow.refresh;
-  const handlePurchaseRestored = useCallback(() => {
-    void refreshWorkflow();
-  }, [refreshWorkflow]);
 
   return (
     <WorkflowContext.Provider
       value={{ ...workflow, analysisId, setAnalysisId }}
     >
-      <GooglePlayPurchaseRestorer
-        channel={channel}
-        enabled={Boolean(userId)}
-        analysisId={analysisId}
-        onRestored={handlePurchaseRestored}
-      />
       {children}
     </WorkflowContext.Provider>
   );
@@ -62,4 +48,3 @@ export function useRarelyWorkflowContext() {
   }
   return context;
 }
-

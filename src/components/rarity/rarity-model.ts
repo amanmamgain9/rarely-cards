@@ -6,8 +6,6 @@ import { PET_DEMO_RESULT } from "@/lib/rarity/pet-config";
 export type FlowState =
   | "idle"
   | "restoring"
-  | "checkout"
-  | "verifying"
   | "naming"
   | "processing"
   | "completed"
@@ -16,16 +14,11 @@ export type FlowState =
   | "refunded"
   | "error";
 
-export type RarityAppProps = {
+export type GenerationWorkspaceProps = {
   initialUser: { id: string; email: string | null };
-  legacyCardMode: boolean;
   initialAnalysis: PublicAnalysis | null;
   shouldRestorePendingPhoto: boolean;
-  paddleConfigured: boolean;
-  googlePlayConfigured: boolean;
   seedanceConfigured: boolean;
-  zazzlePrintEnabled: boolean;
-  paddleEnvironment: "sandbox" | "production";
 };
 
 export const AUTOMATIC_CARD_STYLE = "pet" as const;
@@ -126,9 +119,7 @@ export function flowForAnalysis(analysis: PublicAnalysis): FlowState {
     case "awaiting_upload":
       return "restoring";
     case "awaiting_payment":
-      return "checkout";
     case "payment_pending":
-      return "verifying";
     case "awaiting_name":
       return "naming";
     case "paid":
@@ -153,32 +144,10 @@ export function flowForWorkflow(
   transientFlow: FlowState,
 ): FlowState {
   if (!snapshot.analysis) {
-    return transientFlow === "checkout" && snapshot.creditBalance > 0
-      ? "naming"
-      : transientFlow;
+    return transientFlow;
   }
 
-  const serverFlow =
-    snapshot.analysis.status === "awaiting_payment" &&
-    (snapshot.analysis.experienceKind === "talking_video"
-      ? snapshot.creditBalance > 0
-      : snapshot.legacyCardCreditBalance > 0)
-      ? "naming"
-      : flowForAnalysis(snapshot.analysis);
-  if (
-    transientFlow === "checkout" &&
-    snapshot.analysis.experienceKind === "talking_video" &&
-    snapshot.creditBalance === 0 &&
-    serverFlow === "naming"
-  ) {
-    return "checkout";
-  }
-  if (
-    transientFlow === "verifying" &&
-    ["checkout", "verifying"].includes(serverFlow)
-  ) {
-    return "verifying";
-  }
+  const serverFlow = flowForAnalysis(snapshot.analysis);
   if (
     transientFlow === "processing" &&
     ["naming", "processing"].includes(serverFlow)

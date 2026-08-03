@@ -6,7 +6,7 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const createAnalysisSchema = z.object({
   cardStyle: z.literal("pet"),
-  experienceKind: z.enum(["card", "talking_video"]).default("talking_video"),
+  experienceKind: z.literal("talking_video"),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
   size: z.number().int().positive().max(MAX_IMAGE_BYTES),
 });

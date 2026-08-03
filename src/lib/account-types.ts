@@ -38,7 +38,6 @@ export type AccountCard = {
 export type AccountData = {
   email: string | null;
   creditBalance: number;
-  legacyCardCreditBalance: number;
   purchases: AccountPurchase[];
   cards: AccountCard[];
   developmentMode: boolean;

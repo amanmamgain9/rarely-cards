@@ -22,70 +22,29 @@ function analysis(status: PublicAnalysis["status"]): PublicAnalysis {
 }
 
 describe("workflow view", () => {
-  it("shows checkout only when a waiting analysis has no credits", () => {
+  it("keeps pre-payment video drafts in the line workspace", () => {
     const video = {
       ...analysis("awaiting_payment"),
       selectedDialogue: "I definitely did not eat that.",
     };
     expect(
       flowForWorkflow(
-        { creditBalance: 0, legacyCardCreditBalance: 0, analysis: video },
-        "checkout",
-      ),
-    ).toBe("checkout");
-    expect(
-      flowForWorkflow(
-        { creditBalance: 3, legacyCardCreditBalance: 0, analysis: video },
-        "checkout",
+        { creditBalance: 0, analysis: video },
+        "naming",
       ),
     ).toBe("naming");
-  });
-
-  it("keeps checkout visible while a zero-credit workflow snapshot catches up", () => {
     expect(
       flowForWorkflow(
-        {
-          creditBalance: 0,
-          legacyCardCreditBalance: 0,
-          analysis: analysis("awaiting_name"),
-        },
-        "checkout",
-      ),
-    ).toBe("checkout");
-  });
-
-  it("does not resume a legacy analysis with unrelated video credits", () => {
-    const legacy = {
-      ...analysis("awaiting_payment"),
-      experienceKind: "card" as const,
-    };
-    expect(
-      flowForWorkflow(
-        { creditBalance: 3, legacyCardCreditBalance: 0, analysis: legacy },
-        "checkout",
-      ),
-    ).toBe("checkout");
-    expect(
-      flowForWorkflow(
-        { creditBalance: 0, legacyCardCreditBalance: 5, analysis: legacy },
-        "checkout",
+        { creditBalance: 3, analysis: video },
+        "naming",
       ),
     ).toBe("naming");
-  });
-
-  it("keeps the local confirmation screen until the server advances", () => {
-    expect(
-      flowForWorkflow(
-        { creditBalance: 0, legacyCardCreditBalance: 0, analysis: analysis("awaiting_payment") },
-        "verifying",
-      ),
-    ).toBe("verifying");
   });
 
   it("lets terminal server state replace transient processing state", () => {
     expect(
       flowForWorkflow(
-        { creditBalance: 2, legacyCardCreditBalance: 0, analysis: analysis("completed") },
+        { creditBalance: 2, analysis: analysis("completed") },
         "processing",
       ),
     ).toBe("completed");

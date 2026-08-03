@@ -63,15 +63,9 @@ export async function GET(request: Request) {
       sum + (purchase.credit_kind === "talking_video" ? purchase.credits_remaining : 0),
     0,
   ));
-  const legacyCardCreditBalance = (purchases ?? []).reduce(
-    (sum, purchase) =>
-      sum + (purchase.credit_kind === "card" ? purchase.credits_remaining : 0),
-    0,
-  );
-
   if (!analysisId?.success) {
     return Response.json(
-      { creditBalance, legacyCardCreditBalance, analysis: null } satisfies WorkflowSnapshot,
+      { creditBalance, analysis: null } satisfies WorkflowSnapshot,
       { headers: { "Cache-Control": "private, no-store" } },
     );
   }
@@ -164,7 +158,7 @@ export async function GET(request: Request) {
   }
 
   return Response.json(
-    { creditBalance, legacyCardCreditBalance, analysis } satisfies WorkflowSnapshot,
+    { creditBalance, analysis } satisfies WorkflowSnapshot,
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

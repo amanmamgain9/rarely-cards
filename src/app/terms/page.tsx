@@ -50,9 +50,9 @@ export default function TermsPage() {
           generation attempt; it does not include unlimited rerolls.
         </p>
         <p>
-          Historical five-card purchases remain usable as card entitlements and
-          keep their original refund treatment. Rarely does not convert them into
-          video credits without the customer&apos;s agreement.
+          Historical card purchases remain recorded with their original refund
+          treatment. They are not converted into video credits without the
+          customer&apos;s agreement.
         </p>
 
         <LegalHeading>Refunds</LegalHeading>

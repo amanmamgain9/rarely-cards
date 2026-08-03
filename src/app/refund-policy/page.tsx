@@ -34,7 +34,7 @@ export default function RefundPolicyPage() {
         <p>
           Unused credits from the purchase are frozen when a refund is requested
           and removed when the payment provider approves it. Generated videos
-          and historical legacy cards remain in your account unless you delete their saved photos.
+          remain in your account unless you delete them.
         </p>
 
         <LegalHeading>Processing time</LegalHeading>

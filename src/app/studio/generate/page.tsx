@@ -1,18 +1,15 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { RarityApp } from "@/components/rarity-app";
+import { GenerationWorkspace } from "@/components/studio/generation-workspace";
 import { RarelyWorkflowProvider } from "@/components/rarity/rarely-workflow-provider";
 import { PENDING_PHOTO_COOKIE } from "@/lib/analysis/resume";
 import { getResumableAnalysisById } from "@/lib/analysis/resume-server";
 import {
-  hasGooglePlayEnv,
-  hasPaddleEnv,
   hasPublicSupabaseEnv,
   hasSeedanceEnv,
 } from "@/lib/env";
 import { requireUser } from "@/lib/auth";
-import { isZazzlePrintEnabled } from "@/lib/printing/zazzle";
 import {
   developmentVideoCreditBalance,
   ensureDevelopmentVideoCredits,
@@ -22,7 +19,6 @@ type GeneratePageProps = {
   searchParams: Promise<{
     resume?: string | string[];
     draft?: string | string[];
-    legacy?: string | string[];
   }>;
 };
 
@@ -37,9 +33,6 @@ export default async function GeneratePage({ searchParams }: GeneratePageProps) 
   if (!auth.user) redirect("/?signin=1");
   await ensureDevelopmentVideoCredits(auth.user.id);
 
-  const legacyRequested =
-    params.legacy === "card" ||
-    (Array.isArray(params.legacy) && params.legacy.includes("card"));
   const draftParam = Array.isArray(params.draft) ? params.draft[0] : params.draft;
   const draftId = z.string().uuid().safeParse(draftParam).data;
   const [{ data: purchases }, initialAnalysis] = await Promise.all([
@@ -47,7 +40,7 @@ export default async function GeneratePage({ searchParams }: GeneratePageProps) 
       .from("credit_purchases")
       .select("credits_remaining, credit_kind")
       .eq("status", "active"),
-    draftId && !legacyRequested
+    draftId
       ? getResumableAnalysisById(auth.user.id, draftId)
       : Promise.resolve(null),
   ]);
@@ -62,12 +55,6 @@ export default async function GeneratePage({ searchParams }: GeneratePageProps) 
       0,
     ),
   );
-  const legacyCardCreditBalance = (purchases ?? []).reduce(
-    (sum, purchase) =>
-      sum +
-      (purchase.credit_kind === "card" ? purchase.credits_remaining : 0),
-    0,
-  );
   const resumeRequested =
     params.resume === "1" ||
     (Array.isArray(params.resume) && params.resume.includes("1"));
@@ -81,28 +68,14 @@ export default async function GeneratePage({ searchParams }: GeneratePageProps) 
       userId={auth.user.id}
       initialSnapshot={{
         creditBalance,
-        legacyCardCreditBalance,
         analysis: initialAnalysis,
       }}
     >
-      <RarityApp
+      <GenerationWorkspace
         initialUser={auth.user}
-        legacyCardMode={
-          initialAnalysis
-            ? initialAnalysis.experienceKind === "card"
-            : legacyRequested
-        }
         initialAnalysis={initialAnalysis}
         shouldRestorePendingPhoto={shouldRestorePendingPhoto}
-        paddleConfigured={hasPaddleEnv()}
-        googlePlayConfigured={hasGooglePlayEnv()}
         seedanceConfigured={hasSeedanceEnv()}
-        zazzlePrintEnabled={isZazzlePrintEnabled()}
-        paddleEnvironment={
-          process.env.PADDLE_ENVIRONMENT === "production"
-            ? "production"
-            : "sandbox"
-        }
       />
     </RarelyWorkflowProvider>
   );

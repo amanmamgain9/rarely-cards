@@ -256,9 +256,6 @@ export async function GET(request: Request) {
     creditBalance: developmentVideoCreditBalance(purchases
       .filter((purchase) => purchase.status === "active" && purchase.creditKind === "talking_video")
       .reduce((sum, purchase) => sum + purchase.creditsRemaining, 0)),
-    legacyCardCreditBalance: purchases
-      .filter((purchase) => purchase.status === "active" && purchase.creditKind === "card")
-      .reduce((sum, purchase) => sum + purchase.creditsRemaining, 0),
     purchases,
     cards,
     developmentMode: isDevelopmentBillingBypassed(),

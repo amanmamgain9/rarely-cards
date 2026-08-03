@@ -66,9 +66,9 @@ export function StudioHeader({ creditBalance }: { creditBalance: number }) {
           </nav>
         </div>
         <nav className="flex items-center gap-4 text-xs font-black" aria-label="Account navigation">
-          <span className="rounded-full border border-ink/20 bg-white px-3 py-2 font-mono text-[9px] font-medium max-sm:hidden">
+          <Link className="rounded-full border border-ink/20 bg-white px-3 py-2 font-mono text-[9px] font-medium hover:border-pink hover:text-pink max-sm:px-2" href="/studio/credits">
             {creditBalance} {creditBalance === 1 ? "credit" : "credits"}
-          </span>
+          </Link>
           <Link className="text-ink-muted hover:text-pink max-sm:hidden" href="/account">
             Account
           </Link>

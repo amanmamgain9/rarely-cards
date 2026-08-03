@@ -4,7 +4,7 @@ import {
   purchaseAdjustmentDecision,
 } from "@/lib/analysis/credit-state";
 
-describe("five-card credit policy", () => {
+describe("generation credit policy", () => {
   it("charges accepted and rejected AI responses", () => {
     expect(creditOutcomeForEvent("accepted_response")).toBe("consume");
     expect(creditOutcomeForEvent("rejected_response")).toBe("consume");

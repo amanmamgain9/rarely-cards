@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import type { PublicAnalysis } from "@/lib/analysis/types";
 import {
   clearPendingPhoto,
   loadPendingPhoto,
   type PendingPhoto,
 } from "@/lib/pending-photo";
-import { restoreGooglePlayPurchases } from "@/lib/payments/google-play-client";
-import type { PaymentChannel } from "@/lib/payments/use-payment-channel";
 import { clearResumeQuery, setPendingPhotoHint } from "@/components/rarity/rarity-model";
 
 export function PendingPhotoResume({
@@ -52,36 +50,6 @@ export function PendingPhotoResume({
       cancelled = true;
     };
   }, [enabled, initialAnalysis, onError, onMissing, onRestore]);
-
-  return null;
-}
-
-export function GooglePlayPurchaseRestorer({
-  channel,
-  enabled,
-  analysisId,
-  onRestored,
-}: {
-  channel: PaymentChannel;
-  enabled: boolean;
-  analysisId: string | null;
-  onRestored: () => void;
-}) {
-  const attempted = useRef(false);
-  useEffect(() => {
-    if (!enabled || channel !== "google_play" || attempted.current) return;
-    attempted.current = true;
-    let cancelled = false;
-    void restoreGooglePlayPurchases(analysisId ?? undefined)
-      .then((restored) => {
-        if (cancelled || restored.length === 0) return;
-        onRestored();
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [analysisId, channel, enabled, onRestored]);
 
   return null;
 }

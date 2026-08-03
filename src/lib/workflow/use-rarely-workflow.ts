@@ -81,10 +81,9 @@ export function useRarelyWorkflow(input: {
     snapshot:
       query.data ??
       (initialMatches
-        ? input.initialSnapshot
-        : {
+          ? input.initialSnapshot
+          : {
             creditBalance: input.initialSnapshot.creditBalance,
-            legacyCardCreditBalance: input.initialSnapshot.legacyCardCreditBalance,
             analysis: null,
           }),
     refresh: query.refetch,

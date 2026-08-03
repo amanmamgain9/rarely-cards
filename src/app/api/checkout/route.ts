@@ -80,15 +80,14 @@ export async function POST(request: Request) {
     }
     if (!["awaiting_payment", "awaiting_name"].includes(analysis.status)) {
       return Response.json(
-        { error: "This card is not waiting for credits." },
+        { error: "This draft is not waiting for video credits." },
         { status: 409 },
       );
     }
     if (!analysis.selected_dialogue) {
       return Response.json(
         {
-          error:
-            "New purchases are video credits. Use an existing legacy card credit for this card.",
+          error: "This draft is not configured for talking-pet video.",
         },
         { status: 409 },
       );
