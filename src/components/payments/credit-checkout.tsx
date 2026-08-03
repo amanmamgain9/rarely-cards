@@ -177,7 +177,7 @@ export function CreditCheckout({
         ? "Google Play unavailable"
         : !available
           ? "Checkout temporarily unavailable"
-          : `Buy 3 video credits${price ? ` — ${price}` : ""}`;
+          : `Get 3 videos${price ? ` — ${price}` : ""}`;
 
   return (
     <div>

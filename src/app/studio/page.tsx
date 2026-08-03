@@ -4,7 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { StudioHeader } from "@/components/studio-header";
 import { StudioDraftCard } from "@/components/studio-draft-card";
-import { Film, Upload } from "@/components/rarity/rarity-icons";
+import { Film } from "@/components/rarity/rarity-icons";
 import { requireUser } from "@/lib/auth";
 import { ensureDevelopmentVideoCredits } from "@/lib/payments/development-credits";
 import {
@@ -41,38 +41,19 @@ export default async function StudioPage() {
   ]);
   const videoAnalysisIds = new Set(videos.map((video) => video.analysisId));
   const drafts = allDrafts.filter((draft) => !videoAnalysisIds.has(draft.id));
-  const readyCount = videos.filter((video) => video.status === "succeeded").length;
+  if (videos.length === 0 && drafts.length === 0) {
+    redirect("/studio/generate");
+  }
 
   return (
     <main className="min-h-svh bg-background text-ink">
       <StudioHeader creditBalance={creditBalance} />
       <section className="mx-auto w-[calc(100%-2.5rem)] max-w-[1120px] pb-20 pt-12 max-sm:w-[calc(100%-1.75rem)] max-sm:pb-12 max-sm:pt-8">
-        <div className="flex items-end justify-between gap-8 max-md:items-start max-md:flex-col">
-          <h1 className="font-display text-[clamp(2.5rem,7vw,5.25rem)] font-normal leading-[0.92] tracking-[-0.035em]">
-            Your videos
-          </h1>
-          <div className="grid min-w-48 grid-cols-2 gap-px overflow-hidden rounded-2xl border-2 border-ink bg-ink text-center shadow-[5px_5px_0_#a98cf4]">
-            <div className="bg-cream px-5 py-4">
-              <strong className="block font-display text-2xl font-normal text-pink">{readyCount}</strong>
-              <span className="font-mono text-[8px] uppercase tracking-wider">finished</span>
-            </div>
-            <div className="bg-yellow px-5 py-4">
-              <strong className="block font-display text-2xl font-normal">{creditBalance}</strong>
-              <span className="font-mono text-[8px] uppercase tracking-wider">credits</span>
-            </div>
-          </div>
-        </div>
+        <h1 className="sr-only">Studio</h1>
 
         {drafts.length > 0 && (
-          <section className="mt-12" aria-labelledby="drafts-heading">
-            <div>
-              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-pink">
-                Pick up where you left off
-              </span>
-              <h2 className="mt-2 font-display text-[clamp(1.75rem,4vw,2.5rem)] font-normal" id="drafts-heading">
-                Drafts
-              </h2>
-            </div>
+          <section aria-labelledby="drafts-heading">
+            <h2 className="font-display text-[clamp(1.75rem,4vw,2.5rem)] font-normal" id="drafts-heading">Drafts</h2>
 
             <div className="mt-5 grid grid-cols-2 gap-5 max-md:grid-cols-1">
               {drafts.map((draft) => (
@@ -82,29 +63,11 @@ export default async function StudioPage() {
           </section>
         )}
 
-        <section className="mt-14" aria-labelledby="videos-heading">
+        {videos.length > 0 && <section className={drafts.length > 0 ? "mt-14" : ""} aria-labelledby="videos-heading">
           <h2 className="font-display text-[clamp(1.75rem,4vw,2.5rem)] font-normal" id="videos-heading">
             Videos
           </h2>
           <div className="mt-5 grid grid-cols-3 gap-6 max-lg:grid-cols-2 max-sm:grid-cols-1">
-            <Link
-              className="group relative flex min-h-[430px] flex-col justify-between overflow-hidden rounded-[24px] border-[3px] border-ink bg-pink p-6 text-cream shadow-[6px_7px_0_#241a44] transition-transform hover:-translate-y-1"
-              href="/studio/generate"
-            >
-              <span className="relative z-10 w-max rounded-md border-2 border-ink bg-yellow px-3 py-1.5 font-mono text-[8px] font-bold uppercase tracking-wider text-ink shadow-[2px_2px_0_#241a44]">
-                New video
-              </span>
-              <div className="relative z-10">
-                <span className="mb-5 grid size-16 place-items-center rounded-2xl border-[3px] border-ink bg-cream text-pink shadow-[4px_4px_0_#ffe36e] [&>svg]:w-8">
-                  <Upload />
-                </span>
-                <h3 className="font-display text-[2rem] font-normal leading-none">Choose a photo</h3>
-                <span className="mt-6 inline-flex items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-wider">
-                  Create video <span aria-hidden="true">→</span>
-                </span>
-              </div>
-            </Link>
-
             {videos.map((video) => (
               <Link
                 className="group overflow-hidden rounded-[24px] border-[3px] border-ink bg-cream shadow-[6px_7px_0_#a98cf4] transition-transform hover:-translate-y-1"
@@ -147,12 +110,8 @@ export default async function StudioPage() {
             ))}
           </div>
 
-          {videos.length === 0 && (
-            <p className="mt-6 rounded-2xl border-2 border-dashed border-ink/30 bg-white/60 px-6 py-5 text-sm font-bold text-ink-muted">
-              No finished videos yet. Start a new one or continue a draft.
-            </p>
-          )}
         </section>
+        }
       </section>
     </main>
   );

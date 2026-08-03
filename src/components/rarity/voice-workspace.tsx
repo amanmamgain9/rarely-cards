@@ -1,5 +1,4 @@
 import type { FormEventHandler, RefObject } from "react";
-import { AppStepRail } from "@/components/studio/app-step-rail";
 import { PetVoiceComposer } from "@/components/rarity/pet-voice-composer";
 import type { PetDialogueSuggestion } from "@/lib/video/dialogue";
 
@@ -40,16 +39,7 @@ export function VoiceWorkspace({
 
   return (
     <section className="mx-auto w-[calc(100%-2.5rem)] max-w-[920px] py-14 max-[700px]:w-[calc(100%-1.75rem)] max-[700px]:py-9" aria-labelledby="voice-step-title">
-        <div className="flex items-end justify-between gap-7">
-          <div>
-            <span className="mb-2 block font-mono text-[10px] font-semibold tracking-widest text-pink">NEW VIDEO</span>
-            <h1 className="font-display text-[clamp(2rem,5vw,3rem)] leading-tight tracking-tight" id="voice-step-title">Choose a line</h1>
-            <p className="mt-2 text-[15px] font-bold text-ink-muted">Select a suggestion or write exactly what your pet should say.</p>
-          </div>
-          <span className="rounded-lg bg-purple/15 px-3 py-2 font-mono text-[10px] text-ink-muted max-[700px]:hidden">1 credit used when you create the video</span>
-        </div>
-
-        <AppStepRail active={1} />
+        <h1 className="mb-8 font-display text-[clamp(2rem,5vw,3rem)] leading-tight tracking-tight" id="voice-step-title">Choose a line</h1>
 
         <form className="grid items-start gap-7 rounded-2xl border border-ink/20 bg-cream p-6 shadow-xl shadow-ink/5 md:grid-cols-[minmax(230px,0.72fr)_minmax(0,1.28fr)] max-[700px]:p-4" onSubmit={onSubmit}>
           <div className="min-w-0">
@@ -78,9 +68,8 @@ export function VoiceWorkspace({
 
           <div className="min-w-0">
             <section aria-labelledby="workspace-lines-label">
-              <div className="mb-3 flex items-center justify-between gap-3 font-mono text-[9px] uppercase text-ink-muted">
+              <div className="mb-3 font-mono text-[9px] uppercase text-ink-muted">
                 <span className="font-bold" id="workspace-lines-label">Suggested lines</span>
-                <small>Based on this photo</small>
               </div>
               <div className="grid gap-3" aria-live="polite">
                 {suggestionsBusy && (
