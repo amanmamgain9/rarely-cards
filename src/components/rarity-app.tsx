@@ -31,7 +31,6 @@ import {
   RarityFlowLayers,
   RarityResultScreen,
 } from "@/components/rarity/rarity-flow-layers";
-import { CreditGate } from "@/components/rarity/credit-gate";
 import { VideoWorkspace } from "@/components/rarity/video-workspace";
 import { VoiceWorkspace } from "@/components/rarity/voice-workspace";
 import { PendingPhotoResume } from "@/components/rarity/workflow-effects";
@@ -210,6 +209,16 @@ export function RarityApp({
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || "Suggestions could not be made.");
+        if (payload.status === "rejected") {
+          if (!cancelled) {
+            setDialogueSuggestions([]);
+            setSelectedDialogue("");
+            setMessage(payload.message || "Choose a clearer photo of one cat or dog.");
+            setFlow("retry");
+            void refreshWorkflow();
+          }
+          return;
+        }
         if (!cancelled) {
           setDialogueSuggestions(payload.suggestions);
           setSelectedDialogue(payload.suggestions[0]?.line ?? "");
@@ -222,7 +231,7 @@ export function RarityApp({
         if (!cancelled) setSuggestionsBusy(false);
       });
     return () => { cancelled = true; };
-  }, [analysisId, dialogueSuggestions.length, legacyCardMode, seedanceConfigured, suggestionAttempt, visibleFlow]);
+  }, [analysisId, dialogueSuggestions.length, legacyCardMode, refreshWorkflow, seedanceConfigured, suggestionAttempt, visibleFlow]);
 
   useEffect(() => {
     const dialogue = workflowAnalysis?.selectedDialogue;
@@ -545,7 +554,7 @@ export function RarityApp({
         await navigator.share({
           files: [asset.file],
           title: `${visibleResult.petName || "My pet"} — ${visibleResult.cardTitle}`,
-          text: `${visibleResult.fieldNote || visibleResult.signatureRead.thought} Not built to blend in.`,
+          text: visibleResult.fieldNote || visibleResult.signatureRead.thought,
         });
         setShareLabel("Shared");
       } else {
@@ -608,8 +617,7 @@ export function RarityApp({
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: `${visibleResult?.petName || "My pet"} came to life`,
-          text: "One photo. One little movie. Made with Rarely.",
+          title: `${visibleResult?.petName || "My pet"}'s video`,
         });
       } else {
         objectUrl = URL.createObjectURL(blob);
@@ -695,13 +703,6 @@ export function RarityApp({
     if (file) void acceptPhoto(file).catch(reportClientError);
   }
 
-  const busyLabel =
-    flow === "verifying" ? "Confirming your payment" : "Getting your pet camera-ready";
-  const busyCopy =
-    flow === "verifying"
-      ? "Payment is complete. We are confirming it before their video begins."
-      : "We are turning the chosen line into their talking-pet video.";
-  const progressStage = flow === "processing" ? 1 : 0;
   const checkoutAvailable =
     seedanceConfigured &&
     ((paymentChannel === "google_play" && googlePlayConfigured) ||
@@ -713,38 +714,28 @@ export function RarityApp({
   const checkoutPrice =
     paymentChannel === "google_play" ? playPrice : paymentChannel === "web" ? "$10" : null;
 
-  const needsCreditGate =
-    !legacyCardMode &&
-    creditBalance === 0 &&
-    (!workflowAnalysis ||
-      ["awaiting_upload", "awaiting_payment"].includes(workflowAnalysis.status));
-
-  if (needsCreditGate) {
-    return (
-      <main className="relative overflow-hidden">
-        <div className="fixed inset-0 -z-10 bg-soft-pink" aria-hidden="true" />
-        <CreditGate
-          creditPrice={checkoutPrice}
-          busy={checkoutBusy}
-          available={checkoutAvailable}
-          paymentChannel={paymentChannel}
-          googlePlayConfigured={googlePlayConfigured}
-          message={visibleMessage}
-          onBuy={() => void startCheckout(primaryProvider, false)}
-          onSignOut={() => void signOut()}
-        />
-      </main>
-    );
-  }
-
   return (
     <main className="relative overflow-hidden">
-      <div className="fixed inset-0 -z-10 bg-soft-pink" aria-hidden="true" />
+      <div className="fixed inset-0 -z-10 bg-background" aria-hidden="true" />
+      <input
+        ref={uploadInput}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        onChange={handleFile}
+        hidden
+      />
+      <input
+        ref={cameraInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFile}
+        hidden
+      />
 
       <PendingPhotoResume
         enabled={Boolean(
           initialUser &&
-            creditBalance > 0 &&
             (initialAnalysis || shouldRestorePendingPhoto),
         )}
         initialAnalysis={initialAnalysis}
@@ -760,9 +751,6 @@ export function RarityApp({
         }
         photo={visiblePhoto}
         petName={petName}
-        busyLabel={busyLabel}
-        busyCopy={busyCopy}
-        progressStage={progressStage}
         checkoutPromptOpen={checkoutPromptOpen}
         checkoutPrice={checkoutPrice}
         checkoutBusy={checkoutBusy}
@@ -841,6 +829,7 @@ export function RarityApp({
             setSuggestionAttempt((attempt) => attempt + 1);
           }}
           onSubmit={submitPetName}
+          onRemovePhoto={returnToHomepage}
           uploadInput={uploadInput}
           message={visibleMessage}
         />
@@ -853,7 +842,6 @@ export function RarityApp({
           onDrop={handleDrop}
           uploadInput={uploadInput}
           cameraInput={cameraInput}
-          onFileChange={handleFile}
           selectedFile={selectedFile}
           flow={visibleFlow}
           message={visibleMessage}

@@ -36,28 +36,6 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
-  if (parsed.data.experienceKind === "talking_video") {
-    const { data: purchases, error: creditsError } = await admin
-      .from("credit_purchases")
-      .select("credits_remaining")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .eq("credit_kind", "talking_video")
-      .gt("credits_remaining", 0);
-    if (creditsError) {
-      return Response.json(
-        { error: "Video credits could not be checked. Try again." },
-        { status: 503 },
-      );
-    }
-    if (!purchases?.some((purchase) => purchase.credits_remaining > 0)) {
-      return Response.json(
-        { error: "Get three talking-pet video credits before adding a photo." },
-        { status: 402 },
-      );
-    }
-  }
-
   const { data: analysis, error: insertError } = await admin
     .from("analysis_requests")
     .insert({

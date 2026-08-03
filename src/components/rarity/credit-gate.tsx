@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AppStepRail, AppWorkspaceHeader } from "@/components/rarity/app-workspace-header";
+import { AppWorkspaceHeader } from "@/components/rarity/app-workspace-header";
 import type { PaymentChannel } from "@/lib/payments/use-payment-channel";
 
 export function CreditGate({
@@ -41,11 +41,9 @@ export function CreditGate({
           <div>
             <span className="mb-2 block font-mono text-[10px] font-semibold tracking-widest text-pink">GET STARTED</span>
             <h1 className="font-display text-[clamp(2rem,5vw,3rem)] leading-tight tracking-tight" id="credit-gate-title">Add video credits</h1>
-            <p className="mt-2 text-[15px] font-bold text-ink-muted">Credits are required before you upload a photo.</p>
+            <p className="mt-2 text-[15px] font-bold text-ink-muted">Your photo is ready. Add credits to choose the line.</p>
           </div>
         </div>
-
-        <AppStepRail active={0} />
 
         <div className="grid gap-10 rounded-2xl border border-ink/20 bg-cream p-8 shadow-xl shadow-ink/5 md:grid-cols-[1fr_minmax(260px,0.72fr)] max-[700px]:p-6">
           <div>

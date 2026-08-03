@@ -1,8 +1,4 @@
-import type {
-  ChangeEventHandler,
-  DragEventHandler,
-  RefObject,
-} from "react";
+import type { DragEventHandler, RefObject } from "react";
 import { AppStepRail, AppWorkspaceHeader } from "@/components/rarity/app-workspace-header";
 import { Camera, Upload } from "@/components/rarity/rarity-icons";
 import type { FlowState } from "@/components/rarity/rarity-model";
@@ -15,7 +11,6 @@ export function VideoWorkspace({
   onDrop,
   uploadInput,
   cameraInput,
-  onFileChange,
   selectedFile,
   flow,
   message,
@@ -27,7 +22,6 @@ export function VideoWorkspace({
   onDrop: DragEventHandler<HTMLDivElement>;
   uploadInput: RefObject<HTMLInputElement | null>;
   cameraInput: RefObject<HTMLInputElement | null>;
-  onFileChange: ChangeEventHandler<HTMLInputElement>;
   selectedFile: File | null;
   flow: FlowState;
   message: string | null;
@@ -45,7 +39,7 @@ export function VideoWorkspace({
           <span className="rounded-lg bg-purple/15 px-3 py-2 font-mono text-[10px] text-ink-muted max-[700px]:hidden">1 credit per video</span>
         </div>
 
-        <AppStepRail active={1} />
+        <AppStepRail active={0} />
 
         <div
           className={`flex min-h-[340px] flex-col items-center justify-center rounded-2xl border-2 border-dashed p-7 text-center shadow-xl shadow-ink/5 transition ${dragging ? "border-pink bg-[#fff4f8]" : "border-[#b9aec7] bg-cream"}`}
@@ -56,21 +50,6 @@ export function VideoWorkspace({
           onDragLeave={() => onDraggingChange(false)}
           onDrop={onDrop}
         >
-          <input
-            ref={uploadInput}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={onFileChange}
-            hidden
-          />
-          <input
-            ref={cameraInput}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={onFileChange}
-            hidden
-          />
           <div className="grid size-14 place-items-center rounded-2xl bg-pink/10 text-pink [&>svg]:w-7"><Upload /></div>
           <h2 className="mb-1 mt-5 text-xl font-black">{selectedFile ? selectedFile.name : "Add a pet photo"}</h2>
           <p className="text-[13px] text-ink-muted">JPEG, PNG, or WebP · maximum 10 MB</p>

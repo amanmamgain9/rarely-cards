@@ -21,6 +21,12 @@
   outline-offset: 3px;
 }
 
+.film-perf {
+  background-image: radial-gradient(circle, #fffdf8 0 3px, transparent 3.5px);
+  background-position: center 10px;
+  background-size: 100% 22px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

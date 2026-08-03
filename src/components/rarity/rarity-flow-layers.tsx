@@ -15,9 +15,6 @@ type RarityFlowLayersProps = {
   flow: FlowState;
   photo: string | null;
   petName: string;
-  busyLabel: string;
-  busyCopy: string;
-  progressStage: number;
   checkoutPromptOpen: boolean;
   checkoutPrice: string | null;
   checkoutBusy: boolean;
@@ -42,9 +39,6 @@ export function RarityFlowLayers({
   flow,
   photo,
   petName,
-  busyLabel,
-  busyCopy,
-  progressStage,
   checkoutPromptOpen,
   checkoutPrice,
   checkoutBusy,
@@ -69,44 +63,48 @@ export function RarityFlowLayers({
       {flow === "restoring" && (
         <section className="fixed inset-0 z-[120] grid place-items-center overflow-y-auto bg-ink/85 p-5 backdrop-blur-xl" aria-live="polite">
           <div className="w-full max-w-lg rounded-3xl border-4 border-ink bg-cream p-9 text-center shadow-[10px_11px_0_#f4458f,17px_18px_0_#ffe36e]">
-            <span className="inline-flex rounded-md border-2 border-ink bg-yellow px-3 py-1 font-mono text-[9px] font-bold">YOUR PHOTO IS SAFE</span>
-            <h2 className="my-5 font-display text-[clamp(2.375rem,8vw,3.625rem)] font-normal leading-none">PICKING UP<br /><em className="not-italic text-pink">WHERE YOU LEFT OFF.</em></h2>
-            <p className="font-extrabold text-ink-muted">Restoring their photo and the next step of their video.</p>
+            <span className="inline-flex rounded-md border-2 border-ink bg-yellow px-3 py-1 font-mono text-[9px] font-bold">RESTORING PHOTO</span>
+            <h2 className="my-5 font-display text-[clamp(2.375rem,8vw,3.625rem)] font-normal leading-none">Restoring your photo</h2>
+            <p className="font-extrabold text-ink-muted">Your video will continue from the last completed step.</p>
           </div>
         </section>
       )}
 
-      {["verifying", "processing"].includes(flow) && photo && (
+      {flow === "verifying" && photo && (
+        <section className="fixed inset-0 z-[120] grid place-items-center overflow-y-auto bg-ink/85 p-5 backdrop-blur-xl" aria-live="polite">
+          <div className="w-full max-w-lg rounded-3xl border-4 border-ink bg-cream p-9 text-center text-ink shadow-[10px_11px_0_#f4458f,17px_18px_0_#ffe36e]">
+            <span className="inline-flex rounded-md border-2 border-ink bg-yellow px-3 py-1 font-mono text-[9px] font-bold">PAYMENT RECEIVED</span>
+            <span className="mx-auto mt-7 block size-12 animate-spin rounded-full border-[5px] border-purple/25 border-t-pink" aria-hidden="true" />
+            <h2 className="mb-4 mt-6 font-display text-[clamp(2.25rem,7vw,3.25rem)] font-normal leading-none">Adding video credits</h2>
+            <p className="font-extrabold leading-relaxed text-ink-muted">This is only confirming the purchase. Video preparation will begin after the credits arrive.</p>
+          </div>
+        </section>
+      )}
+
+      {flow === "processing" && photo && (
         <section className="fixed inset-0 z-[120] grid place-items-center overflow-y-auto bg-ink p-5 text-white" aria-live="polite">
-          <div className="grid w-full max-w-4xl gap-6 rounded-3xl border-2 border-white/20 bg-white/5 p-6 md:grid-cols-[300px_1fr]">
+          <div className="grid w-full max-w-4xl gap-7 rounded-3xl border-2 border-white/20 bg-white/5 p-6 md:grid-cols-[300px_1fr]">
             <div className="col-span-full flex justify-between gap-4 font-mono text-[9px] text-yellow">
-              <span>RLY / VIDEO STUDIO</span>
-              <span>
-                {flow === "processing"
-                  ? "1 CREDIT RESERVED · MAKING THEIRS"
-                  : "PAYMENT COMPLETE · ADDING 3 CREDITS"}
-              </span>
+              <span>VIDEO GENERATION</span>
+              <span>PROCESSING</span>
             </div>
             <div className="relative aspect-[4/5] overflow-hidden rounded-2xl border-2 border-yellow">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className="size-full object-cover" src={photo} alt="" />
+              <div className="absolute inset-0 grid place-items-center bg-ink/35" aria-hidden="true">
+                <span className="grid size-20 place-items-center rounded-full border-2 border-white/30 bg-ink/70">
+                  <i className="size-11 animate-spin rounded-full border-[5px] border-white/20 border-t-yellow" />
+                </span>
+              </div>
             </div>
             <div className="flex flex-col justify-center">
-              <span className="font-mono text-[9px] font-bold tracking-widest text-pink">
-                {flow === "processing" ? "THEIR VIDEO IS UNDERWAY" : "PAYMENT RECEIVED"}
-              </span>
-              <h2 className="my-4 font-display text-[clamp(2.5rem,6vw,4rem)] font-normal leading-none">{busyLabel}<i>...</i></h2>
-              <p className="font-bold leading-relaxed text-white/70">{busyCopy}</p>
-              <div className="mt-6 grid gap-3">
-                {["Confirm credit", "Make their video"].map((step, index) => (
-                  <div
-                    className={`flex items-center gap-3 rounded-lg border p-3 font-mono text-[10px] ${index < progressStage ? "border-pink bg-pink text-white" : index === progressStage ? "border-yellow bg-yellow text-ink" : "border-white/20 text-white/50"}`}
-                    key={step}
-                  >
-                    <span>0{index + 1}</span><b>{step}</b>
-                  </div>
-                ))}
+              <span className="font-mono text-[9px] font-bold tracking-widest text-pink">PHOTO AND LINE RECEIVED</span>
+              <h2 className="my-4 font-display text-[clamp(2.5rem,6vw,4rem)] font-normal leading-none">Preparing video</h2>
+              <p className="font-bold leading-relaxed text-white/70">We’re reading the photo and preparing it for animation. Video generation can take a few minutes.</p>
+              <div className="mt-7 h-2 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+                <span className="block h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-pink via-yellow to-purple" />
               </div>
+              <small className="mt-4 font-mono text-[9px] leading-relaxed text-white/55">You can leave this page. The job is saved to your account and continues if your connection drops.</small>
             </div>
           </div>
         </section>
@@ -118,17 +116,16 @@ export function RarityFlowLayers({
             <figure className="relative m-0 aspect-[4/5] overflow-hidden rounded-2xl border-[3px] border-ink">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className="size-full object-cover" src={photo} alt={`The photo you chose of ${petName || "your pet"}`} />
-              <figcaption className="absolute bottom-3 left-3 rounded bg-yellow px-3 py-2 font-mono text-[8px] font-bold">THIS IS THE ONE <span>★</span></figcaption>
+              <figcaption className="absolute bottom-3 left-3 rounded bg-yellow px-3 py-2 font-mono text-[8px] font-bold">SELECTED PHOTO</figcaption>
             </figure>
             <div className="flex flex-col justify-center text-center md:text-left">
               <span className="font-mono text-[9px] font-bold text-pink">
-                PHOTO READY · THREE VIDEOS
+                3 VIDEO CREDITS
                 {checkoutPrice ? ` FOR ${checkoutPrice.toUpperCase()}` : ""}
               </span>
-              <h2 className="my-4 font-display text-[clamp(2.5rem,6vw,4rem)] font-normal leading-none">MAKE THEM<br /><em className="not-italic text-pink">SAY THE THING.</em></h2>
+              <h2 className="my-4 font-display text-[clamp(2.5rem,6vw,4rem)] font-normal leading-none">Buy video credits</h2>
               <p className="mb-5 font-extrabold leading-relaxed text-ink-muted">
-                Three eight-second talking-pet videos. Pick the words; Rarely
-                handles the performance, voice, and camera.
+                One credit creates one eight-second video.
               </p>
               <button
                 type="button"
@@ -181,8 +178,8 @@ export function RarityFlowLayers({
               </svg>
             </button>
             <span className="inline-flex rounded-md border-2 border-ink bg-yellow px-3 py-1 font-mono text-[9px] font-bold">LEGACY CARD CREDIT · READY</span>
-            <h2 className="my-5 font-display text-[clamp(2.375rem,8vw,3.625rem)] font-normal leading-none">WHAT DO THEY<br /><em className="not-italic text-pink">ANSWER TO?</em></h2>
-            <p className="font-extrabold leading-relaxed text-ink-muted">Use one of your existing card credits. Your original Rarely card experience stays intact.</p>
+            <h2 className="my-5 font-display text-[clamp(2.375rem,8vw,3.625rem)] font-normal leading-none">Name your pet</h2>
+            <p className="font-extrabold leading-relaxed text-ink-muted">This uses one existing card credit.</p>
             <form className="mt-5 grid gap-3" onSubmit={onSubmitPetName}>
               <input
                 className="min-h-12 rounded-xl border-2 border-ink bg-white px-4 outline-none focus:border-purple"
@@ -236,7 +233,7 @@ export function RarityFlowLayers({
                 : "PAYMENT UPDATE"}
             </span>
             <h2 className="my-5 font-display text-[clamp(2.375rem,8vw,3.625rem)] font-normal leading-none">
-              {flow === "retry" ? <>WE NEED MORE<br /><em className="not-italic text-pink">OF THEM.</em></> : <>REFUND<br /><em className="not-italic text-pink">STARTED.</em></>}
+              {flow === "retry" ? "Choose another photo" : "Refund started"}
             </h2>
             <p className="mb-5 font-extrabold leading-relaxed text-ink-muted">{message}</p>
             {flow === "retry" && (
@@ -244,7 +241,7 @@ export function RarityFlowLayers({
                 <button className="min-h-12 rounded-xl border-2 border-ink bg-pink px-4 font-black text-white shadow-[3px_3px_0_#241a44]" type="button" onClick={() => uploadInput.current?.click()}>
                   {legacyCardMode
                     ? "Try another photo — uses 1 legacy credit"
-                    : "Try another photo — your credit is ready"}
+                    : "Try another photo — no credit used"}
                 </button>
                 <a className="mt-4 block text-xs font-black underline" href="/account">View credits and purchases</a>
               </>
@@ -360,8 +357,8 @@ export function RarityResultScreen({
               {legacyCardMode ? "Make another legacy card" : "Make another video"} · {creditBalance} left
             </button>
           )}
-          <a href="/account">{legacyCardMode ? "View my account" : "View all my videos"}</a>
-          <button type="button" onClick={onReturnHome}>Back to homepage</button>
+          <a href={legacyCardMode ? "/account" : "/studio"}>{legacyCardMode ? "View account" : "View all videos"}</a>
+          <button type="button" onClick={onReturnHome}>Back to create</button>
         </div>
       </div>
     </section>

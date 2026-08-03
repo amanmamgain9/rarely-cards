@@ -49,7 +49,7 @@ export async function POST(request: Request, context: RouteContext) {
     analysis.dialogue_suggestions,
   );
   if (existing.success) {
-    return Response.json({ suggestions: existing.data });
+    return Response.json({ status: "accepted", suggestions: existing.data });
   }
   if (!["awaiting_name", "awaiting_payment"].includes(analysis.status)) {
     return Response.json(
@@ -66,7 +66,31 @@ export async function POST(request: Request, context: RouteContext) {
     const image = await prepareImageForGemini(
       Buffer.from(await object.arrayBuffer()),
     );
-    const suggestions = await suggestPetDialogue(image);
+    const result = await suggestPetDialogue(image);
+    if (result.status === "rejected") {
+      const { data: rejected, error: rejectionError } = await admin
+        .from("analysis_requests")
+        .update({
+          status: "photo_rejected",
+          rejection_reason: result.reason,
+          rejection_message: result.message,
+          dialogue_suggestions: null,
+        })
+        .eq("id", analysis.id)
+        .eq("user_id", user.id)
+        .in("status", ["awaiting_name", "awaiting_payment"])
+        .select("id")
+        .maybeSingle();
+      if (rejectionError) throw new Error("dialogue_photo_rejection_store_failed");
+      if (!rejected) {
+        return Response.json(
+          { error: "This pet is no longer waiting for a line." },
+          { status: 409 },
+        );
+      }
+      return Response.json(result);
+    }
+    const suggestions = result.suggestions;
     const { data: saved, error: saveError } = await admin
       .from("analysis_requests")
       .update({ dialogue_suggestions: suggestions })
@@ -80,7 +104,10 @@ export async function POST(request: Request, context: RouteContext) {
     const raced = petDialogueSuggestionsSchema.safeParse(
       saved?.dialogue_suggestions,
     );
-    return Response.json({ suggestions: raced.success ? raced.data : suggestions });
+    return Response.json({
+      status: "accepted",
+      suggestions: raced.success ? raced.data : suggestions,
+    });
   } catch (error) {
     reportServerError(error, {
       operation: "pet_dialogue_suggestions",

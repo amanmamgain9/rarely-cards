@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Rarely",
     description:
       "Turn one pet photo and one perfect line into a talking-pet video.",
-    start_url: "/app",
+    start_url: "/studio",
     scope: "/",
     display: "standalone",
     background_color: "#fff8ee",

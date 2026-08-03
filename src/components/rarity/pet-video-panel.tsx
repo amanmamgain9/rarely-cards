@@ -50,14 +50,20 @@ export function PetVideoPanel({
           )}
           {!ready && (
             <div className="absolute inset-0 flex flex-col items-center justify-end gap-2 bg-gradient-to-b from-transparent from-30% to-[#1a1024]/90 px-3 py-5 text-center">
-              <i className="grid size-11 place-items-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_#f4458f] [&>svg]:w-6"><Film /></i>
-              <small className="font-mono text-[7px] font-bold uppercase tracking-wider">{making ? "MAKING THEIR VOICE REAL" : failed ? "VIDEO INTERRUPTED" : "YOUR TALKING-PET VIDEO"}</small>
+              {making ? (
+                <i className="grid size-12 place-items-center rounded-full border-2 border-ink bg-yellow shadow-[3px_3px_0_#f4458f]" aria-hidden="true">
+                  <span className="size-7 animate-spin rounded-full border-[3px] border-ink/20 border-t-ink" />
+                </i>
+              ) : (
+                <i className="grid size-11 place-items-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_#f4458f] [&>svg]:w-6"><Film /></i>
+              )}
+              <small className="font-mono text-[7px] font-bold uppercase tracking-wider">{making ? "GENERATING VIDEO" : failed ? "GENERATION FAILED" : "VIDEO PREVIEW"}</small>
               <strong className="font-display text-[13px] font-normal leading-tight">
                 {making
-                  ? `Bringing ${petName} to life…`
+                  ? `Generating ${petName}'s video…`
                   : failed
                     ? "That video did not finish."
-                    : "Ready to make them talk"}
+                    : "Ready to generate"}
               </strong>
             </div>
           )}
@@ -67,25 +73,25 @@ export function PetVideoPanel({
 
       <div className="flex min-w-0 flex-col items-center text-center">
         <span className="w-max rounded-md border-2 border-ink bg-yellow px-2 py-1 font-mono text-[7px] font-bold uppercase tracking-wider text-ink shadow-[2px_2px_0_#f4458f]">8 SECONDS · VERTICAL · WITH SOUND</span>
-        <h2 className="mb-2 mt-3 font-display text-xl font-normal leading-none text-pink">{ready ? "THEY SAID IT." : "THEIR VIDEO IS NEXT."}</h2>
+        <h2 className="mb-2 mt-3 font-display text-xl font-normal leading-none text-pink">{ready ? "VIDEO READY" : "CREATE VIDEO"}</h2>
         <p className="mx-1 mb-3 text-[11px] font-extrabold leading-snug">
           {ready
-            ? "Share it straight to the group chat, your camera roll, or Instagram."
+            ? "Share or download the finished video."
             : failed
               ? "Your video credit was returned. Start another video whenever you are ready."
-              : "We keep their exact look and turn your chosen line into one simple talking-pet reel."}
+              : "Review the photo and line, then create the video."}
         </p>
         {ready ? (
           <button className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border-2 border-ink bg-pink pl-4 pr-2 font-display text-[9px] text-white shadow-[4px_4px_0_#ffe36e] disabled:cursor-wait disabled:opacity-70" type="button" onClick={onShare} disabled={shareBusy}>
-            <span>{shareBusy ? "Preparing video…" : "Share their video"}</span><i className="grid size-9 place-items-center rounded-lg border-2 border-ink bg-yellow text-ink [&>svg]:w-4"><Upload /></i>
+            <span>{shareBusy ? "Preparing video…" : "Share video"}</span><i className="grid size-9 place-items-center rounded-lg border-2 border-ink bg-yellow text-ink [&>svg]:w-4"><Upload /></i>
           </button>
         ) : (
           <button className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border-2 border-ink bg-pink pl-4 pr-2 font-display text-[9px] text-white shadow-[4px_4px_0_#ffe36e] disabled:cursor-wait disabled:opacity-70" type="button" onClick={onGenerate} disabled={making || failed}>
-            <span>{making ? "Making their video…" : failed ? "Credit returned" : "Make my pet talk"}</span><i className="grid size-9 place-items-center rounded-lg border-2 border-ink bg-yellow text-ink [&>svg]:w-4"><Film /></i>
+            <span>{making ? "Generating video…" : failed ? "Credit returned" : "Create video"}</span><i className="grid size-9 place-items-center rounded-lg border-2 border-ink bg-yellow text-ink [&>svg]:w-4"><Film /></i>
           </button>
         )}
         <small className="mt-2 font-mono text-[6.5px] font-bold uppercase leading-snug tracking-wider text-[#d7cce4]">
-          {message || (making ? "You can leave this screen. We’ll keep the reel here." : "One video credit creates one finished reel")}
+          {message || (making ? "Usually takes a few minutes · Safe to leave" : "Uses one video credit")}
         </small>
         {!generation && !making && (
           <small className="mt-2 text-[7.5px] font-bold leading-snug text-[#bfb0cf]">

@@ -13,9 +13,9 @@ import { geminiEnv } from "@/lib/env";
 import { buildPetRarityPrompt } from "@/lib/rarity/pet-prompt";
 import {
   buildDialogueSuggestionPrompt,
-  petDialogueSuggestionsJsonSchema,
-  petDialogueSuggestionsSchema,
-  type PetDialogueSuggestion,
+  petDialogueResultJsonSchema,
+  petDialogueResultSchema,
+  type PetDialogueResult,
 } from "@/lib/video/dialogue";
 
 let geminiClient: GoogleGenAI | null = null;
@@ -27,7 +27,7 @@ function getGemini() {
 
 export async function suggestPetDialogue(
   image: Buffer,
-): Promise<PetDialogueSuggestion[]> {
+): Promise<PetDialogueResult> {
   const env = geminiEnv();
   let transientRetries = 0;
   let schemaRetries = 0;
@@ -51,11 +51,11 @@ export async function suggestPetDialogue(
         ],
         config: {
           responseMimeType: "application/json",
-          responseJsonSchema: petDialogueSuggestionsJsonSchema,
+          responseJsonSchema: petDialogueResultJsonSchema,
         },
       });
       try {
-        return petDialogueSuggestionsSchema.parse(
+        return petDialogueResultSchema.parse(
           JSON.parse(response.text ?? ""),
         );
       } catch {

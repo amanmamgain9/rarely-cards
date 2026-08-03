@@ -11,7 +11,12 @@ import {
   petPronounsSchema,
   type PublicAnalysis,
 } from "@/lib/analysis/types";
+import { DRAFT_ANALYSIS_STATUSES } from "@/lib/analysis/resume";
 import { hasSeedanceEnv } from "@/lib/env";
+import {
+  developmentVideoCreditBalance,
+  ensureDevelopmentVideoCredits,
+} from "@/lib/payments/development-credits";
 import { reportServerError } from "@/lib/observability";
 import { startFullRefund } from "@/lib/paddle";
 import { resumeAnalysisAfterGrantedPurchase } from "@/lib/payments/credit-purchases";
@@ -158,6 +163,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   const { user } = await requireUser();
   if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
+  await ensureDevelopmentVideoCredits(user.id);
 
   const { id } = await context.params;
   const body = updateSchema.safeParse(await request.json().catch(() => null));
@@ -214,7 +220,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     return Response.json({
       id,
       status: "paid",
-      creditBalance: reserved.remaining_balance,
+      creditBalance: developmentVideoCreditBalance(reserved.remaining_balance),
     });
   }
   if (body.data.action === "set_pet_name") {
@@ -422,6 +428,55 @@ export async function DELETE(request: Request, context: RouteContext) {
   }
 
   const admin = createAdminClient();
+  const draftDeleteRequested =
+    new URL(request.url).searchParams.get("draft") === "1";
+  if (draftDeleteRequested) {
+    const { data: draft, error: draftDeleteError } = await admin
+      .from("analysis_requests")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .eq("experience_kind", "talking_video")
+      .in("status", [...DRAFT_ANALYSIS_STATUSES])
+      .not("object_path", "is", null)
+      .select("id, card_photo_path, object_path")
+      .maybeSingle();
+
+    if (draftDeleteError) {
+      return Response.json(
+        { error: "The draft could not be deleted." },
+        { status: 502 },
+      );
+    }
+    if (!draft) {
+      return Response.json(
+        { error: "This item is no longer an editable draft." },
+        { status: 409 },
+      );
+    }
+
+    const draftPhotoPaths = Array.from(
+      new Set(
+        [draft.card_photo_path, draft.object_path].filter(
+          (path): path is string => Boolean(path),
+        ),
+      ),
+    );
+    after(async () => {
+      const { error } = await admin.storage
+        .from("analysis-photos")
+        .remove(draftPhotoPaths);
+      if (error) {
+        reportServerError(error, {
+          operation: "draft_photo_cleanup",
+          analysisId: id,
+        });
+      }
+    });
+
+    return Response.json({ deleted: true });
+  }
+
   const { data: analysis } = await admin
     .from("analysis_requests")
     .select("id, status, card_photo_path, object_path")

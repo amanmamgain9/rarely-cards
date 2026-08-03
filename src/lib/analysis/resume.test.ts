@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isResumableAnalysisStatus } from "@/lib/analysis/resume";
+import {
+  isDraftAnalysisStatus,
+  isResumableAnalysisStatus,
+} from "@/lib/analysis/resume";
 
 describe("analysis resume policy", () => {
   it("resumes unfinished analysis workflows", () => {
@@ -11,5 +14,13 @@ describe("analysis resume policy", () => {
     expect(isResumableAnalysisStatus("completed")).toBe(false);
     expect(isResumableAnalysisStatus("photo_rejected")).toBe(false);
     expect(isResumableAnalysisStatus("failed")).toBe(false);
+  });
+
+  it("only calls pre-submission work a draft", () => {
+    expect(isDraftAnalysisStatus("awaiting_payment")).toBe(true);
+    expect(isDraftAnalysisStatus("awaiting_name")).toBe(true);
+    expect(isDraftAnalysisStatus("paid")).toBe(false);
+    expect(isDraftAnalysisStatus("processing")).toBe(false);
+    expect(isDraftAnalysisStatus("completed")).toBe(false);
   });
 });

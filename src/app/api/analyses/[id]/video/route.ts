@@ -18,6 +18,7 @@ import {
   createSeedanceVideo,
 } from "@/lib/video/seedance";
 import { petDialogueSchema } from "@/lib/video/dialogue";
+import { ensureDevelopmentVideoCredits } from "@/lib/payments/development-credits";
 
 const routeIdSchema = z.string().uuid();
 type RouteContext = { params: Promise<{ id: string }> };
@@ -121,6 +122,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function POST(request: Request, context: RouteContext) {
   const { user } = await requireUser();
   if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
+  await ensureDevelopmentVideoCredits(user.id);
   if (!hasSeedanceEnv()) {
     return Response.json({ error: "Pet videos are not enabled." }, { status: 503 });
   }

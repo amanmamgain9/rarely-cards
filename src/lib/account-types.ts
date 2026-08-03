@@ -41,4 +41,5 @@ export type AccountData = {
   legacyCardCreditBalance: number;
   purchases: AccountPurchase[];
   cards: AccountCard[];
+  developmentMode: boolean;
 };

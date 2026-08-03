@@ -15,6 +15,10 @@ import { resumeAnalysisAfterGrantedPurchase } from "@/lib/payments/credit-purcha
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { WorkflowSnapshot } from "@/lib/workflow/types";
+import {
+  developmentVideoCreditBalance,
+  ensureDevelopmentVideoCredits,
+} from "@/lib/payments/development-credits";
 
 const analysisIdSchema = z.string().uuid();
 
@@ -23,6 +27,7 @@ export const maxDuration = 60;
 export async function GET(request: Request) {
   const { user } = await requireUser();
   if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
+  await ensureDevelopmentVideoCredits(user.id);
 
   const limit = await checkRateLimit({
     request,
@@ -53,11 +58,11 @@ export async function GET(request: Request) {
       { status: 500 },
     );
   }
-  const creditBalance = (purchases ?? []).reduce(
+  const creditBalance = developmentVideoCreditBalance((purchases ?? []).reduce(
     (sum, purchase) =>
       sum + (purchase.credit_kind === "talking_video" ? purchase.credits_remaining : 0),
     0,
-  );
+  ));
   const legacyCardCreditBalance = (purchases ?? []).reduce(
     (sum, purchase) =>
       sum + (purchase.credit_kind === "card" ? purchase.credits_remaining : 0),

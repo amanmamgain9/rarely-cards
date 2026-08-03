@@ -10,28 +10,28 @@ import { resumeAnalysisAfterGrantedPurchase } from "@/lib/payments/credit-purcha
 import { createAdminClient } from "@/lib/supabase/admin";
 import { petDialogueSuggestionsSchema } from "@/lib/video/dialogue";
 
-export async function getLatestResumableAnalysis(
-  userId: string,
-  experienceKind?: "card" | "talking_video",
-): Promise<PublicAnalysis | null> {
-  const admin = createAdminClient();
-  let query = admin
-    .from("analysis_requests")
-    .select(
-      "id, card_style, experience_kind, pet_name, status, rejection_message, replacement_count, created_at, updated_at, object_path, dialogue_suggestions, selected_dialogue",
-    )
-    .eq("user_id", userId)
-    .not("photo_uploaded_at", "is", null)
-    // Decide from the newest card attempt. Filtering to unfinished rows first
-    // can resurrect an older abandoned flow after a newer card was completed.
-    .order("created_at", { ascending: false })
-    .limit(1);
-  if (experienceKind) {
-    query = query.eq("experience_kind", experienceKind);
-  }
-  const { data, error } = await query.maybeSingle();
+const resumeAnalysisSelection =
+  "id, card_style, experience_kind, pet_name, status, rejection_message, replacement_count, created_at, updated_at, object_path, dialogue_suggestions, selected_dialogue";
 
-  if (error) throw new Error(`resume_analysis_unavailable:${error.code}`);
+type ResumableAnalysisRow = {
+  id: string;
+  card_style: string;
+  experience_kind: "card" | "talking_video";
+  pet_name: string | null;
+  status: string;
+  rejection_message: string | null;
+  replacement_count: number;
+  created_at: string;
+  updated_at: string;
+  object_path: string | null;
+  dialogue_suggestions: unknown;
+  selected_dialogue: string | null;
+};
+
+async function toResumableAnalysis(
+  userId: string,
+  data: ResumableAnalysisRow | null,
+): Promise<PublicAnalysis | null> {
   if (!data) return null;
 
   let status = analysisStatusSchema.parse(data.status);
@@ -43,8 +43,7 @@ export async function getLatestResumableAnalysis(
     });
     if (resumed) status = "awaiting_name";
   }
-  if (!data.object_path) throw new Error("resume_photo_unavailable");
-  const photoUrl = `/api/analyses/${data.id}/photo`;
+  if (!data.object_path) return null;
 
   return {
     id: data.id,
@@ -57,10 +56,28 @@ export async function getLatestResumableAnalysis(
     replacementCount: data.replacement_count,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
-    photoUrl,
+    photoUrl: `/api/analyses/${data.id}/photo`,
     refundState: status === "refund_pending" ? "pending" : "none",
     dialogueSuggestions:
       petDialogueSuggestionsSchema.safeParse(data.dialogue_suggestions).data ?? [],
     selectedDialogue: data.selected_dialogue,
   };
+}
+
+export async function getResumableAnalysisById(
+  userId: string,
+  analysisId: string,
+): Promise<PublicAnalysis | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("analysis_requests")
+    .select(resumeAnalysisSelection)
+    .eq("id", analysisId)
+    .eq("user_id", userId)
+    .eq("experience_kind", "talking_video")
+    .not("photo_uploaded_at", "is", null)
+    .maybeSingle();
+
+  if (error) throw new Error(`resume_analysis_unavailable:${error.code}`);
+  return toResumableAnalysis(userId, data as ResumableAnalysisRow | null);
 }

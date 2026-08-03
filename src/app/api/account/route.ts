@@ -9,12 +9,19 @@ import { hasSeedanceEnv } from "@/lib/env";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncSeedanceVideo } from "@/lib/video/generation";
+import {
+  developmentVideoCreditBalance,
+  ensureDevelopmentVideoCredits,
+  isDevelopmentBillingBypassed,
+  isDevelopmentCreditPurchase,
+} from "@/lib/payments/development-credits";
 
 const AMBIGUOUS_SUBMISSION_TTL_MS = 65 * 60_000;
 
 export async function GET(request: Request) {
   const { user } = await requireUser();
   if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
+  await ensureDevelopmentVideoCredits(user.id);
 
   const limit = await checkRateLimit({
     request,
@@ -44,11 +51,11 @@ export async function GET(request: Request) {
     }
     return Response.json(
       {
-        creditBalance: (activePurchases ?? []).reduce(
+        creditBalance: developmentVideoCreditBalance((activePurchases ?? []).reduce(
           (sum, purchase) =>
             sum + (purchase.credit_kind === "talking_video" ? purchase.credits_remaining : 0),
           0,
-        ),
+        )),
         transactionConfirmed:
           Boolean(validTransactionId) &&
           (activePurchases ?? []).some(
@@ -69,7 +76,7 @@ export async function GET(request: Request) {
       admin
         .from("credit_purchases")
         .select(
-          "id, payment_provider, status, credits_granted, credits_remaining, credit_kind, amount_cents, currency, completed_at, created_at",
+          "id, payment_provider, provider_transaction_id, status, credits_granted, credits_remaining, credit_kind, amount_cents, currency, completed_at, created_at",
         )
         .eq("user_id", user.id)
         .neq("status", "failed")
@@ -215,7 +222,9 @@ export async function GET(request: Request) {
       };
     });
 
-  const purchases = (purchaseRows ?? []).map((row) => {
+  const purchases = (purchaseRows ?? [])
+    .filter((row) => !isDevelopmentCreditPurchase(row.provider_transaction_id))
+    .map((row) => {
     const refundableUntil = row.completed_at
       ? new Date(
           new Date(row.completed_at).getTime() + 14 * 24 * 60 * 60 * 1000,
@@ -240,18 +249,19 @@ export async function GET(request: Request) {
         refundableUntil !== null &&
         new Date(refundableUntil).getTime() > Date.now(),
     };
-  });
+    });
 
   const response: AccountData = {
     email: user.email ?? null,
-    creditBalance: purchases
+    creditBalance: developmentVideoCreditBalance(purchases
       .filter((purchase) => purchase.status === "active" && purchase.creditKind === "talking_video")
-      .reduce((sum, purchase) => sum + purchase.creditsRemaining, 0),
+      .reduce((sum, purchase) => sum + purchase.creditsRemaining, 0)),
     legacyCardCreditBalance: purchases
       .filter((purchase) => purchase.status === "active" && purchase.creditKind === "card")
       .reduce((sum, purchase) => sum + purchase.creditsRemaining, 0),
     purchases,
     cards,
+    developmentMode: isDevelopmentBillingBypassed(),
   };
 
   return Response.json(response, {

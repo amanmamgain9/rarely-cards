@@ -17,6 +17,7 @@ export function VoiceWorkspace({
   suggestionsBusy,
   onRetrySuggestions,
   onSubmit,
+  onRemovePhoto,
   uploadInput,
   message,
 }: {
@@ -33,6 +34,7 @@ export function VoiceWorkspace({
   suggestionsBusy: boolean;
   onRetrySuggestions: () => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
+  onRemovePhoto: () => void;
   uploadInput: RefObject<HTMLInputElement | null>;
   message: string | null;
 }) {
@@ -53,15 +55,26 @@ export function VoiceWorkspace({
           <span className="rounded-lg bg-purple/15 px-3 py-2 font-mono text-[10px] text-ink-muted max-[700px]:hidden">1 credit used when you create the video</span>
         </div>
 
-        <AppStepRail active={2} />
+        <AppStepRail active={1} />
 
         <form className="grid items-start gap-7 rounded-2xl border border-ink/20 bg-cream p-6 shadow-xl shadow-ink/5 md:grid-cols-[minmax(230px,0.72fr)_minmax(0,1.28fr)] max-[700px]:p-4" onSubmit={onSubmit}>
           <div className="min-w-0">
-            <figure className="m-0 h-[390px] w-full overflow-hidden rounded-2xl bg-[#ebe7ef] max-[700px]:h-[min(46vh,330px)]">
+            <figure className="relative m-0 h-[390px] w-full overflow-hidden rounded-2xl bg-[#ebe7ef] max-[700px]:h-[min(46vh,330px)]">
               {photo && (
-                // Account-scoped photos and local previews intentionally render directly.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img className="block size-full object-contain" src={photo} alt={`The selected photo of ${petName || "your pet"}`} />
+                <>
+                  {/* Account-scoped photos and local previews intentionally render directly. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="block size-full object-contain" src={photo} alt={`The selected photo of ${petName || "your pet"}`} />
+                  <button
+                    className="absolute right-3 top-3 grid size-11 place-items-center rounded-full border-2 border-ink bg-white text-2xl font-black leading-none text-ink shadow-[3px_3px_0_#241a44] transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink"
+                    type="button"
+                    onClick={onRemovePhoto}
+                    aria-label="Remove selected photo"
+                    title="Remove photo"
+                  >
+                    <span aria-hidden="true">×</span>
+                  </button>
+                </>
               )}
             </figure>
             <button className="mt-3 min-h-10 w-full rounded-lg border border-[#d8d1df] bg-white text-[11px] font-black text-ink-muted" type="button" onClick={() => uploadInput.current?.click()}>

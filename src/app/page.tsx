@@ -16,7 +16,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
   if (supabaseConfigured) {
     const { user } = await requireUser();
-    if (user) redirect("/app");
+    if (user) redirect("/studio");
   }
 
   return (

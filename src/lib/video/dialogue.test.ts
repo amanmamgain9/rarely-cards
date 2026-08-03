@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildDialogueSuggestionPrompt,
   petDialogueSchema,
-  petDialogueSuggestionsJsonSchema,
+  petDialogueResultJsonSchema,
+  petDialogueResultSchema,
   petDialogueSuggestionsSchema,
 } from "@/lib/video/dialogue";
 
@@ -24,18 +25,34 @@ describe("talking-pet dialogue", () => {
 
   it("grounds suggestions in the photograph", () => {
     expect(buildDialogueSuggestionPrompt()).toContain("visible details");
+    expect(buildDialogueSuggestionPrompt()).toContain("Never invent pet dialogue");
   });
 
-  it("gives Gemini an ordered structured-output contract", () => {
-    expect(petDialogueSuggestionsJsonSchema).toMatchObject({
-      type: "array",
-      minItems: 3,
-      maxItems: 3,
-      prefixItems: [
-        { properties: { tone: { enum: ["funny"] } } },
-        { properties: { tone: { enum: ["sweet"] } } },
-        { properties: { tone: { enum: ["chaotic"] } } },
-      ],
+  it("gives Gemini accepted and rejected structured-output paths", () => {
+    expect(petDialogueResultJsonSchema).toMatchObject({
+      type: "object",
+      properties: {
+        status: { enum: ["accepted", "rejected"] },
+        suggestions: {
+          minItems: 3,
+          maxItems: 3,
+          prefixItems: [
+            { properties: { tone: { enum: ["funny"] } } },
+            { properties: { tone: { enum: ["sweet"] } } },
+            { properties: { tone: { enum: ["chaotic"] } } },
+          ],
+        },
+      },
     });
+  });
+
+  it("accepts a photo rejection without fabricated suggestions", () => {
+    expect(
+      petDialogueResultSchema.parse({
+        status: "rejected",
+        reason: "no_pet",
+        message: "Choose a photo with one clear cat or dog.",
+      }),
+    ).toMatchObject({ status: "rejected", reason: "no_pet" });
   });
 });
