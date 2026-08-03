@@ -1,11 +1,9 @@
 import type { FormEventHandler, RefObject } from "react";
-import { AppStepRail, AppWorkspaceHeader } from "@/components/rarity/app-workspace-header";
+import { AppStepRail } from "@/components/studio/app-step-rail";
 import { PetVoiceComposer } from "@/components/rarity/pet-voice-composer";
 import type { PetDialogueSuggestion } from "@/lib/video/dialogue";
 
 export function VoiceWorkspace({
-  creditBalance,
-  onSignOut,
   photo,
   petName,
   analysisId,
@@ -21,8 +19,6 @@ export function VoiceWorkspace({
   uploadInput,
   message,
 }: {
-  creditBalance: number;
-  onSignOut: () => void;
   photo: string | null;
   petName: string;
   analysisId: string | null;
@@ -43,9 +39,7 @@ export function VoiceWorkspace({
   );
 
   return (
-    <>
-      <AppWorkspaceHeader creditBalance={creditBalance} onSignOut={onSignOut} />
-      <section className="mx-auto w-[calc(100%-2.5rem)] max-w-[920px] py-14 max-[700px]:w-[calc(100%-1.75rem)] max-[700px]:py-9" aria-labelledby="voice-step-title">
+    <section className="mx-auto w-[calc(100%-2.5rem)] max-w-[920px] py-14 max-[700px]:w-[calc(100%-1.75rem)] max-[700px]:py-9" aria-labelledby="voice-step-title">
         <div className="flex items-end justify-between gap-7">
           <div>
             <span className="mb-2 block font-mono text-[10px] font-semibold tracking-widest text-pink">NEW VIDEO</span>
@@ -127,7 +121,6 @@ export function VoiceWorkspace({
             {message && <p className="mt-5 rounded-lg border border-[#d73b75] bg-[#fff0f5] px-4 py-3 text-[13px] font-extrabold text-[#8f1945]" role="alert">{message}</p>}
           </div>
         </form>
-      </section>
-    </>
+    </section>
   );
 }

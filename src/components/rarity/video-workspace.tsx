@@ -1,11 +1,9 @@
 import type { DragEventHandler, RefObject } from "react";
-import { AppStepRail, AppWorkspaceHeader } from "@/components/rarity/app-workspace-header";
+import { AppStepRail } from "@/components/studio/app-step-rail";
 import { Camera, Upload } from "@/components/rarity/rarity-icons";
 import type { FlowState } from "@/components/rarity/rarity-model";
 
 export function VideoWorkspace({
-  creditBalance,
-  onSignOut,
   dragging,
   onDraggingChange,
   onDrop,
@@ -15,8 +13,6 @@ export function VideoWorkspace({
   flow,
   message,
 }: {
-  creditBalance: number;
-  onSignOut: () => void;
   dragging: boolean;
   onDraggingChange: (dragging: boolean) => void;
   onDrop: DragEventHandler<HTMLDivElement>;
@@ -27,9 +23,7 @@ export function VideoWorkspace({
   message: string | null;
 }) {
   return (
-    <>
-      <AppWorkspaceHeader creditBalance={creditBalance} onSignOut={onSignOut} />
-      <section className="mx-auto w-[calc(100%-2.5rem)] max-w-[920px] py-14 max-[700px]:w-[calc(100%-1.75rem)] max-[700px]:py-9" aria-labelledby="new-video-title">
+    <section className="mx-auto w-[calc(100%-2.5rem)] max-w-[920px] py-14 max-[700px]:w-[calc(100%-1.75rem)] max-[700px]:py-9" aria-labelledby="new-video-title">
         <div className="flex items-end justify-between gap-7">
           <div>
             <span className="mb-2 block font-mono text-[10px] font-semibold tracking-widest text-pink">NEW VIDEO</span>
@@ -72,7 +66,6 @@ export function VideoWorkspace({
         {message && flow !== "retry" && (
           <p className="mt-5 rounded-lg border border-[#d73b75] bg-[#fff0f5] px-4 py-3 text-[13px] font-extrabold text-[#8f1945]" role="alert">{message}</p>
         )}
-      </section>
-    </>
+    </section>
   );
 }

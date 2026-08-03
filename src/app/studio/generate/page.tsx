@@ -72,7 +72,6 @@ export default async function GeneratePage({ searchParams }: GeneratePageProps) 
       }}
     >
       <GenerationWorkspace
-        initialUser={auth.user}
         initialAnalysis={initialAnalysis}
         shouldRestorePendingPhoto={shouldRestorePendingPhoto}
         seedanceConfigured={hasSeedanceEnv()}

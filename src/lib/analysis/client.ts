@@ -52,9 +52,3 @@ export async function createAnalysisFromPhoto(input: {
 
   return { id, status: String(confirmed.status) };
 }
-
-export async function signOutRarely() {
-  const supabase = await getSupabaseClient();
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-}

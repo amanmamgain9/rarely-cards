@@ -16,8 +16,8 @@ import {
 import type { AcceptedAnalysis } from "@/lib/analysis/types";
 import {
   createAnalysisFromPhoto,
-  signOutRarely,
 } from "@/lib/analysis/client";
+import { StudioHeader } from "@/components/studio-header";
 import {
   RarityFlowLayers,
   RarityResultScreen,
@@ -40,7 +40,6 @@ import {
 } from "@/components/rarity/rarity-model";
 
 export function GenerationWorkspace({
-  initialUser,
   initialAnalysis,
   shouldRestorePendingPhoto,
   seedanceConfigured,
@@ -176,18 +175,6 @@ export function GenerationWorkspace({
     setFlow("error");
     setMessage("Your saved photo could not be restored. Please add it again.");
   }, []);
-  async function signOut() {
-    try {
-      await signOutRarely();
-    } catch {
-      setMessage("Could not sign out. Please try again.");
-      return;
-    }
-    setPendingPhotoHint(false);
-    await clearPendingPhoto().catch(() => undefined);
-    window.location.replace("/");
-  }
-
   async function submitPetName(event: FormEvent) {
     event.preventDefault();
     const name = petName.trim() || "My pet";
@@ -262,6 +249,7 @@ export function GenerationWorkspace({
   return (
     <main className="relative overflow-hidden">
       <div className="fixed inset-0 -z-10 bg-background" aria-hidden="true" />
+      <StudioHeader creditBalance={creditBalance} />
       <input
         ref={uploadInput}
         type="file"
@@ -280,8 +268,7 @@ export function GenerationWorkspace({
 
       <PendingPhotoResume
         enabled={Boolean(
-          initialUser &&
-            (initialAnalysis || shouldRestorePendingPhoto),
+          initialAnalysis || shouldRestorePendingPhoto,
         )}
         initialAnalysis={initialAnalysis}
         onMissing={handleMissingPendingPhoto}
@@ -321,8 +308,6 @@ export function GenerationWorkspace({
 
       {visibleFlow === "naming" ? (
         <VoiceWorkspace
-          creditBalance={creditBalance}
-          onSignOut={() => void signOut()}
           photo={visiblePhoto}
           petName={petName}
           analysisId={analysisId}
@@ -340,8 +325,6 @@ export function GenerationWorkspace({
         />
       ) : (
         <VideoWorkspace
-          creditBalance={creditBalance}
-          onSignOut={() => void signOut()}
           dragging={dragging}
           onDraggingChange={setDragging}
           onDrop={handleDrop}

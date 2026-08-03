@@ -15,7 +15,6 @@ export type FlowState =
   | "error";
 
 export type GenerationWorkspaceProps = {
-  initialUser: { id: string; email: string | null };
   initialAnalysis: PublicAnalysis | null;
   shouldRestorePendingPhoto: boolean;
   seedanceConfigured: boolean;
