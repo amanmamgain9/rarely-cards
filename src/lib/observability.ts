@@ -5,6 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 type SafeContext = {
   operation: string;
   analysisId?: string;
+  generationId?: string;
   attempt?: number;
   code?: string;
 };

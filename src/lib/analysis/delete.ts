@@ -87,12 +87,7 @@ export async function deleteSavedAnalysis(userId: string, analysisId: string) {
     );
   }
 
-  if (
-    !video ||
-    (video.status === "failed" &&
-      !video.discard_requested_at &&
-      video.error_code !== "discarded_by_user")
-  ) {
+  if (!video) {
     await admin.rpc("restore_talking_video_credit", {
       p_analysis_id: analysisId,
     });

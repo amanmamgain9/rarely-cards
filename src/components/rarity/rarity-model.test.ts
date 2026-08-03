@@ -41,12 +41,12 @@ describe("workflow view", () => {
     ).toBe("naming");
   });
 
-  it("lets terminal server state replace transient processing state", () => {
+  it("opens legacy card states in the line workspace", () => {
     expect(
       flowForWorkflow(
         { creditBalance: 2, analysis: analysis("completed") },
-        "processing",
+        "idle",
       ),
-    ).toBe("completed");
+    ).toBe("naming");
   });
 });

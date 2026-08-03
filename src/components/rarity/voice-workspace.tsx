@@ -14,6 +14,7 @@ export function VoiceWorkspace({
   suggestionsBusy,
   onRetrySuggestions,
   onSubmit,
+  creating,
   onRemovePhoto,
   uploadInput,
   message,
@@ -29,12 +30,13 @@ export function VoiceWorkspace({
   suggestionsBusy: boolean;
   onRetrySuggestions: () => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
+  creating: boolean;
   onRemovePhoto: () => void;
   uploadInput: RefObject<HTMLInputElement | null>;
   message: string | null;
 }) {
   const canSubmit = Boolean(
-    analysisId && (customDialogue.trim() || selectedDialogue.trim()),
+    !creating && analysisId && (customDialogue.trim() || selectedDialogue.trim()),
   );
 
   return (
@@ -105,7 +107,7 @@ export function VoiceWorkspace({
             <PetVoiceComposer value={customDialogue} onChange={onCustomDialogueChange} />
 
             <button className="mt-4 min-h-12 w-full rounded-xl border-2 border-ink bg-pink font-black text-white shadow-[3px_3px_0_#241a44] disabled:cursor-not-allowed disabled:opacity-45" type="submit" disabled={!canSubmit}>
-              {analysisId ? "Create video" : "Preparing photo…"}
+              {creating ? "Starting…" : analysisId ? "Create video" : "Preparing photo…"}
             </button>
             {message && <p className="mt-5 rounded-lg border border-[#d73b75] bg-[#fff0f5] px-4 py-3 text-[13px] font-extrabold text-[#8f1945]" role="alert">{message}</p>}
           </div>

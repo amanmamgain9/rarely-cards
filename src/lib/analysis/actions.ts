@@ -1,6 +1,4 @@
 import { inspectImage } from "@/lib/analysis/image";
-import { hasSeedanceEnv } from "@/lib/env";
-import { developmentVideoCreditBalance } from "@/lib/payments/development-credits";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export class AnalysisActionError extends Error {
@@ -15,62 +13,7 @@ export class AnalysisActionError extends Error {
 
 export type AnalysisActionResult = {
   payload: Record<string, unknown>;
-  runInBackground?: boolean;
 };
-
-export async function startTalkingVideo(input: {
-  userId: string;
-  analysisId: string;
-  petName: string;
-  dialogue: string;
-}): Promise<AnalysisActionResult> {
-  if (!hasSeedanceEnv()) {
-    throw new AnalysisActionError("Talking-pet videos are not enabled yet.", 503);
-  }
-
-  const admin = createAdminClient();
-  const { data: reservation, error } = await admin.rpc(
-    "reserve_talking_video_credit",
-    {
-      p_user_id: input.userId,
-      p_analysis_id: input.analysisId,
-      p_pet_name: input.petName,
-      p_dialogue: input.dialogue,
-    },
-  );
-  if (error) {
-    throw new AnalysisActionError("This pet is not waiting for a line.", 409);
-  }
-
-  const reserved = reservation?.[0];
-  if (!reserved?.reserved) {
-    await admin
-      .from("analysis_requests")
-      .update({
-        status: "awaiting_payment",
-        pet_name: input.petName,
-        pet_pronouns: "they",
-        selected_dialogue: input.dialogue,
-      })
-      .eq("id", input.analysisId)
-      .eq("user_id", input.userId)
-      .in("status", ["awaiting_name", "awaiting_payment"]);
-    throw new AnalysisActionError(
-      "Get three talking-pet videos to continue.",
-      402,
-      { needsCredits: true, creditBalance: 0 },
-    );
-  }
-
-  return {
-    payload: {
-      id: input.analysisId,
-      status: "paid",
-      creditBalance: developmentVideoCreditBalance(reserved.remaining_balance),
-    },
-    runInBackground: true,
-  };
-}
 
 export async function confirmAnalysisUpload(input: {
   userId: string;
@@ -145,7 +88,6 @@ export async function confirmAnalysisUpload(input: {
         needsCredits: updated.status === "awaiting_payment",
         hasVideoCredits,
       },
-      runInBackground: updated.status === "paid",
     };
   } catch (error) {
     if (error instanceof AnalysisActionError) throw error;

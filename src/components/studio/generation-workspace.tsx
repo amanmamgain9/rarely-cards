@@ -13,20 +13,15 @@ import {
   clearPendingPhoto,
   savePendingPhoto,
 } from "@/lib/pending-photo";
-import type { AcceptedAnalysis } from "@/lib/analysis/types";
 import {
   createAnalysisFromPhoto,
 } from "@/lib/analysis/client";
 import { StudioHeader } from "@/components/studio-header";
-import {
-  RarityFlowLayers,
-  RarityResultScreen,
-} from "@/components/rarity/rarity-flow-layers";
+import { RarityFlowLayers } from "@/components/rarity/rarity-flow-layers";
 import { VideoWorkspace } from "@/components/rarity/video-workspace";
 import { VoiceWorkspace } from "@/components/rarity/voice-workspace";
 import { PendingPhotoResume } from "@/components/rarity/workflow-effects";
 import { useRarelyWorkflowContext } from "@/components/rarity/rarely-workflow-provider";
-import { useVideoGeneration } from "@/components/studio/use-video-generation";
 import { useDialogueSuggestions } from "@/components/studio/use-dialogue-suggestions";
 import {
   AUTOMATIC_CARD_STYLE,
@@ -58,10 +53,8 @@ export function GenerationWorkspace({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const workflow = useRarelyWorkflowContext();
   const { analysisId, setAnalysisId } = workflow;
-  const [result, setResult] = useState<AcceptedAnalysis | null>(
-    initialAnalysis?.result ?? null,
-  );
   const [petName, setPetName] = useState(initialAnalysis?.petName ?? "");
+  const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const uploadInput = useRef<HTMLInputElement>(null);
@@ -76,7 +69,6 @@ export function GenerationWorkspace({
     flow,
   );
   const visiblePhoto = workflowAnalysis?.photoUrl ?? photo;
-  const visibleResult = workflowAnalysis?.result ?? result;
   const workflowMessage =
     workflowAnalysis?.status === "photo_rejected"
       ? workflowAnalysis.rejectionMessage ||
@@ -117,13 +109,6 @@ export function GenerationWorkspace({
     onMessage: handleDialogueMessage,
     onRefresh: refreshWorkflow,
   });
-  const video = useVideoGeneration({
-    analysisId,
-    completed: visibleFlow === "completed",
-    enabled: seedanceConfigured,
-    selectedDialogue: workflowAnalysis?.selectedDialogue ?? null,
-    petName: visibleResult?.petName || "My pet",
-  });
   const uploadNewAnalysis = useCallback(async (file: File) => {
     setMessage(null);
     const created = await createAnalysisFromPhoto({
@@ -139,9 +124,8 @@ export function GenerationWorkspace({
       router.replace(`/studio/credits?draft=${created.id}`);
       return;
     }
-    const nextFlow = created.status === "paid" ? "processing" : "naming";
-    setFlow(nextFlow);
-    resetDialogue({ busy: nextFlow === "naming" });
+    setFlow("naming");
+    resetDialogue({ busy: true });
   }, [resetDialogue, router, setAnalysisId]);
 
   const acceptPhoto = useCallback(async (file: File) => {
@@ -159,7 +143,6 @@ export function GenerationWorkspace({
     setPhoto(preview);
     setSelectedFile(file);
     setAnalysisId(null);
-    setResult(null);
     resetDialogue();
     await savePendingPhoto(file, AUTOMATIC_CARD_STYLE);
     setPendingPhotoHint(true);
@@ -188,34 +171,34 @@ export function GenerationWorkspace({
       return;
     }
 
+    if (creating) return;
+    setCreating(true);
     setMessage(null);
-    const response = await fetch(`/api/analyses/${analysisId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "start_talking_video",
-        petName: name,
-        dialogue: chosenDialogue,
-      }),
-    });
-    const payload = await response.json();
-    if (typeof payload.creditBalance === "number") {
-      workflow.setSnapshot({
-        ...workflow.snapshot,
-        creditBalance: payload.creditBalance,
+    try {
+      const response = await fetch(`/api/analyses/${analysisId}/video`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          petName: name,
+          dialogue: chosenDialogue,
+        }),
       });
-    }
-    if (!response.ok) {
-      setMessage(payload.error || "That name could not be saved.");
-      if (payload.needsCredits) {
-        router.push(`/studio/credits?draft=${analysisId}`);
+      const payload = await response.json();
+      if (!response.ok) {
+        setMessage(payload.error || "The video could not start.");
+        if (payload.needsCredits) {
+          router.push(`/studio/credits?draft=${analysisId}`);
+        }
+        return;
       }
-      return;
+      setPetName(name);
+      setSelectedDialogue(chosenDialogue);
+      router.push(`/studio/videos/${payload.id}`);
+    } catch {
+      setMessage("The video could not start. Try again.");
+    } finally {
+      setCreating(false);
     }
-    setPetName(name);
-    setSelectedDialogue(chosenDialogue);
-    setFlow("processing");
-    void refreshWorkflow();
   }
 
   function returnToHomepage() {
@@ -224,7 +207,6 @@ export function GenerationWorkspace({
     setAnalysisId(null);
     setSelectedFile(null);
     setPhoto(null);
-    setResult(null);
     resetDialogue();
     setMessage(null);
     setFlow("idle");
@@ -282,35 +264,9 @@ export function GenerationWorkspace({
       />
       <RarityFlowLayers
         flow={visibleFlow}
-        photo={visiblePhoto}
         uploadInput={uploadInput}
         message={visibleMessage}
       />
-      <RarityResultScreen
-        flow={visibleFlow}
-        photo={visiblePhoto}
-        result={visibleResult}
-        creditBalance={creditBalance}
-        uploadInput={uploadInput}
-        onReturnHome={returnToHomepage}
-        seedanceConfigured={
-          seedanceConfigured && Boolean(workflowAnalysis?.selectedDialogue)
-        }
-        videoGeneration={video.generation}
-        videoBusy={
-          video.generating ||
-          Boolean(
-            workflowAnalysis?.selectedDialogue &&
-              !video.generation &&
-              !video.message,
-          )
-        }
-        videoShareBusy={video.sharing}
-        videoMessage={video.message}
-        onGenerateVideo={() => void video.generate()}
-        onShareVideo={() => void video.share()}
-      />
-
       {visibleFlow === "naming" ? (
         <VoiceWorkspace
           photo={visiblePhoto}
@@ -324,6 +280,7 @@ export function GenerationWorkspace({
           suggestionsBusy={suggestionsBusy}
           onRetrySuggestions={retrySuggestions}
           onSubmit={submitPetName}
+          creating={creating}
           onRemovePhoto={returnToHomepage}
           uploadInput={uploadInput}
           message={visibleMessage}

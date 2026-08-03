@@ -1,7 +1,6 @@
 import { after } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { runAnalysis } from "@/lib/analysis/run-analysis";
 import {
   acceptedAnalysisSchema,
   analysisStatusSchema,
@@ -126,13 +125,6 @@ export async function GET(request: Request) {
     selectedDialogue: data.selected_dialogue,
   };
 
-  const processingIsStale =
-    status === "processing" &&
-    data.processing_started_at &&
-    Date.now() - new Date(data.processing_started_at).getTime() > 10 * 60_000;
-  if (status === "paid" || processingIsStale) {
-    after(() => runAnalysis(data.id));
-  }
   if (status === "photo_rejected") {
     after(() =>
       admin.rpc("restore_talking_video_credit", {

@@ -4,7 +4,6 @@ import { requireUser } from "@/lib/auth";
 import {
   AnalysisActionError,
   confirmAnalysisUpload,
-  startTalkingVideo,
 } from "@/lib/analysis/actions";
 import {
   AnalysisDeleteError,
@@ -12,34 +11,21 @@ import {
   deleteDraftPhotos,
   deleteSavedAnalysis,
 } from "@/lib/analysis/delete";
-import { runAnalysis } from "@/lib/analysis/run-analysis";
 import {
   acceptedAnalysisSchema,
   analysisStatusSchema,
   cardStyleSchema,
-  petNameSchema,
   type PublicAnalysis,
 } from "@/lib/analysis/types";
-import { ensureDevelopmentVideoCredits } from "@/lib/payments/development-credits";
 import { reportServerError } from "@/lib/observability";
 import { startFullRefund } from "@/lib/paddle";
 import { resumeAnalysisAfterGrantedPurchase } from "@/lib/payments/credit-purchases";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
-import {
-  petDialogueSchema,
-  petDialogueSuggestionsSchema,
-} from "@/lib/video/dialogue";
+import { petDialogueSuggestionsSchema } from "@/lib/video/dialogue";
 
 const routeIdSchema = z.string().uuid();
-const updateSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("upload_complete") }),
-  z.object({
-    action: z.literal("start_talking_video"),
-    petName: petNameSchema,
-    dialogue: petDialogueSchema,
-  }),
-]);
+const updateSchema = z.object({ action: z.literal("upload_complete") });
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -122,13 +108,6 @@ export async function GET(request: Request, context: RouteContext) {
     selectedDialogue: data.selected_dialogue,
   };
 
-  const processingIsStale =
-    status === "processing" &&
-    data.processing_started_at &&
-    Date.now() - new Date(data.processing_started_at).getTime() > 10 * 60 * 1000;
-  if (status === "paid" || processingIsStale) {
-    after(() => runAnalysis(id));
-  }
   if (status === "photo_rejected") {
     after(() =>
       createAdminClient().rpc("restore_talking_video_credit", {
@@ -161,7 +140,6 @@ export async function GET(request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   const { user } = await requireUser();
   if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
-  await ensureDevelopmentVideoCredits(user.id);
 
   const { id } = await context.params;
   const body = updateSchema.safeParse(await request.json().catch(() => null));
@@ -170,16 +148,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   try {
-    const result =
-      body.data.action === "start_talking_video"
-        ? await startTalkingVideo({
-            userId: user.id,
-            analysisId: id,
-            petName: body.data.petName,
-            dialogue: body.data.dialogue,
-          })
-        : await confirmAnalysisUpload({ userId: user.id, analysisId: id });
-    if (result.runInBackground) after(() => runAnalysis(id));
+    const result = await confirmAnalysisUpload({
+      userId: user.id,
+      analysisId: id,
+    });
     return Response.json(result.payload);
   } catch (error) {
     if (error instanceof AnalysisActionError) {

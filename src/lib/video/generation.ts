@@ -255,7 +255,7 @@ export async function syncSeedanceVideo(
         }
         return;
       }
-      const { data: failed } = await admin
+      await admin
         .from("video_generations")
         .update({
           status: "failed",
@@ -273,11 +273,6 @@ export async function syncSeedanceVideo(
         .eq("sync_token", syncToken)
         .select("analysis_id")
         .maybeSingle();
-      if (failed) {
-        await admin.rpc("restore_talking_video_credit", {
-          p_analysis_id: failed.analysis_id,
-        });
-      }
       return;
     }
     if (!task.videoUrl) throw new Error("seedance_missing_video_url");
@@ -358,7 +353,7 @@ export async function syncSeedanceVideo(
       attempt: row.attempt_count,
       code,
     });
-    const { data: failed } = await admin
+    await admin
       .from("video_generations")
       .update({
         // Provider, network, and storage outages are retried by the webhook,
@@ -374,10 +369,5 @@ export async function syncSeedanceVideo(
       .eq("sync_token", syncToken)
       .select("analysis_id, status")
       .maybeSingle();
-    if (failed?.status === "failed" && !row.discard_requested_at) {
-      await admin.rpc("restore_talking_video_credit", {
-        p_analysis_id: failed.analysis_id,
-      });
-    }
   }
 }

@@ -6,13 +6,13 @@ import type { PublicVideoGeneration } from "@/lib/video/types";
 
 export function StudioVideoPending({
   analysisId,
-  petName,
+  initialFailed,
 }: {
   analysisId: string;
-  petName: string;
+  initialFailed?: boolean;
 }) {
   const router = useRouter();
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState(Boolean(initialFailed));
 
   useEffect(() => {
     let cancelled = false;
@@ -40,12 +40,12 @@ export function StudioVideoPending({
       if (!cancelled) timer = setTimeout(check, 8_000);
     }
 
-    timer = setTimeout(check, 2_000);
+    if (!initialFailed) timer = setTimeout(check, 2_000);
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [analysisId, router]);
+  }, [analysisId, initialFailed, router]);
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-end bg-gradient-to-t from-ink/90 via-ink/10 to-transparent p-8 text-center text-white">
@@ -57,7 +57,7 @@ export function StudioVideoPending({
       </strong>
       <p className="mt-2 text-sm font-bold text-white/80">
         {failed
-          ? `${petName}'s video credit was returned.`
+          ? "This video could not be generated."
           : "This page will update when the video finishes."}
       </p>
     </div>

@@ -7,8 +7,6 @@ export type FlowState =
   | "idle"
   | "restoring"
   | "naming"
-  | "processing"
-  | "completed"
   | "retry"
   | "refund_pending"
   | "refunded"
@@ -123,11 +121,10 @@ export function flowForAnalysis(analysis: PublicAnalysis): FlowState {
       return "naming";
     case "paid":
     case "processing":
-      return "processing";
+    case "completed":
+      return "naming";
     case "photo_rejected":
       return "retry";
-    case "completed":
-      return "completed";
     case "refund_pending":
       return "refund_pending";
     case "refunded":
@@ -146,14 +143,7 @@ export function flowForWorkflow(
     return transientFlow;
   }
 
-  const serverFlow = flowForAnalysis(snapshot.analysis);
-  if (
-    transientFlow === "processing" &&
-    ["naming", "processing"].includes(serverFlow)
-  ) {
-    return "processing";
-  }
-  return serverFlow;
+  return flowForAnalysis(snapshot.analysis);
 }
 
 export function setPendingPhotoHint(pending: boolean) {

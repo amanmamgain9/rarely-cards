@@ -25,8 +25,8 @@ const dateFormatter = new Intl.DateTimeFormat("en", {
   year: "numeric",
 });
 
-function statusLabel(status: "submitting" | "running" | "succeeded") {
-  return status === "succeeded" ? "Ready" : "Generating";
+function statusLabel(status: "submitting" | "running" | "succeeded" | "failed") {
+  return status === "succeeded" ? "Ready" : status === "failed" ? "Failed" : "Generating";
 }
 
 export default async function StudioPage() {
@@ -87,14 +87,14 @@ export default async function StudioPage() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-ink/75 via-transparent to-transparent" />
                     <span className="absolute bottom-4 left-1/2 grid size-12 -translate-x-1/2 place-items-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_#f4458f] [&>svg]:w-6">
-                      {video.status === "succeeded" ? <Film /> : <span className="size-6 animate-spin rounded-full border-[3px] border-ink/20 border-t-ink" />}
+                      {video.status === "succeeded" ? <Film /> : video.status === "failed" ? <span className="text-xl font-black">×</span> : <span className="size-6 animate-spin rounded-full border-[3px] border-ink/20 border-t-ink" />}
                     </span>
                   </div>
                   <span className="film-perf bg-cream/15" aria-hidden="true" />
                 </div>
                 <div className="p-5">
                   <div className="flex items-center justify-between gap-3">
-                    <span className={`rounded-full px-2.5 py-1 font-mono text-[8px] font-bold uppercase tracking-wider ${video.status === "succeeded" ? "bg-purple/20 text-ink" : "bg-yellow text-ink"}`}>
+                    <span className={`rounded-full px-2.5 py-1 font-mono text-[8px] font-bold uppercase tracking-wider ${video.status === "succeeded" ? "bg-purple/20 text-ink" : video.status === "failed" ? "bg-pink/20 text-ink" : "bg-yellow text-ink"}`}>
                       {statusLabel(video.status)}
                     </span>
                     <time className="font-mono text-[8px] text-ink-muted" dateTime={video.createdAt}>

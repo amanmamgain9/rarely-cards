@@ -145,12 +145,6 @@ export async function GET(request: Request) {
       );
     } else if (video.discard_requested_at || video.status === "running") {
       after(() => syncSeedanceVideo(video.id));
-    } else if (video.status === "failed") {
-      after(() =>
-        admin.rpc("restore_talking_video_credit", {
-          p_analysis_id: video.analysis_id,
-        }),
-      );
     } else if (
       staleSubmission
     ) {
@@ -167,7 +161,7 @@ export async function GET(request: Request) {
           .select("analysis_id")
           .maybeSingle();
         if (failed) {
-          await admin.rpc("restore_talking_video_credit", {
+          await admin.rpc("consume_analysis_credit", {
             p_analysis_id: failed.analysis_id,
           });
         }

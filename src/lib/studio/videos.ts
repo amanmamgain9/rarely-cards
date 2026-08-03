@@ -8,7 +8,7 @@ import type { AnalysisStatus } from "@/lib/analysis/types";
 export type StudioVideo = {
   id: string;
   analysisId: string;
-  status: "submitting" | "running" | "succeeded";
+  status: "submitting" | "running" | "succeeded" | "failed";
   petName: string;
   dialogue: string | null;
   createdAt: string;
@@ -84,7 +84,7 @@ export async function getStudioVideos(userId: string): Promise<StudioVideo[]> {
       "id, analysis_id, status, output_path, created_at, completed_at, discard_requested_at",
     )
     .eq("user_id", userId)
-    .in("status", ["submitting", "running", "succeeded"])
+    .in("status", ["submitting", "running", "succeeded", "failed"])
     .is("discard_requested_at", null)
     .order("created_at", { ascending: false });
   if (error) throw new Error(`studio_videos_unavailable:${error.code}`);
@@ -132,7 +132,7 @@ export async function getStudioVideo(
     )
     .eq("id", videoId)
     .eq("user_id", userId)
-    .in("status", ["submitting", "running", "succeeded"])
+    .in("status", ["submitting", "running", "succeeded", "failed"])
     .is("discard_requested_at", null)
     .maybeSingle();
   if (error) throw new Error(`studio_video_unavailable:${error.code}`);

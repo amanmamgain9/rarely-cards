@@ -35,6 +35,7 @@ export default async function StudioVideoPage({
   if (!video) notFound();
 
   const ready = video.status === "succeeded" && video.videoUrl;
+  const failed = video.status === "failed";
 
   return (
     <main className="min-h-svh bg-background text-ink">
@@ -71,7 +72,7 @@ export default async function StudioVideoPage({
                     src={video.photoUrl}
                     unoptimized
                   />
-                  <StudioVideoPending analysisId={video.analysisId} petName={video.petName} />
+                  <StudioVideoPending analysisId={video.analysisId} initialFailed={failed} />
                 </>
               )}
             </div>
@@ -80,7 +81,7 @@ export default async function StudioVideoPage({
 
           <div className="pt-6 max-lg:pt-0">
             <span className="inline-flex rounded-md border-2 border-ink bg-yellow px-3 py-1.5 font-mono text-[8px] font-bold uppercase tracking-wider shadow-[2px_2px_0_#241a44]">
-              {ready ? "Ready" : "Generating"}
+              {ready ? "Ready" : failed ? "Failed" : "Generating"}
             </span>
             <h1 className="mt-6 font-display text-[clamp(2.75rem,7vw,5rem)] font-normal leading-[0.9] tracking-[-0.035em] text-pink">
               {video.petName}&apos;s video
@@ -97,6 +98,10 @@ export default async function StudioVideoPage({
                   Sharing sends the video file. The original photo remains private to your account.
                 </p>
               </>
+            ) : failed ? (
+              <p className="max-w-md rounded-xl border-2 border-pink/30 bg-white p-4 text-sm font-bold leading-relaxed text-ink-muted">
+                This video could not be generated.
+              </p>
             ) : (
               <p className="max-w-md rounded-xl border-2 border-ink/15 bg-white p-4 text-sm font-bold leading-relaxed text-ink-muted">
                 Generation usually takes a few minutes. You can leave this page and check your videos later.
