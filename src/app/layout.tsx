@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Bungee, DM_Mono, Nunito } from "next/font/google";
 import "./globals.css";
+import { AnalyticsConsent } from "@/components/analytics-consent";
 import { AppProviders } from "@/components/app-providers";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { WebPaymentScripts } from "@/components/web-payment-scripts";
+import { SITE_URL } from "@/lib/site";
 
 const nunito = Nunito({
   variable: "--font-nunito",
@@ -23,14 +25,12 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://rarely.cards",
-  ),
-  title: "Rarely — Not Built to Blend In",
+  metadataBase: new URL(SITE_URL),
+  title: "AI Talking Pet Video Generator — Rarely",
   description:
     "Turn one pet photo and one perfect line into an eight-second talking-pet video.",
   openGraph: {
-    title: "Rarely — Not Built to Blend In",
+    title: "AI Talking Pet Video Generator — Rarely",
     description:
       "Upload a pet photo, pick what they say, and get a vertical talking-pet video made for sharing.",
     url: "/",
@@ -59,7 +59,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Rarely — Not Built to Blend In",
+    title: "AI Talking Pet Video Generator — Rarely",
     description: "One pet photo. One perfect line. One tiny talking-pet video.",
     images: ["/social/rarely-pets.jpg"],
   },
@@ -82,12 +82,41 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: "Rarely",
+        url: SITE_URL,
+        logo: `${SITE_URL}/icons/rarely-512.png`,
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        name: "Rarely",
+        url: SITE_URL,
+        description:
+          "Turn one pet photo and one perfect line into an eight-second talking-pet video.",
+        publisher: { "@id": `${SITE_URL}/#organization` },
+      },
+    ],
+  };
+
   return (
     <html
       lang="en"
       className={`${nunito.variable} ${bungee.variable} ${dmMono.variable} h-full scroll-smooth antialiased`}
     >
       <body className="min-h-full overflow-x-hidden bg-background font-sans text-ink">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
         <AppProviders>
           {children}
           <ServiceWorkerRegistration />
@@ -99,6 +128,7 @@ export default function RootLayout({
                 : "sandbox"
             }
           />
+          {gaMeasurementId ? <AnalyticsConsent measurementId={gaMeasurementId} /> : null}
         </AppProviders>
       </body>
     </html>

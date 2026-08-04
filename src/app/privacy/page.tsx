@@ -2,13 +2,15 @@ import { LegalArticle, LegalEyebrow, LegalHeading, LegalShell, LegalTitle } from
 
 export const metadata = {
   title: "Privacy — Rarely",
+  description: "How Rarely handles pet photos, talking-pet videos, account data, payments, and website analytics.",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {
   return (
     <LegalShell>
       <LegalArticle>
-        <LegalEyebrow>EFFECTIVE JULY 30, 2026</LegalEyebrow>
+        <LegalEyebrow>EFFECTIVE AUGUST 4, 2026</LegalEyebrow>
         <LegalTitle>Privacy, without the fog.</LegalTitle>
         <p>
           Rarely turns one photograph of a cat or dog and a short line you
@@ -74,6 +76,18 @@ export default function PrivacyPage() {
           saved photo from your account and may request deletion of your account
           and retained results at amanmamgain9@gmail.com. Some transaction records
           must be retained where law requires.
+        </p>
+
+        <LegalHeading>Website analytics</LegalHeading>
+        <p>
+          If you choose “Allow analytics,” Google Analytics helps Rarely understand aggregate site
+          traffic, page use, and conversion steps. Google may receive device,
+          browser, approximate location, referral, and interaction data and may
+          use cookies or similar identifiers. Rarely does not intentionally send
+          pet names, email addresses, uploaded photos, generated lines, videos,
+          payment details, or other creative content to analytics. You can limit
+          this processing by choosing “No thanks,” clearing this site&apos;s browser
+          storage, using browser privacy controls, or using Google&apos;s analytics opt-out tools.
         </p>
 
         <LegalHeading>Age and changes</LegalHeading>

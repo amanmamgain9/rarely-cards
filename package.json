@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.13.0",
+    "@next/third-parties": "^16.3.0",
     "@paddle/paddle-js": "^1.6.4",
     "@paddle/paddle-node-sdk": "^3.8.0",
     "@sentry/nextjs": "^10.67.0",

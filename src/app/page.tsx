@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PublicRarityHome } from "@/components/rarity/public-rarity-home";
 import { hasPublicSupabaseEnv } from "@/lib/env";
 import { requireUser } from "@/lib/auth";
+
+export const metadata: Metadata = {
+  title: "AI Talking Pet Video Generator — Rarely",
+  description:
+    "Turn one cat or dog photo and one perfect line into an eight-second AI talking-pet video with sound.",
+  alternates: { canonical: "/" },
+};
 
 type HomeProps = {
   searchParams: Promise<{

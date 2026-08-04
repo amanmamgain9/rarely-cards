@@ -2,6 +2,8 @@ import { LegalArticle, LegalEyebrow, LegalHeading, LegalShell, LegalTitle } from
 
 export const metadata = {
   title: "Terms — Rarely",
+  description: "Terms for using Rarely to create AI talking-pet videos from your cat or dog photos.",
+  alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {
