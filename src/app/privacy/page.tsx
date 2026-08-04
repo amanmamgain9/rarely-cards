@@ -80,14 +80,14 @@ export default function PrivacyPage() {
 
         <LegalHeading>Website analytics</LegalHeading>
         <p>
-          If you choose “Allow analytics,” Google Analytics helps Rarely understand aggregate site
+          Google Analytics helps Rarely understand aggregate site
           traffic, page use, and conversion steps. Google may receive device,
           browser, approximate location, referral, and interaction data and may
           use cookies or similar identifiers. Rarely does not intentionally send
           pet names, email addresses, uploaded photos, generated lines, videos,
           payment details, or other creative content to analytics. You can limit
-          this processing by choosing “No thanks,” clearing this site&apos;s browser
-          storage, using browser privacy controls, or using Google&apos;s analytics opt-out tools.
+          this processing with browser privacy controls or Google&apos;s analytics
+          opt-out tools.
         </p>
 
         <LegalHeading>Age and changes</LegalHeading>

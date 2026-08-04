@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bungee, DM_Mono, Nunito } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
-import { AnalyticsConsent } from "@/components/analytics-consent";
 import { AppProviders } from "@/components/app-providers";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { WebPaymentScripts } from "@/components/web-payment-scripts";
@@ -128,9 +128,9 @@ export default function RootLayout({
                 : "sandbox"
             }
           />
-          {gaMeasurementId ? <AnalyticsConsent measurementId={gaMeasurementId} /> : null}
         </AppProviders>
       </body>
+      {gaMeasurementId ? <GoogleAnalytics gaId={gaMeasurementId} /> : null}
     </html>
   );
 }
