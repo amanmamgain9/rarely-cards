@@ -5,7 +5,7 @@ export function PublicHeader() {
     <header className="mx-auto grid min-h-20 w-[calc(100%-2.5rem)] max-w-[1180px] grid-cols-[auto_1fr_auto] items-center gap-7 rounded-2xl border-[3px] border-ink bg-cream/95 px-5 py-3 shadow-[6px_7px_0_#241a44] max-[900px]:grid-cols-[1fr_auto] max-[600px]:w-[calc(100%-1.75rem)] max-[600px]:gap-3 max-[600px]:px-3">
       <Link className="font-display text-2xl leading-none text-pink [text-shadow:2px_2px_0_#ffe36e] max-[600px]:text-xl" href="/">RARELY <span className="text-yellow">★</span></Link>
       <nav className="flex flex-wrap items-center justify-center gap-5 font-mono text-[10px] font-medium uppercase text-ink-muted max-[900px]:hidden" aria-label="Primary navigation">
-        <Link href="/talking-pet-video">How it works</Link>
+        <Link href="/guides">Guides</Link>
         <Link href="/pricing">Pricing</Link>
         <Link href="/refund-policy">Refunds</Link>
         <Link href="/privacy">Privacy</Link>
@@ -18,6 +18,7 @@ export function PublicHeader() {
 }
 
 const creationLinks = [
+  ["All guides", "/guides"],
   ["Talking pet videos", "/talking-pet-video"],
   ["Make your dog talk", "/make-dog-talk"],
   ["Make your cat talk", "/make-cat-talk"],

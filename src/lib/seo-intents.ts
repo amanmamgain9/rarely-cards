@@ -12,6 +12,9 @@ export type SeoIntent = {
   proofTitle: string;
   proofCopy: string;
   steps: Array<{ title: string; copy: string }>;
+  notesTitle: string;
+  notesIntro: string;
+  notes: Array<{ title: string; copy: string }>;
   ideasTitle: string;
   ideasIntro: string;
   ideas: Array<{ title: string; copy: string }>;
@@ -38,6 +41,14 @@ export const talkingPetVideo: SeoIntent = {
     { title: "Choose their photo", copy: "Use a clear photo where their face and expression feel unmistakably like them." },
     { title: "Pick their line", copy: "Choose a photo-specific suggestion or type your own line, up to 120 characters." },
     { title: "Save the video", copy: "Get an eight-second vertical MP4 with sound, ready for your camera roll or group chat." },
+  ],
+  notesTitle: "What makes the result believable?",
+  notesIntro:
+    "The model can create movement and speech, but the source photo and line still determine whether the result feels like your pet or like a generic animation.",
+  notes: [
+    { title: "Keep the face readable", copy: "Use one cat or dog with the eyes, muzzle, and outline of the head visible. Heavy blur, tiny subjects, covered faces, and multiple prominent pets give the model less identity to preserve." },
+    { title: "Match the line to the frame", copy: "A pet staring at a bowl supports a food complaint; a pet at a window supports an observation. Lines grounded in something visible usually feel more convincing than an unrelated joke." },
+    { title: "Write for eight seconds", copy: "Short speech sounds cleaner. Aim for one compact sentence that can be said naturally without rushing, even though the text field allows up to 120 characters." },
   ],
   ideasTitle: "What can a talking-pet video say?",
   ideasIntro: "The strongest lines sound like the voice you already use for them.",
@@ -75,6 +86,14 @@ export const makeDogTalk: SeoIntent = {
     { title: "Write their side of it", copy: "Use a suggested line or write the sentence your dog would absolutely say." },
     { title: "Send it to the group chat", copy: "Download the finished 9:16 MP4 or share it from your phone." },
   ],
+  notesTitle: "How to get a stronger talking-dog clip",
+  notesIntro:
+    "Dog faces move a lot even in still photos. Choose a frame where the expression is clear before asking the video to add speech.",
+  notes: [
+    { title: "Show the muzzle", copy: "A front-facing or gentle three-quarter angle gives the animation a clear mouth shape. Avoid hands, toys, blankets, or deep shadow covering the lower face." },
+    { title: "Use the situation", copy: "The couch, leash, empty plate, open car door, or guilty evidence already supplies the premise. Write the dog's response to that visible moment instead of forcing a random meme line." },
+    { title: "Keep the delivery simple", copy: "One sentence works better than a setup and punchline. Read it aloud once: if you naturally rush, shorten it before generating the video." },
+  ],
   ideasTitle: "Dog photos that work especially well",
   ideasIntro: "Choose personality over perfection. A specific moment gives the line somewhere to land.",
   ideas: [
@@ -110,6 +129,14 @@ export const makeCatTalk: SeoIntent = {
     { title: "Choose the stare", copy: "Pick a clear photo with visible eyes and face—side-eye and dramatic lighting are welcome." },
     { title: "Approve the statement", copy: "Choose a suggestion or enter the exact complaint, demand, or observation you hear." },
     { title: "Release it publicly", copy: "Save the vertical MP4, send it privately, or let the internet hear the verdict." },
+  ],
+  notesTitle: "How to keep a talking cat looking like your cat",
+  notesIntro:
+    "Cats communicate through small changes in eyes, ears, posture, and stillness. A restrained source image gives those details room to survive the animation.",
+  notes: [
+    { title: "Prioritize eyes and muzzle", copy: "Choose a sharp frame with the face large enough to read. Extreme profiles, closed eyes, motion blur, and paws covering the mouth make synchronized speech less reliable." },
+    { title: "Let the stare do the work", copy: "Cat humor usually lands through understatement. Connect the line to the bowl, keyboard, window, box, bed, or person already present in the photograph." },
+    { title: "Prefer dry, short lines", copy: "A concise verdict or demand fits the still expression better than a long speech. Keep punctuation simple so the spoken rhythm stays natural." },
   ],
   ideasTitle: "Cat moments worth giving a voice",
   ideasIntro: "The photo does not need to be posed. Ordinary cat politics are usually better.",
@@ -147,6 +174,14 @@ export const petBirthdayVideo: SeoIntent = {
     { title: "Write the birthday line", copy: "Add their name, an inside joke, a sweet message, or a suspicious demand for cake." },
     { title: "Deliver the surprise", copy: "Download the eight-second clip and send it on the birthday or share it with the party." },
   ],
+  notesTitle: "Build the birthday message around the recipient",
+  notesIntro:
+    "The useful part is not merely making an animal move. It is choosing a recognizable pet, a personal line, and a delivery that fits how the video will be shared.",
+  notes: [
+    { title: "Name the recipient", copy: "Put the person's name near the beginning of the line so the greeting feels direct immediately. Keep the rest short enough to sound like a toast rather than a speech." },
+    { title: "Use a real household joke", copy: "Reference walks, breakfast, lap access, stolen pillows, or another harmless ritual the recipient will recognize. Specificity makes a simple eight-second clip feel personal." },
+    { title: "Choose a clean photo", copy: "Use one clearly visible cat or dog, ideally facing the camera or turned slightly. A familiar everyday photo often works better than a crowded party image." },
+  ],
   ideasTitle: "Birthday lines with more personality",
   ideasIntro: "Keep it short enough to land like a toast, not a speech.",
   ideas: [
@@ -182,6 +217,14 @@ export const personalizedPetVideo: SeoIntent = {
     { title: "Use their real photo", copy: "Start with the cat or dog you know, not a stock character or a generic avatar." },
     { title: "Make the line specific", copy: "Use their nickname, favorite demand, sworn enemy, or particular household jurisdiction." },
     { title: "Keep the finished moment", copy: "Download the private 9:16 video and decide if, when, and where it gets shared." },
+  ],
+  notesTitle: "Where the personalization actually comes from",
+  notesIntro:
+    "A template changes a name. A useful personalized pet video combines the real animal, a recognizable moment, and words chosen by someone who knows them.",
+  notes: [
+    { title: "Start with identity", copy: "Use the original pet photo rather than a stock animal or generated character. Clear markings, eyes, accessories, and surroundings give the finished video details worth preserving." },
+    { title: "Add one private detail", copy: "A nickname, daily ritual, favorite object, or familiar demand can make a short line unmistakably theirs without turning it into a long explanation." },
+    { title: "Control where it goes", copy: "The source photo and completed video remain private to the account until you download or share them. Delete saved source material from the studio when you no longer want it kept." },
   ],
   ideasTitle: "Made for the moments outside a template",
   ideasIntro: "A personalized pet video works best when it could not belong to anybody else's animal.",
