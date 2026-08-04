@@ -41,6 +41,24 @@ export default function GuidesPage() {
         <div className="mx-auto w-[calc(100%-2.5rem)] max-w-[1120px] py-16 lg:py-20 max-sm:w-[calc(100%-1.75rem)]">
           <h2 className="sr-only" id="guides-list-title">Talking-pet video guides</h2>
           <div className="grid gap-x-8 gap-y-12 md:grid-cols-2">
+            <article className="group relative grid gap-5 border-t-2 border-ink pt-5 sm:grid-cols-[9rem_1fr]">
+              <div className="relative aspect-square overflow-hidden rounded-xl border-2 border-ink bg-yellow">
+                <Image
+                  alt=""
+                  className="object-cover transition duration-500 group-hover:scale-[1.03] motion-reduce:transition-none"
+                  fill
+                  sizes="144px"
+                  src="/social/rarely-pets.jpg"
+                />
+              </div>
+              <div>
+                <h2 className="text-xl font-black leading-tight">
+                  <Link className="after:absolute after:inset-0 hover:text-pink" href="/guides/pet-video-accents">How to choose your pet&apos;s AI voice accent</Link>
+                </h2>
+                <p className="mt-3 text-sm font-bold leading-[1.65] text-ink-muted">Make a talking-pet video in British English, American, neutral English, or French—and choose the delivery that fits the joke.</p>
+                <span className="mt-4 inline-block font-mono text-[8px] font-bold uppercase text-pink">Read guide →</span>
+              </div>
+            </article>
             {seoIntents.map((intent) => (
               <article className="group relative grid gap-5 border-t-2 border-ink pt-5 sm:grid-cols-[9rem_1fr]" key={intent.path}>
                 <div className="relative aspect-square overflow-hidden rounded-xl border-2 border-ink bg-purple">

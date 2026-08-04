@@ -28,6 +28,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
+      url: `${SITE_URL}/guides/pet-video-accents`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.8,
+      images: [`${SITE_URL}/social/rarely-pets.jpg`],
+    },
+    {
       url: `${SITE_URL}/pricing`,
       lastModified,
       changeFrequency: "monthly",

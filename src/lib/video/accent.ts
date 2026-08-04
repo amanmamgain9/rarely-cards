@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-export const petVoiceAccentSchema = z.enum(["english", "french"]);
+export const petVoiceAccentSchema = z.enum([
+  "english",
+  "american",
+  "neutral",
+  "french",
+]);
 
 export type PetVoiceAccent = z.infer<typeof petVoiceAccentSchema>;
 
@@ -14,9 +19,21 @@ export const PET_VOICE_ACCENTS: ReadonlyArray<{
 }> = [
   {
     value: "english",
-    label: "English",
+    label: "British English",
     sample: "Hello",
     recognitionLanguage: "en-GB",
+  },
+  {
+    value: "american",
+    label: "American",
+    sample: "Hey there",
+    recognitionLanguage: "en-US",
+  },
+  {
+    value: "neutral",
+    label: "Neutral",
+    sample: "Hello",
+    recognitionLanguage: "en-US",
   },
   {
     value: "french",

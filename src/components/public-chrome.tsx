@@ -19,6 +19,7 @@ export function PublicHeader() {
 
 const creationLinks = [
   ["All guides", "/guides"],
+  ["Pet voice accents", "/guides/pet-video-accents"],
   ["Talking pet videos", "/talking-pet-video"],
   ["Make your dog talk", "/make-dog-talk"],
   ["Make your cat talk", "/make-cat-talk"],
