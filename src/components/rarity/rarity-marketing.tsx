@@ -23,6 +23,7 @@ export function RarityMarketing() {
                 alt="Cat watching a pink sunset through an open window"
                 fill
                 sizes="(max-width: 760px) 92vw, 30vw"
+                className="object-cover"
               />
               <figcaption className="absolute bottom-3 left-3 rounded bg-yellow px-2 py-1 font-mono text-[8px] font-bold">ONE CLEAR CAT OR DOG</figcaption>
             </figure>
@@ -37,6 +38,7 @@ export function RarityMarketing() {
                 alt="Beagle looking directly into the camera"
                 fill
                 sizes="(max-width: 760px) 92vw, 30vw"
+                className="object-cover"
               />
               <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-1" aria-hidden="true">
                 {['AURA', 'SCENE LORE', 'DRAMA', 'GAZE'].map((tag) => <i className="rounded bg-ink px-2 py-1 font-mono text-[7px] not-italic text-white" key={tag}>{tag}</i>)}
@@ -53,6 +55,7 @@ export function RarityMarketing() {
                 alt="A vertical talking-pet video preview"
                 fill
                 sizes="(max-width: 760px) 92vw, 30vw"
+                className="object-cover"
               />
               <span className="absolute left-3 top-3 rounded bg-ink/80 px-2 py-1 font-mono text-[7px] text-white">RARELY · ORIGINAL AUDIO</span>
               <blockquote className="absolute bottom-4 left-3 right-3 m-0 font-display text-lg leading-tight text-white [text-shadow:1px_1px_0_#241a44]">“I was watching the sunset. You interrupted.”</blockquote>
