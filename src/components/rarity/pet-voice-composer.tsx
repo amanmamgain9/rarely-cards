@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  speechRecognitionLanguage,
+  type PetVoiceAccent,
+} from "@/lib/video/accent";
 
 type SpeechRecognitionEventLike = {
   results: ArrayLike<{
@@ -35,17 +39,19 @@ type SpeechWindow = Window & {
 type PetVoiceComposerProps = {
   value: string;
   onChange: (value: string) => void;
+  accent: PetVoiceAccent;
 };
 
 export function PetVoiceComposer({
   value,
   onChange,
+  accent,
 }: PetVoiceComposerProps) {
   const [mode, setMode] = useState<"voice" | "text">("voice");
   const [listening, setListening] = useState(false);
   const [speechAvailable, setSpeechAvailable] = useState(true);
   const [speechMessage, setSpeechMessage] = useState(
-    "Tap the mic, then say the exact line.",
+    "Tap, then speak.",
   );
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const updateLineFromSpeech = useEffectEvent((line: string) => {
@@ -69,18 +75,18 @@ export function PetVoiceComposer({
     const recognition = new Recognition();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = document.documentElement.lang || "en-US";
+    recognition.lang = "en-GB";
     recognition.onresult = (event) => {
       const transcript = event.results[0]?.[0]?.transcript?.trim();
       if (transcript) updateLineFromSpeech(transcript.slice(0, 120));
-      setSpeechMessage("Got it. Tap the mic to say it again.");
+      setSpeechMessage("Got it. Tap to redo.");
     };
     recognition.onerror = (event) => {
       setListening(false);
       setSpeechMessage(
         event.error === "not-allowed"
           ? "Microphone access is off. Use text instead."
-          : "I did not catch that. Tap the mic and try again.",
+          : "Didn’t catch that. Try again.",
       );
     };
     recognition.onend = () => setListening(false);
@@ -97,6 +103,12 @@ export function PetVoiceComposer({
     };
   }, []);
 
+  useEffect(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.lang = speechRecognitionLanguage(accent);
+    }
+  }, [accent]);
+
   function toggleListening() {
     const recognition = recognitionRef.current;
     if (!recognition) {
@@ -107,13 +119,13 @@ export function PetVoiceComposer({
       recognition.stop();
       return;
     }
-    setSpeechMessage("Listening… say their line.");
+    setSpeechMessage("Listening…");
     setListening(true);
     try {
       recognition.start();
     } catch {
       setListening(false);
-      setSpeechMessage("Tap once more when you are ready.");
+      setSpeechMessage("Tap again.");
     }
   }
 
@@ -127,7 +139,7 @@ export function PetVoiceComposer({
           disabled={!speechAvailable}
           aria-pressed={mode === "voice"}
         >
-          Use my voice
+          Speak
         </button>
         <button
           type="button"
@@ -135,7 +147,7 @@ export function PetVoiceComposer({
           onClick={() => setMode("text")}
           aria-pressed={mode === "text"}
         >
-          Type instead
+          Type
         </button>
       </div>
 
@@ -155,14 +167,14 @@ export function PetVoiceComposer({
             </svg>
           </button>
           <div className="grid gap-1">
-            <strong className="text-sm">{listening ? "I’m listening" : "Say it out loud"}</strong>
+            <strong className="text-sm">{listening ? "Listening" : "Say their line"}</strong>
             <span className="text-xs text-white/60" aria-live="polite">{speechMessage}</span>
           </div>
           {value && <p className="col-span-2 m-0 rounded-lg bg-white/10 p-3 text-sm font-bold">“{value}”</p>}
         </div>
       ) : (
         <label className="grid gap-2 p-4">
-          <span className="font-mono text-[9px] uppercase text-white/60">What should they say?</span>
+          <span className="sr-only">Their line</span>
           <textarea
             className="min-h-24 resize-none rounded-lg border border-white/20 bg-white/10 p-3 text-sm font-bold text-white outline-none placeholder:text-white/35 focus:border-purple"
             value={value}

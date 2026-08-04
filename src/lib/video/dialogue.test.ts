@@ -11,9 +11,9 @@ describe("talking-pet dialogue", () => {
   it("accepts one suggestion for every simple tone", () => {
     expect(
       petDialogueSuggestionsSchema.parse([
-        { tone: "funny", line: "I was told there would be snacks." },
-        { tone: "sweet", line: "This is my favorite place because you are here." },
-        { tone: "chaotic", line: "Open the door. I have plans." },
+        { tone: "funny", line: "Mommy, this face deserves at least one snack." },
+        { tone: "sweet", line: "Mommy, every quiet moment is better beside you." },
+        { tone: "chaotic", line: "Mommy, come back. I have reorganized everything." },
       ]),
     ).toHaveLength(3);
   });
@@ -26,6 +26,24 @@ describe("talking-pet dialogue", () => {
   it("grounds suggestions in the photograph", () => {
     expect(buildDialogueSuggestionPrompt()).toContain("visible details");
     expect(buildDialogueSuggestionPrompt()).toContain("Never invent pet dialogue");
+    expect(buildDialogueSuggestionPrompt()).toContain("pet-to-Mommy keepsake flow");
+    expect(buildDialogueSuggestionPrompt()).toContain("never shame Mommy");
+  });
+
+  it("rejects low-quality generated dialogue", () => {
+    expect(
+      petDialogueSuggestionsSchema.safeParse([
+        { tone: "funny", line: 'Mommy said "snacks".' },
+        { tone: "sweet", line: "Mommy, I love sitting here with you every single afternoon because you are my favorite person." },
+        { tone: "chaotic", line: "Mommy said snacks." },
+      ]).success,
+    ).toBe(false);
+  });
+
+  it("adds a validation reminder when Gemini retries", () => {
+    expect(buildDialogueSuggestionPrompt({ retry: true })).toContain(
+      "previous answer failed validation",
+    );
   });
 
   it("gives Gemini accepted and rejected structured-output paths", () => {
@@ -36,11 +54,11 @@ describe("talking-pet dialogue", () => {
         suggestions: {
           minItems: 3,
           maxItems: 3,
-          prefixItems: [
-            { properties: { tone: { enum: ["funny"] } } },
-            { properties: { tone: { enum: ["sweet"] } } },
-            { properties: { tone: { enum: ["chaotic"] } } },
-          ],
+          items: {
+            properties: {
+              tone: { enum: ["funny", "sweet", "chaotic"] },
+            },
+          },
         },
       },
     });

@@ -8,6 +8,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { petDialogueSuggestionsSchema } from "@/lib/video/dialogue";
 
 const routeIdSchema = z.string().uuid();
+const dialogueRequestSchema = z.object({
+  regenerate: z.boolean().optional().default(false),
+});
 type RouteContext = { params: Promise<{ id: string }> };
 
 export const maxDuration = 60;
@@ -20,6 +23,12 @@ export async function POST(request: Request, context: RouteContext) {
       { error: "Gemini suggestions are not configured yet." },
       { status: 503 },
     );
+  }
+  const body = dialogueRequestSchema.safeParse(
+    await request.json().catch(() => ({})),
+  );
+  if (!body.success) {
+    return Response.json({ error: "Invalid suggestion request." }, { status: 400 });
   }
 
   const limit = await checkRateLimit({
@@ -48,7 +57,7 @@ export async function POST(request: Request, context: RouteContext) {
   const existing = petDialogueSuggestionsSchema.safeParse(
     analysis.dialogue_suggestions,
   );
-  if (existing.success) {
+  if (existing.success && !body.data.regenerate) {
     return Response.json({ status: "accepted", suggestions: existing.data });
   }
   if (!["awaiting_name", "awaiting_payment"].includes(analysis.status)) {
@@ -91,13 +100,16 @@ export async function POST(request: Request, context: RouteContext) {
       return Response.json(result);
     }
     const suggestions = result.suggestions;
-    const { data: saved, error: saveError } = await admin
+    let saveQuery = admin
       .from("analysis_requests")
       .update({ dialogue_suggestions: suggestions })
       .eq("id", analysis.id)
       .eq("user_id", user.id)
-      .in("status", ["awaiting_name", "awaiting_payment"])
-      .is("dialogue_suggestions", null)
+      .in("status", ["awaiting_name", "awaiting_payment"]);
+    if (!body.data.regenerate) {
+      saveQuery = saveQuery.is("dialogue_suggestions", null);
+    }
+    const { data: saved, error: saveError } = await saveQuery
       .select("dialogue_suggestions")
       .maybeSingle();
     if (saveError) throw new Error("dialogue_suggestions_store_failed");

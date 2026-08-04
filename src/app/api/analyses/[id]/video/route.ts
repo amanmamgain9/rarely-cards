@@ -11,6 +11,10 @@ import {
 } from "@/lib/video/generation";
 import { buildPetVideoPrompt } from "@/lib/video/prompt";
 import { petDialogueSchema } from "@/lib/video/dialogue";
+import {
+  DEFAULT_PET_VOICE_ACCENT,
+  petVoiceAccentSchema,
+} from "@/lib/video/accent";
 import { petPronounsSchema } from "@/lib/analysis/types";
 import { ensureDevelopmentVideoCredits } from "@/lib/payments/development-credits";
 import { submitSeedanceVideo } from "@/lib/video/submission";
@@ -27,6 +31,7 @@ const createVideoSchema = z.object({
   dialogue: petDialogueSchema.optional(),
   petName: z.string().trim().min(1).max(30).optional(),
   petPronouns: petPronounsSchema.exclude(["they"]),
+  voiceAccent: petVoiceAccentSchema.default(DEFAULT_PET_VOICE_ACCENT),
 });
 
 export async function GET(request: Request, context: RouteContext) {
@@ -187,7 +192,12 @@ export async function POST(request: Request, context: RouteContext) {
   if (genderSaveError || !genderSaved) {
     return Response.json({ error: "This pet is no longer ready for a video." }, { status: 409 });
   }
-  const prompt = buildPetVideoPrompt({ petName, dialogue, petPronouns });
+  const prompt = buildPetVideoPrompt({
+    petName,
+    dialogue,
+    petPronouns,
+    voiceAccent: body.data.voiceAccent,
+  });
   const providerConfig = seedanceEnv();
   const { data: reservation, error: reservationError } = await admin.rpc(
     "reserve_and_create_talking_video",

@@ -30,7 +30,11 @@ export async function suggestPetDialogue(
           {
             role: "user",
             parts: [
-              { text: buildDialogueSuggestionPrompt() },
+              {
+                text: buildDialogueSuggestionPrompt({
+                  retry: schemaRetries > 0,
+                }),
+              },
               {
                 inlineData: {
                   mimeType: "image/jpeg",
@@ -43,14 +47,22 @@ export async function suggestPetDialogue(
         config: {
           responseMimeType: "application/json",
           responseJsonSchema: petDialogueResultJsonSchema,
+          temperature: 0.65,
         },
       });
       try {
-        return petDialogueResultSchema.parse(
+        const result = petDialogueResultSchema.parse(
           JSON.parse(response.text ?? ""),
         );
+        if (result.status === "accepted") {
+          const toneOrder = { funny: 0, sweet: 1, chaotic: 2 } as const;
+          result.suggestions.sort(
+            (left, right) => toneOrder[left.tone] - toneOrder[right.tone],
+          );
+        }
+        return result;
       } catch {
-        if (schemaRetries >= 1) throw new Error("invalid_dialogue_schema");
+        if (schemaRetries >= 2) throw new Error("invalid_dialogue_schema");
         schemaRetries += 1;
       }
     } catch (error) {

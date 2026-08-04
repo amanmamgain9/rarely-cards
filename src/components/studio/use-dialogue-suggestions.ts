@@ -31,7 +31,11 @@ export function useDialogueSuggestions({
   useEffect(() => {
     if (!enabled || !analysisId || suggestions.length > 0) return;
     let cancelled = false;
-    void fetch(`/api/analyses/${analysisId}/dialogue`, { method: "POST" })
+    void fetch(`/api/analyses/${analysisId}/dialogue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ regenerate: attempt > 0 }),
+    })
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -76,6 +80,8 @@ export function useDialogueSuggestions({
   const retry = useCallback(() => {
     onMessage(null);
     setBusy(true);
+    setSuggestions([]);
+    setSelected("");
     setAttempt((current) => current + 1);
   }, [onMessage]);
   const reset = useCallback((options?: { busy?: boolean }) => {

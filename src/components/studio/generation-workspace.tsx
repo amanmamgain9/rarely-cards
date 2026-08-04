@@ -17,6 +17,10 @@ import {
   createAnalysisFromPhoto,
 } from "@/lib/analysis/client";
 import type { PetPronouns } from "@/lib/analysis/types";
+import {
+  DEFAULT_PET_VOICE_ACCENT,
+  type PetVoiceAccent,
+} from "@/lib/video/accent";
 import { StudioHeader } from "@/components/studio-header";
 import { RarityFlowLayers } from "@/components/rarity/rarity-flow-layers";
 import { VideoWorkspace } from "@/components/rarity/video-workspace";
@@ -57,6 +61,9 @@ export function GenerationWorkspace({
   const [petName, setPetName] = useState(initialAnalysis?.petName ?? "");
   const [petPronouns, setPetPronouns] = useState<PetPronouns | null>(
     initialAnalysis?.petPronouns ?? null,
+  );
+  const [voiceAccent, setVoiceAccent] = useState<PetVoiceAccent>(
+    DEFAULT_PET_VOICE_ACCENT,
   );
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -187,6 +194,7 @@ export function GenerationWorkspace({
           petName: name,
           dialogue: chosenDialogue,
           petPronouns,
+          voiceAccent,
         }),
       });
       const payload = await response.json();
@@ -284,6 +292,8 @@ export function GenerationWorkspace({
           onSelectDialogue={selectDialogue}
           customDialogue={customDialogue}
           onCustomDialogueChange={writeCustomDialogue}
+          voiceAccent={voiceAccent}
+          onVoiceAccentChange={setVoiceAccent}
           petPronouns={petPronouns}
           onPetPronounsChange={setPetPronouns}
           suggestionsBusy={suggestionsBusy}
