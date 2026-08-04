@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bungee, DM_Mono, Nunito } from "next/font/google";
-import { GoogleAnalytics } from "@next/third-parties/google";
+import Script from "next/script";
 import "./globals.css";
 import { AppProviders } from "@/components/app-providers";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
@@ -83,6 +83,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  const gaMeasurementIdJson = JSON.stringify(gaMeasurementId);
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -130,7 +131,30 @@ export default function RootLayout({
           />
         </AppProviders>
       </body>
-      {gaMeasurementId ? <GoogleAnalytics gaId={gaMeasurementId} /> : null}
+      {gaMeasurementId ? (
+        <>
+          <Script
+            id="google-analytics-init"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){window.dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', ${gaMeasurementIdJson}, {
+                  allow_google_signals: false,
+                  allow_ad_personalization_signals: false
+                });
+              `,
+            }}
+          />
+          <Script
+            id="google-analytics"
+            strategy="afterInteractive"
+            src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaMeasurementId)}`}
+          />
+        </>
+      ) : null}
     </html>
   );
 }
