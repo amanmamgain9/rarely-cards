@@ -26,42 +26,42 @@ const dmMono = DM_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "AI Talking Pet Video Generator — Rarely",
+  title: "AI Talking Pet & Birthday Video Maker — Rarely",
   description:
-    "Turn one pet photo and one perfect line into an eight-second talking-pet video.",
+    "Make AI talking-pet and personalized pet birthday videos from your photos. Download short MP4 videos with sound.",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      noimageindex: false,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   openGraph: {
-    title: "AI Talking Pet Video Generator — Rarely",
+    title: "AI Talking Pet & Birthday Video Maker — Rarely",
     description:
-      "Upload a pet photo, pick what they say, and get a vertical talking-pet video made for sharing.",
+      "Make talking-pet and personalized pet birthday videos from your photos.",
     url: "/",
     siteName: "Rarely",
     type: "website",
     images: [
       {
-        url: "/social/rarely-pets.jpg",
+        url: "/social/og-home.jpg",
         width: 1200,
         height: 630,
-        alt: "Rarely talking-pet video featuring a cat at sunset and a dog carrying a flower",
-      },
-      {
-        url: "/social/rarely-dog.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Rarely talking-dog video",
-      },
-      {
-        url: "/social/rarely-cat.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Rarely talking-cat video",
+        alt: "Rarely talking-pet and personalized pet birthday video examples",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI Talking Pet Video Generator — Rarely",
-    description: "One pet photo. One perfect line. One tiny talking-pet video.",
-    images: ["/social/rarely-pets.jpg"],
+    title: "AI Talking Pet & Birthday Video Maker — Rarely",
+    description: "Make talking-pet and personalized pet birthday videos from your photos.",
+    images: ["/social/og-home.jpg"],
   },
   appleWebApp: {
     capable: true,
@@ -100,7 +100,7 @@ export default function RootLayout({
         name: "Rarely",
         url: SITE_URL,
         description:
-          "Turn one pet photo and one perfect line into an eight-second talking-pet video.",
+          "Make AI talking-pet and personalized pet birthday videos from your photos.",
         publisher: { "@id": `${SITE_URL}/#organization` },
       },
     ],

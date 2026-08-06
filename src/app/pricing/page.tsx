@@ -8,9 +8,28 @@ import {
 import { PublicFooter, PublicHeader } from "@/components/public-chrome";
 
 export const metadata: Metadata = {
-  title: "Pricing — Rarely",
+  title: "Talking Pet Video Pricing — 3 Videos for $10 | Rarely",
   description: "Three AI talking-pet videos for $10. No subscription.",
   alternates: { canonical: "/pricing" },
+  openGraph: {
+    title: "Talking Pet Video Pricing — 3 Videos for $10 | Rarely",
+    description: "Get three AI talking-pet videos for $10. Pay once with no subscription.",
+    url: "/pricing",
+    siteName: "Rarely",
+    type: "website",
+    images: [{
+      url: "/social/og-pricing.jpg",
+      width: 1200,
+      height: 630,
+      alt: "Rarely pricing: three talking-pet videos for $10 with no subscription",
+    }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Talking Pet Video Pricing — 3 Videos for $10 | Rarely",
+    description: "Get three AI talking-pet videos for $10. Pay once with no subscription.",
+    images: ["/social/og-pricing.jpg"],
+  },
 };
 
 const included = [

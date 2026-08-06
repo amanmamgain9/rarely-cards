@@ -8,6 +8,8 @@ export type SeoIntent = {
   intro: string;
   image: string;
   imageAlt: string;
+  socialImage: string;
+  socialImageAlt: string;
   quote: string;
   proofTitle: string;
   proofCopy: string;
@@ -33,6 +35,8 @@ export const talkingPetVideo: SeoIntent = {
     "Upload one clear cat or dog photo, choose a line inspired by the look—or write your own—and Rarely turns it into a vertical talking-pet video made to save, send, or post.",
   image: "/pets/window-cat.jpg",
   imageAlt: "Cat looking through a window, ready to become a talking-pet video",
+  socialImage: "/social/og-talking-pet.jpg",
+  socialImageAlt: "Make your pet talk with Rarely using one photo and your own words",
   quote: "I was watching the sunset. You interrupted.",
   proofTitle: "How does an AI talking pet video work?",
   proofCopy:
@@ -77,6 +81,8 @@ export const makeDogTalk: SeoIntent = {
     "Choose the grin, guilty stare, dramatic nap, or dinner-time face everyone recognizes. Add the words, and Rarely turns that one dog photo into a short talking video.",
   image: "/pets/quiet-dog.jpg",
   imageAlt: "Beagle looking at the camera for a talking-dog video",
+  socialImage: "/social/og-talking-dog.jpg",
+  socialImageAlt: "Make your dog talk with Rarely using one photo and your own words",
   quote: "I heard the rule. I simply rejected it.",
   proofTitle: "How do I make my dog talk in a video?",
   proofCopy:
@@ -121,6 +127,8 @@ export const makeCatTalk: SeoIntent = {
     "Upload the stare, loaf, window watch, or carefully staged act of indifference. Choose what your cat says and turn the photo into a tiny talking-cat video.",
   image: "/pets/window-cat.jpg",
   imageAlt: "Cat watching the sunset for a talking-cat video",
+  socialImage: "/social/og-talking-cat.jpg",
+  socialImageAlt: "Make your cat talk with Rarely using one photo and your own words",
   quote: "This meeting could have been an open can.",
   proofTitle: "How do I make my cat talk in a video?",
   proofCopy:
@@ -165,6 +173,8 @@ export const petBirthdayVideo: SeoIntent = {
     "Bring one to six familiar pets into a single candid birthday scene. One delivers your exact greeting while the others stay naturally themselves—and the whole crew joins the finish.",
   image: "/pets/golden-dog.jpg",
   imageAlt: "Golden dog in flowers for a personalized pet birthday video",
+  socialImage: "/social/og-pet-birthday.jpg",
+  socialImageAlt: "Create a personalized pet birthday video with one to six pets",
   quote: "Happy birthday. I got you the gift of my presence.",
   proofTitle: "How does a personalized pet birthday video work?",
   proofCopy:
@@ -210,6 +220,8 @@ export const personalizedPetVideo: SeoIntent = {
     "Use the photograph, expression, and private voice everyone around your pet already knows. Rarely turns them into a short video that feels made for one camera roll, one household, and one group chat.",
   image: "/pets/quiet-dog.jpg",
   imageAlt: "Beagle portrait used to create a personalized pet video",
+  socialImage: "/social/og-talking-pet.jpg",
+  socialImageAlt: "Create a personalized talking-pet video with Rarely",
   quote: "I do not follow you everywhere. I supervise locally.",
   proofTitle: "What makes the pet video personalized?",
   proofCopy:

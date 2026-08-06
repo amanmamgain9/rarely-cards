@@ -16,7 +16,18 @@ export const metadata: Metadata = {
     url: "/guides",
     siteName: "Rarely",
     type: "website",
-    images: ["/social/rarely-pets.jpg"],
+    images: [{
+      url: "/social/og-talking-pet.jpg",
+      width: 1200,
+      height: 630,
+      alt: "Rarely guides for making talking-pet videos from one photo",
+    }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Talking Pet Video Guides — Rarely",
+    description: "Practical guides for talking-cat, talking-dog, personalized pet, and pet birthday videos.",
+    images: ["/social/og-talking-pet.jpg"],
   },
 };
 
@@ -44,7 +55,7 @@ export default function GuidesPage() {
                   className="object-cover transition duration-500 group-hover:scale-[1.03] motion-reduce:transition-none"
                   fill
                   sizes="144px"
-                  src="/social/rarely-pets.jpg"
+                  src="/social/og-voice-accents.jpg"
                 />
               </div>
               <div className="min-w-0">

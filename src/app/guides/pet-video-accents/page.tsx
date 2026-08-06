@@ -7,34 +7,34 @@ import { SITE_URL } from "@/lib/site";
 const path = "/guides/pet-video-accents";
 
 export const metadata: Metadata = {
-  title: "AI Talking Pet Videos With Different Accents — Rarely",
+  title: "Talking Pet Video Voice Accents — Rarely",
   description:
     "Learn how to create an AI talking-pet video and choose a British English, American, neutral English, or French voice accent.",
   alternates: { canonical: path },
   openGraph: {
-    title: "Which accent sounds like your pet?",
+    title: "Talking Pet Video Voice Accents — Rarely",
     description:
-      "Turn one pet photo into a talking video, then choose the voice delivery that fits their personality.",
+      "Choose British English, American, neutral English, or French for your talking-pet video.",
     url: path,
     siteName: "Rarely",
     type: "article",
     publishedTime: "2026-08-04T00:00:00.000Z",
-    modifiedTime: "2026-08-04T00:00:00.000Z",
+    modifiedTime: "2026-08-06T00:00:00.000Z",
     images: [
       {
-        url: "/social/rarely-pets.jpg",
+        url: "/social/og-voice-accents.jpg",
         width: 1200,
         height: 630,
-        alt: "A cat and dog ready to become AI talking-pet videos",
+        alt: "Four voice accent options for a Rarely talking-pet video",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Which accent sounds like your pet?",
+    title: "Talking Pet Video Voice Accents — Rarely",
     description:
       "Create a talking-pet video with a British English, American, neutral English, or French accent.",
-    images: ["/social/rarely-pets.jpg"],
+    images: ["/social/og-voice-accents.jpg"],
   },
 };
 
@@ -73,11 +73,11 @@ export default function PetVideoAccentsGuide() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
-    headline: "How to create an AI talking-pet video with the right accent",
+    headline: "Talking pet video voice accents",
     description: metadata.description,
     datePublished: "2026-08-04",
-    dateModified: "2026-08-04",
-    image: `${SITE_URL}/social/rarely-pets.jpg`,
+    dateModified: "2026-08-06",
+    image: `${SITE_URL}/social/og-voice-accents.jpg`,
     mainEntityOfPage: `${SITE_URL}${path}`,
     author: { "@type": "Organization", name: "Rarely" },
     publisher: { "@type": "Organization", name: "Rarely" },

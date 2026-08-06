@@ -17,17 +17,17 @@ export function intentMetadata(intent: SeoIntent): Metadata {
       siteName: "Rarely",
       type: "website",
       images: [{
-        url: "/social/rarely-pets.jpg",
+        url: intent.socialImage,
         width: 1200,
         height: 630,
-        alt: "Rarely AI talking-pet video examples",
+        alt: intent.socialImageAlt,
       }],
     },
     twitter: {
       card: "summary_large_image",
       title: `${intent.title} — Rarely`,
       description: intent.description,
-      images: ["/social/rarely-pets.jpg"],
+      images: [intent.socialImage],
     },
   };
 }
@@ -46,7 +46,7 @@ function JsonLd({ intent }: { intent: SeoIntent }) {
         about: { "@id": `${SITE_URL}/#app` },
         primaryImageOfPage: {
           "@type": "ImageObject",
-          url: `${SITE_URL}${intent.image}`,
+          url: `${SITE_URL}${intent.socialImage}`,
         },
       },
       {

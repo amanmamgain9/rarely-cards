@@ -3,14 +3,49 @@ import { InstagramBrowserHandoff } from "@/components/birthday/instagram-browser
 import { PublicFooter, PublicHeader } from "@/components/public-chrome";
 import { intentMetadata } from "@/components/seo/intent-page";
 import { petBirthdayVideo } from "@/lib/seo-intents";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata = intentMetadata(petBirthdayVideo);
 
 const studioHref = "/studio/birthday?source=instagram-birthday-ad";
 
 export default function PetBirthdayVideoPage() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": `${SITE_URL}/pet-birthday-video#page`,
+        name: petBirthdayVideo.title,
+        url: `${SITE_URL}/pet-birthday-video`,
+        description: petBirthdayVideo.description,
+        primaryImageOfPage: {
+          "@type": "ImageObject",
+          url: `${SITE_URL}${petBirthdayVideo.socialImage}`,
+        },
+      },
+      {
+        "@type": "VideoObject",
+        name: "Personalized pet birthday video example",
+        description: "Five cats appear together in a personalized Rarely birthday video with a spoken greeting.",
+        thumbnailUrl: `${SITE_URL}/birthday/five-cats-demo-poster.jpg`,
+        uploadDate: "2026-08-06T00:00:00.000Z",
+        duration: "PT10S",
+        contentUrl: `${SITE_URL}/birthday/five-cats-demo.mp4`,
+        embedUrl: `${SITE_URL}/pet-birthday-video`,
+        mainEntityOfPage: { "@id": `${SITE_URL}/pet-birthday-video#page` },
+      },
+    ],
+  };
+
   return (
     <main className="min-h-svh overflow-hidden bg-[#fffaf1] text-ink">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
       <InstagramBrowserHandoff />
       <div className="pt-6">
         <PublicHeader ctaHref={studioHref} ctaLabel="Make birthday video →" />

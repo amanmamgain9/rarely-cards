@@ -3,11 +3,12 @@ import { redirect } from "next/navigation";
 import { PublicRarityHome } from "@/components/rarity/public-rarity-home";
 import { hasPublicSupabaseEnv } from "@/lib/env";
 import { requireUser } from "@/lib/auth";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "AI Talking Pet Video Generator — Rarely",
+  title: "AI Talking Pet & Birthday Video Maker — Rarely",
   description:
-    "Turn one cat or dog photo and one perfect line into an eight-second AI talking-pet video with sound.",
+    "Make AI talking-pet and personalized pet birthday videos from your photos. Download short MP4 videos with sound.",
   alternates: { canonical: "/" },
 };
 
@@ -36,21 +37,41 @@ export default async function Home({ searchParams }: HomeProps) {
     if (user) redirect(returnTo);
   }
 
+  const videoJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: "AI talking pet video example",
+    description: "A smiling corgi talks in an eight-second Rarely video made from one pet photo.",
+    thumbnailUrl: `${SITE_URL}/examples/talking-corgi-poster.jpg`,
+    uploadDate: "2026-08-06T00:00:00.000Z",
+    duration: "PT8S",
+    contentUrl: `${SITE_URL}/examples/talking-corgi.mp4`,
+    embedUrl: SITE_URL,
+  };
+
   return (
-    <PublicRarityHome
-      supabaseConfigured={supabaseConfigured}
-      returnTo={returnTo}
-      openSignIn={
-        params.signin === "1" ||
-        (Array.isArray(params.signin) && params.signin.includes("1"))
-      }
-      authError={
-        params.auth_error === "missing_code"
-          ? "That sign-in link is incomplete. Request a new one."
-          : params.auth_error === "callback_failed"
-            ? "That sign-in could not be completed. Try again."
-            : null
-      }
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(videoJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
+      <PublicRarityHome
+        supabaseConfigured={supabaseConfigured}
+        returnTo={returnTo}
+        openSignIn={
+          params.signin === "1" ||
+          (Array.isArray(params.signin) && params.signin.includes("1"))
+        }
+        authError={
+          params.auth_error === "missing_code"
+            ? "That sign-in link is incomplete. Request a new one."
+            : params.auth_error === "callback_failed"
+              ? "That sign-in could not be completed. Try again."
+              : null
+        }
+      />
+    </>
   );
 }
