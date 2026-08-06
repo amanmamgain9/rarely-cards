@@ -57,8 +57,8 @@ export function StudioVideoPending({
       </strong>
       <p className="mt-2 text-sm font-bold text-white/80">
         {failed
-          ? "This video could not be generated."
-          : "This page will update when the video finishes."}
+          ? "Your credit was returned."
+          : "You can leave—this updates automatically."}
       </p>
     </div>
   );

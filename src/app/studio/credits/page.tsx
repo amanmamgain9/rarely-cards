@@ -36,8 +36,17 @@ export default async function StudioCreditsPage({
     redirect("/studio");
   }
   if (draft && creditBalance > 0) {
-    redirect(`/studio/generate?draft=${draft.id}`);
+    redirect(
+      draft.experienceKind === "birthday_video"
+        ? `/studio/birthday?draft=${draft.id}`
+        : `/studio/generate?draft=${draft.id}`,
+    );
   }
+  const draftReturnTo = draft
+    ? draft.experienceKind === "birthday_video"
+      ? `/studio/birthday?draft=${draft.id}`
+      : `/studio/generate?draft=${draft.id}`
+    : "/studio";
 
   return (
     <main className="min-h-svh bg-background text-ink">
@@ -69,7 +78,7 @@ export default async function StudioCreditsPage({
                   ? "production"
                   : "sandbox"
               }
-              redirectTo={draft ? `/studio/generate?draft=${draft.id}` : "/studio"}
+              redirectTo={draftReturnTo}
             />
             {draft && (
               <Link className="mt-4 min-h-9 text-center text-xs font-black text-ink-muted underline decoration-2 underline-offset-4 hover:text-pink" href="/studio">

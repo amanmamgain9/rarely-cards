@@ -37,7 +37,7 @@ type AnalysisRequestRow = {
   id: string;
   user_id: string;
   card_style: CardStyle;
-  experience_kind: "card" | "talking_video";
+  experience_kind: "card" | "talking_video" | "birthday_video";
   pet_name: string | null;
   pet_pronouns: "he" | "she" | "they" | null;
   status: AnalysisStatus;
@@ -86,7 +86,7 @@ type AnalysisRequestInsert = {
   id?: string;
   user_id: string;
   card_style: CardStyle;
-  experience_kind?: "card" | "talking_video";
+  experience_kind?: "card" | "talking_video" | "birthday_video";
   pet_name?: string | null;
   pet_pronouns?: "he" | "she" | "they" | null;
   status?: AnalysisStatus;
@@ -321,6 +321,28 @@ export type Database = {
           expires_at: string;
         };
         Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      product_feedback: {
+        Row: {
+          id: string;
+          user_id: string;
+          video_generation_id: string | null;
+          kind: "video_experience" | "feature_request";
+          rating: "loved" | "okay" | "needs_work" | null;
+          message: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          video_generation_id?: string | null;
+          kind: "video_experience" | "feature_request";
+          rating?: "loved" | "okay" | "needs_work" | null;
+          message?: string;
+          created_at?: string;
+        };
         Update: never;
         Relationships: [];
       };

@@ -42,48 +42,30 @@ const accents = [
   {
     name: "British English",
     line: "I believe dinner is running rather late.",
-    note: "A natural British delivery for dry observations, tiny formal complaints, and pets with excellent standards.",
+    note: "Dry and formal",
     color: "bg-yellow",
     turn: "-rotate-1",
   },
   {
     name: "American",
     line: "Okay, hear me out: second breakfast.",
-    note: "A contemporary American delivery that suits direct jokes, energetic greetings, and group-chat announcements.",
+    note: "Direct and lively",
     color: "bg-soft-pink",
     turn: "rotate-1",
   },
   {
     name: "Neutral English",
     line: "I have reviewed the situation. More snacks.",
-    note: "Clear English without a strongly regional sound—a flexible choice when the words should lead the performance.",
+    note: "Clear and flexible",
     color: "bg-cream",
     turn: "rotate-0",
   },
   {
     name: "French",
     line: "The cushion is mine. This is not negotiable.",
-    note: "A contemporary French accent that adds character while keeping the exact line you wrote in its original language.",
+    note: "Warm and characterful",
     color: "bg-purple",
     turn: "-rotate-1",
-  },
-] as const;
-
-const steps = [
-  {
-    number: "01",
-    title: "Choose one clear photo",
-    copy: "Use a cat or dog photo with the eyes and muzzle visible. A familiar expression gives the voice something believable to finish.",
-  },
-  {
-    number: "02",
-    title: "Write the line they would say",
-    copy: "Keep it to one short sentence. Rarely can suggest lines from the photo, or you can write the exact joke, greeting, or demand yourself.",
-  },
-  {
-    number: "03",
-    title: "Cast the voice accent",
-    copy: "Choose British English, American, neutral English, or French. The words stay the same; the selected accent guides how the finished voice sounds.",
   },
 ] as const;
 
@@ -115,20 +97,13 @@ export default function PetVideoAccentsGuide() {
 
         <header className="mx-auto grid w-[calc(100%-2.5rem)] max-w-[1120px] gap-12 py-16 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:py-24 max-sm:w-[calc(100%-1.75rem)]">
           <div>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-ink">
-              Rarely field guide · Voice casting
-            </p>
-            <h1 className="mt-5 max-w-3xl font-display text-[clamp(3rem,7vw,6.4rem)] font-normal leading-[0.88] tracking-[-0.045em] text-cream [text-shadow:4px_5px_0_#241a44]">
-              Which accent sounds like your pet?
+            <h1 className="max-w-3xl font-display text-[clamp(2.7rem,7vw,6rem)] font-normal leading-[0.88] tracking-[-0.045em] text-cream [text-shadow:4px_5px_0_#241a44]">
+              Talking pet video voice accents
             </h1>
-            <p className="mt-7 max-w-2xl text-lg font-black leading-[1.65] text-ink">
-              Turn one cat or dog photo into a tiny talking video, then choose a British English, American, neutral English, or French voice accent to fit the performance.
-            </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link className="inline-flex min-h-12 items-center rounded-xl border-[3px] border-ink bg-yellow px-5 py-3 font-mono text-[10px] font-bold uppercase shadow-[4px_5px_0_#241a44] transition hover:-translate-y-0.5 focus-visible:outline-pink motion-reduce:transition-none" href="/#maker">
                 Make my pet talk →
               </Link>
-              <span className="font-mono text-[9px] font-bold uppercase">One photo · Your words · Four accents</span>
             </div>
           </div>
 
@@ -154,82 +129,53 @@ export default function PetVideoAccentsGuide() {
       <article>
         <section className="border-y-[3px] border-ink bg-ink text-cream" aria-labelledby="accent-lineup">
           <div className="mx-auto w-[calc(100%-2.5rem)] max-w-[1120px] py-16 lg:py-20 max-sm:w-[calc(100%-1.75rem)]">
-            <p className="font-mono text-[9px] font-bold uppercase text-yellow">The voice lineup</p>
-            <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
+            <div className="flex flex-wrap items-end justify-between gap-6">
               <h2 className="max-w-3xl font-display text-[clamp(2.5rem,5vw,4.5rem)] font-normal leading-[0.95]" id="accent-lineup">
-                Same pet. Same words. A different delivery.
+                Pick their voice.
               </h2>
-              <p className="max-w-sm text-sm font-bold leading-relaxed text-[#d9cfe8]">
-                An accent changes the flavor of the performance, not your script. Rarely tells the video model to preserve the line exactly as you entered it.
-              </p>
             </div>
 
             <div className="mt-12 grid gap-5 md:grid-cols-2">
               {accents.map((accent) => (
                 <section className={`${accent.color} ${accent.turn} rounded-2xl border-[3px] border-cream p-6 text-ink shadow-[6px_7px_0_#f4458f] transition hover:rotate-0 motion-reduce:transition-none`} key={accent.name}>
-                  <p className="font-mono text-[9px] font-bold uppercase">Accent option</p>
-                  <h3 className="mt-2 font-display text-2xl font-normal">{accent.name}</h3>
-                  <blockquote className="mt-5 border-l-[3px] border-ink pl-4 text-lg font-black leading-snug">“{accent.line}”</blockquote>
-                  <p className="mt-5 text-sm font-bold leading-[1.65] text-ink-muted">{accent.note}</p>
-                </section>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-cream" aria-labelledby="make-video">
-          <div className="mx-auto w-[calc(100%-2.5rem)] max-w-[960px] py-16 lg:py-24 max-sm:w-[calc(100%-1.75rem)]">
-            <p className="font-mono text-[9px] font-bold uppercase text-pink">From photo to performance</p>
-            <h2 className="mt-4 max-w-3xl font-display text-[clamp(2.5rem,5vw,4.5rem)] font-normal leading-[0.95]" id="make-video">
-              How to create an AI talking video of your pet
-            </h2>
-            <div className="mt-12 grid gap-8">
-              {steps.map((step) => (
-                <section className="grid gap-4 border-t-[3px] border-ink pt-5 sm:grid-cols-[5rem_1fr]" key={step.number}>
-                  <span className="font-display text-3xl text-pink" aria-hidden="true">{step.number}</span>
-                  <div>
-                    <h3 className="text-xl font-black">{step.title}</h3>
-                    <p className="mt-2 max-w-2xl text-base font-bold leading-[1.7] text-ink-muted">{step.copy}</p>
+                  <div className="flex items-baseline justify-between gap-4">
+                    <h3 className="font-display text-2xl font-normal">{accent.name}</h3>
+                    <span className="font-mono text-[8px] font-bold uppercase">{accent.note}</span>
                   </div>
+                  <blockquote className="mt-5 border-l-[3px] border-ink pl-4 text-lg font-black leading-snug">“{accent.line}”</blockquote>
                 </section>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="border-y-[3px] border-ink bg-yellow">
-          <div className="mx-auto grid w-[calc(100%-2.5rem)] max-w-[1120px] gap-8 py-14 md:grid-cols-[1fr_auto] md:items-center max-sm:w-[calc(100%-1.75rem)]">
-            <div>
-              <p className="font-mono text-[9px] font-bold uppercase text-pink">A useful casting rule</p>
-              <h2 className="mt-3 max-w-3xl font-display text-[clamp(2rem,4vw,3.5rem)] font-normal leading-none">
-                Choose the accent that makes the line feel most like them.
-              </h2>
-              <p className="mt-4 max-w-2xl font-bold leading-relaxed text-ink-muted">
-                Try American for an outgoing announcement, neutral English when clarity matters most, British English for a drier delivery, or French when that character fits the moment. There is no “correct” voice—only the one your group chat recognizes.
-              </p>
-            </div>
-            <Link className="inline-flex min-h-12 items-center justify-center rounded-xl border-[3px] border-ink bg-pink px-6 py-3 font-mono text-[10px] font-bold uppercase text-white shadow-[4px_5px_0_#241a44] transition hover:-translate-y-0.5 focus-visible:outline-purple motion-reduce:transition-none" href="/#maker">
-              Create a talking-pet video →
-            </Link>
+        <section className="border-b-[3px] border-ink bg-yellow" aria-labelledby="choose-accent-title">
+          <div className="mx-auto grid w-[calc(100%-2.5rem)] max-w-[1120px] gap-5 py-9 md:grid-cols-[0.9fr_1.1fr] md:items-center lg:py-11 max-sm:w-[calc(100%-1.75rem)]">
+            <h2 className="font-display text-[clamp(1.75rem,3.5vw,2.6rem)] font-normal leading-[0.98]" id="choose-accent-title">
+              How to choose a voice accent for a talking pet video
+            </h2>
+            <p className="m-0 max-w-2xl text-sm font-bold leading-relaxed text-ink-muted sm:text-base">
+              Use British English, American, neutral English, or French. The selected accent changes the delivery; the words you enter stay the same.
+            </p>
           </div>
         </section>
 
         <section className="bg-white" aria-labelledby="accent-faq">
-          <div className="mx-auto w-[calc(100%-2.5rem)] max-w-[800px] py-16 lg:py-20 max-sm:w-[calc(100%-1.75rem)]">
-            <h2 className="font-display text-[clamp(2.25rem,5vw,3.75rem)] font-normal leading-none" id="accent-faq">A few voice notes</h2>
-            <div className="mt-9 grid gap-8">
-              <section>
-                <h3 className="text-lg font-black">Does the accent rewrite or translate my line?</h3>
-                <p className="mt-2 font-bold leading-relaxed text-ink-muted">No. Your chosen words stay the same. The accent selection guides the delivery of that line.</p>
-              </section>
-              <section>
-                <h3 className="text-lg font-black">Can I use an English line with the French accent?</h3>
-                <p className="mt-2 font-bold leading-relaxed text-ink-muted">Yes. The French option requests a French-accented delivery without translating the text you supplied.</p>
-              </section>
-              <section>
-                <h3 className="text-lg font-black">What does neutral English mean?</h3>
-                <p className="mt-2 font-bold leading-relaxed text-ink-muted">It asks for clear English without a strongly regional accent, so the words and your pet&apos;s expression remain the focus.</p>
-              </section>
+          <div className="mx-auto w-[calc(100%-2.5rem)] max-w-[800px] py-14 lg:py-16 max-sm:w-[calc(100%-1.75rem)]">
+            <h2 className="font-display text-[clamp(2rem,5vw,3rem)] font-normal leading-none" id="accent-faq">Good to know</h2>
+            <div className="mt-7 border-t-2 border-ink">
+              {[
+                ["Do accents change my words?", "No. Your line stays the same."],
+                ["Can French speak an English line?", "Yes. It changes the delivery, not the language."],
+                ["What is neutral English?", "Clear English without a strong regional accent."],
+              ].map(([question, answer]) => (
+                <details className="group border-b-2 border-ink py-5" key={question}>
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-black marker:hidden">
+                    {question}<span className="text-xl text-pink group-open:rotate-45">+</span>
+                  </summary>
+                  <p className="mb-0 mt-3 text-sm font-bold text-ink-muted">{answer}</p>
+                </details>
+              ))}
             </div>
           </div>
         </section>

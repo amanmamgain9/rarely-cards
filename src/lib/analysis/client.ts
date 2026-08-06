@@ -14,15 +14,18 @@ async function responsePayload(response: Response) {
 export async function createAnalysisFromPhoto(input: {
   file: File;
   cardStyle: CardStyle;
+  experienceKind?: "talking_video" | "birthday_video";
+  petName?: string;
 }) {
   const response = await fetch("/api/analyses", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       cardStyle: input.cardStyle,
-      experienceKind: "talking_video",
+      experienceKind: input.experienceKind ?? "talking_video",
       mimeType: input.file.type,
       size: input.file.size,
+      petName: input.petName,
     }),
   });
   const created = await responsePayload(response);

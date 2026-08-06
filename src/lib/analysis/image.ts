@@ -66,6 +66,17 @@ export async function prepareImageForGemini(buffer: Buffer) {
     .toBuffer();
 }
 
+export async function prepareBirthdaySceneForUpload(buffer: Buffer) {
+  return sharp(buffer, {
+    failOn: "error",
+    limitInputPixels: MAX_IMAGE_PIXELS,
+  })
+    .rotate()
+    .resize({ width: 1152, height: 2048, fit: "cover", position: "centre" })
+    .jpeg({ quality: 90, mozjpeg: true })
+    .toBuffer();
+}
+
 export async function prepareImageForSeedance(buffer: Buffer) {
   // ModelArk requires both dimensions >= 300px and an input aspect ratio in
   // [0.4, 2.5]. A fixed portrait canvas preserves the full user photo while
@@ -81,6 +92,17 @@ export async function prepareImageForSeedance(buffer: Buffer) {
       fit: "contain",
       background: { r: 24, g: 20, b: 18 },
     })
+    .jpeg({ quality: 90, mozjpeg: true })
+    .toBuffer();
+}
+
+export async function prepareBirthdayImageForSeedance(buffer: Buffer) {
+  return sharp(buffer, {
+    failOn: "error",
+    limitInputPixels: MAX_IMAGE_PIXELS,
+  })
+    .rotate()
+    .resize({ width: 720, height: 1280, fit: "cover", position: "centre" })
     .jpeg({ quality: 90, mozjpeg: true })
     .toBuffer();
 }

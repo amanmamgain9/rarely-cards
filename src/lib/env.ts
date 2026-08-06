@@ -1,6 +1,9 @@
 import "server-only";
 
-import { DEFAULT_GEMINI_MODEL } from "@/lib/ai/gemini-config";
+import {
+  DEFAULT_GEMINI_IMAGE_MODEL,
+  DEFAULT_GEMINI_MODEL,
+} from "@/lib/ai/gemini-config";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -156,5 +159,7 @@ export function geminiEnv() {
   return {
     geminiApiKey: required("GEMINI_API_KEY"),
     geminiModel: process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL,
+    geminiImageModel:
+      process.env.GEMINI_IMAGE_MODEL?.trim() || DEFAULT_GEMINI_IMAGE_MODEL,
   };
 }

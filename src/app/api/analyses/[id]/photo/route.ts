@@ -28,7 +28,7 @@ function detectImageContentType(bytes: Uint8Array) {
 }
 
 export async function GET(_request: Request, context: RouteContext) {
-  const { user, supabase } = await requireUser();
+  const { user } = await requireUser();
   if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
 
   const { id } = await context.params;
@@ -36,12 +36,21 @@ export async function GET(_request: Request, context: RouteContext) {
     return Response.json({ error: "Invalid analysis." }, { status: 400 });
   }
 
-  const { data: analysis, error } = await supabase
+  const admin = createAdminClient();
+  const { data: analysis, error } = await admin
     .from("analysis_requests")
     .select("card_photo_path, object_path")
     .eq("id", id)
-    .single();
+    .eq("user_id", user.id)
+    .maybeSingle();
   if (error || !analysis) {
+    console.warn(
+      JSON.stringify({
+        event: "analysis_photo_missing",
+        analysisId: id,
+        databaseCode: error?.code ?? null,
+      }),
+    );
     return Response.json({ error: "Analysis not found." }, { status: 404 });
   }
 
@@ -50,17 +59,45 @@ export async function GET(_request: Request, context: RouteContext) {
       Boolean(path) && paths.indexOf(path) === index,
   );
   if (photoPaths.length === 0) {
+    console.warn(JSON.stringify({ event: "analysis_photo_path_missing", analysisId: id }));
     return Response.json({ error: "Photo not found." }, { status: 404 });
   }
 
-  const storage = createAdminClient().storage.from("analysis-photos");
+  const storage = admin.storage.from("analysis-photos");
   for (const photoPath of photoPaths) {
     const { data: photo, error: downloadError } = await storage.download(photoPath);
-    if (downloadError || !photo) continue;
+    if (downloadError || !photo) {
+      console.warn(
+        JSON.stringify({
+          event: "analysis_photo_download_failed",
+          analysisId: id,
+          storageCode: downloadError?.name ?? "missing_blob",
+        }),
+      );
+      continue;
+    }
 
     const photoBytes = new Uint8Array(await photo.arrayBuffer());
     const contentType = detectImageContentType(photoBytes);
-    if (!contentType) continue;
+    if (!contentType) {
+      console.warn(
+        JSON.stringify({
+          event: "analysis_photo_format_invalid",
+          analysisId: id,
+          bytes: photoBytes.byteLength,
+        }),
+      );
+      continue;
+    }
+
+    console.info(
+      JSON.stringify({
+        event: "analysis_photo_served",
+        analysisId: id,
+        bytes: photoBytes.byteLength,
+        contentType,
+      }),
+    );
 
     return new Response(photoBytes, {
       headers: {

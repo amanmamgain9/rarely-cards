@@ -11,12 +11,10 @@ export default function ContactPage() {
   return (
     <LegalShell>
       <LegalArticle>
-        <LegalEyebrow>A REAL INBOX · A REAL PERSON</LegalEyebrow>
-        <LegalTitle>Tell us what happened.</LegalTitle>
+        <LegalEyebrow>CONTACT</LegalEyebrow>
+        <LegalTitle>How can we help?</LegalTitle>
         <p>
-          For card generation, account, billing, refund, legal, or privacy help,
-          email us. Include the email on your Rarely account and the approximate
-          purchase or attempt date so we can find the right record.
+          Email us from your Rarely account address. For payment issues, include the purchase date.
         </p>
 
         <a className="my-8 flex items-center justify-between rounded-2xl border-[3px] border-ink bg-yellow px-5 py-4 font-mono text-[clamp(0.875rem,3vw,1.2rem)] font-bold text-ink shadow-[5px_5px_0_#241a44]" href="mailto:amanmamgain9@gmail.com">

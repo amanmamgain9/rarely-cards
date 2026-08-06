@@ -17,7 +17,14 @@ export function PricingIntroPaymentCopy() {
   }, [channel]);
 
   if (channel === "loading") {
-    return <p className="mb-7 max-w-xl text-lg font-bold leading-relaxed text-ink-muted">One payment adds three talking-pet video credits to your account.</p>;
+    return (
+      <>
+        <p className="mb-7 max-w-xl text-lg font-bold leading-relaxed text-ink-muted">Pay once. Make three videos anytime.</p>
+        <Link className="inline-flex min-h-14 items-center gap-5 rounded-2xl border-[3px] border-ink bg-pink px-6 font-mono text-xs font-bold uppercase text-white shadow-[6px_7px_0_#241a44]" href="/#maker">
+          Get 3 videos <span>→</span>
+        </Link>
+      </>
+    );
   }
   if (channel === "play_unavailable") {
     return (
@@ -32,9 +39,7 @@ export function PricingIntroPaymentCopy() {
   return (
     <>
       <p className="mb-7 max-w-xl text-lg font-bold leading-relaxed text-ink-muted">
-        One {shownPrice ? `${shownPrice} ` : ""}pack adds three talking-pet
-        video credits to your account. Use them now or later, buy another pack
-        whenever you want, and never worry about a subscription.
+        Pay {shownPrice || "once"}. Make three videos anytime.
       </p>
       <Link className="inline-flex min-h-14 items-center gap-5 rounded-2xl border-[3px] border-ink bg-pink px-6 font-mono text-xs font-bold uppercase text-white shadow-[6px_7px_0_#241a44] transition hover:translate-x-1 hover:translate-y-1 hover:shadow-[3px_4px_0_#241a44]" href="/#maker">
         Get 3 videos{shownPrice ? ` — ${shownPrice}` : ""} <span>→</span>
@@ -75,23 +80,20 @@ export function PaymentProcessorCopy() {
   if (channel === "web") {
     return (
       <p className="m-0 text-sm font-bold leading-relaxed text-ink-muted">
-        Paddle securely processes the one-time web payment, including payment
-        details, applicable sales tax or VAT, and your receipt.
+        Paddle processes payment, tax, and your receipt.
       </p>
     );
   }
   if (channel === "google_play") {
     return (
       <p className="m-0 text-sm font-bold leading-relaxed text-ink-muted">
-        Google Play securely processes the one-time in-app purchase and shows
-        your local price and applicable tax before you confirm.
+        Google Play shows the final local price before you confirm.
       </p>
     );
   }
   return (
     <p className="m-0 text-sm font-bold leading-relaxed text-ink-muted">
-      The available secure payment provider and final price are shown before
-      you confirm a purchase.
+      You’ll see the provider and final price before confirming.
     </p>
   );
 }

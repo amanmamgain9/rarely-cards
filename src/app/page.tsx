@@ -15,21 +15,31 @@ type HomeProps = {
   searchParams: Promise<{
     signin?: string | string[];
     auth_error?: string | string[];
+    next?: string | string[];
   }>;
 };
+
+function safeNextPath(value: string | string[] | undefined) {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return candidate?.startsWith("/") && !candidate.startsWith("//")
+    ? candidate
+    : "/studio";
+}
 
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
   const supabaseConfigured = hasPublicSupabaseEnv();
+  const returnTo = safeNextPath(params.next);
 
   if (supabaseConfigured) {
     const { user } = await requireUser();
-    if (user) redirect("/studio");
+    if (user) redirect(returnTo);
   }
 
   return (
     <PublicRarityHome
       supabaseConfigured={supabaseConfigured}
+      returnTo={returnTo}
       openSignIn={
         params.signin === "1" ||
         (Array.isArray(params.signin) && params.signin.includes("1"))

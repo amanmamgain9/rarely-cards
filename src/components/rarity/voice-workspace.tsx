@@ -127,17 +127,34 @@ export function VoiceWorkspace({
               </div>
             </section>
 
-            <div className="my-4 flex items-center gap-3 font-mono text-[8px] uppercase text-ink-muted before:h-px before:flex-1 before:bg-ink/15 after:h-px after:flex-1 after:bg-ink/15"><span>or your own</span></div>
-            <PetVoiceComposer
-              value={customDialogue}
-              onChange={onCustomDialogueChange}
-              accent={voiceAccent}
-            />
-            <PetVoiceAccentPicker
-              value={voiceAccent}
-              onChange={onVoiceAccentChange}
-            />
             <PetGenderPicker value={petPronouns} onChange={onPetPronounsChange} />
+
+            <details className="group mt-4 overflow-hidden rounded-xl border border-ink/15 bg-white" open={customDialogue ? true : undefined}>
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-4 text-sm font-black marker:hidden">
+                Write my own line
+                <span className="text-lg text-pink group-open:rotate-45" aria-hidden="true">+</span>
+              </summary>
+              <div className="border-t border-ink/10 p-3">
+                <PetVoiceComposer
+                  value={customDialogue}
+                  onChange={onCustomDialogueChange}
+                  accent={voiceAccent}
+                />
+              </div>
+            </details>
+
+            <details className="group mt-3 overflow-hidden rounded-xl border border-ink/15 bg-white">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-4 text-sm font-black marker:hidden">
+                Voice accent <span className="ml-auto font-mono text-[8px] font-medium uppercase text-ink-muted">Optional</span>
+                <span className="text-lg text-pink group-open:rotate-45" aria-hidden="true">+</span>
+              </summary>
+              <div className="border-t border-ink/10 p-4 pt-0">
+                <PetVoiceAccentPicker
+                  value={voiceAccent}
+                  onChange={onVoiceAccentChange}
+                />
+              </div>
+            </details>
 
             <button className="mt-4 min-h-12 w-full rounded-xl border-2 border-ink bg-pink font-black text-white shadow-[3px_3px_0_#241a44] disabled:cursor-not-allowed disabled:opacity-45" type="submit" disabled={!canSubmit}>
               {creating ? "Starting…" : analysisId ? "Make video" : "Reading photo…"}

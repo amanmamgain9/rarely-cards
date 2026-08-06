@@ -20,6 +20,10 @@ function draftStep(status: StudioDraft["status"]) {
 export function StudioDraftCard({ draft }: { draft: StudioDraft }) {
   const [deleted, setDeleted] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const continueHref =
+    draft.experienceKind === "birthday_video"
+      ? `/studio/birthday?draft=${draft.id}`
+      : `/studio/generate?draft=${draft.id}`;
 
   async function deleteDraft() {
     if (!window.confirm("Delete this draft and its saved photo?")) return;
@@ -49,7 +53,7 @@ export function StudioDraftCard({ draft }: { draft: StudioDraft }) {
       <Link
         aria-label="Continue this draft"
         className="group relative min-h-44 overflow-hidden border-r-[3px] border-ink bg-purple"
-        href={`/studio/generate?draft=${draft.id}`}
+        href={continueHref}
       >
         <Image
           alt="Your draft pet photo"
@@ -74,13 +78,13 @@ export function StudioDraftCard({ draft }: { draft: StudioDraft }) {
           <p className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-ink-muted">
             {draft.dialogue
               ? `“${draft.dialogue}”`
-              : "Your photo is saved and ready to continue."}
+              : "Photo saved"}
           </p>
         </div>
         <div className="mt-4 flex items-end justify-between gap-3">
           <Link
             className="inline-flex min-h-10 items-center rounded-lg border-2 border-ink bg-pink px-4 text-xs font-black text-white shadow-[2px_2px_0_#241a44] transition-transform hover:-translate-y-0.5"
-            href={`/studio/generate?draft=${draft.id}`}
+            href={continueHref}
           >
             Continue →
           </Link>

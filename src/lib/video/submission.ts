@@ -1,6 +1,9 @@
 import "server-only";
 
-import { prepareImageForSeedance } from "@/lib/analysis/image";
+import {
+  prepareBirthdayImageForSeedance,
+  prepareImageForSeedance,
+} from "@/lib/analysis/image";
 import { reportServerError } from "@/lib/observability";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -14,6 +17,7 @@ type Submission = {
   userId: string;
   photoPath: string;
   prompt: string;
+  birthdayMode: boolean;
 };
 
 export async function submitSeedanceVideo({
@@ -22,6 +26,7 @@ export async function submitSeedanceVideo({
   userId,
   photoPath,
   prompt,
+  birthdayMode,
 }: Submission) {
   const admin = createAdminClient();
   let taskId: string | null = null;
@@ -33,9 +38,10 @@ export async function submitSeedanceVideo({
       .download(photoPath);
     if (photoError || !object) throw new Error("seedance_photo_download_failed");
 
-    const image = await prepareImageForSeedance(
-      Buffer.from(await object.arrayBuffer()),
-    );
+    const sourceImage = Buffer.from(await object.arrayBuffer());
+    const image = birthdayMode
+      ? await prepareBirthdayImageForSeedance(sourceImage)
+      : await prepareImageForSeedance(sourceImage);
     const { data: claim } = await admin
       .from("video_generations")
       .update({ updated_at: new Date().toISOString() })
@@ -52,6 +58,7 @@ export async function submitSeedanceVideo({
       prompt,
       userId,
       generationId,
+      durationSeconds: birthdayMode ? 10 : 8,
     });
     const now = new Date().toISOString();
     const { data: started, error: startError } = await admin

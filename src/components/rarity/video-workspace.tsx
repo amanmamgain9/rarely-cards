@@ -48,13 +48,13 @@ export function VideoWorkspace({
               {selectedFile && <strong className="mt-5 max-w-full truncate text-sm">{selectedFile.name}</strong>}
               <div className="mt-6 flex gap-3 max-[700px]:w-full max-[700px]:flex-col">
                 <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-2 border-ink bg-pink px-5 font-black text-white shadow-[3px_3px_0_#241a44] [&>svg]:w-4" type="button" onClick={() => uploadInput.current?.click()}>
-                  <Upload /> Choose a file
+                  <Upload /> Choose photo
                 </button>
                 <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-2 border-ink bg-white px-5 font-black text-ink shadow-[3px_3px_0_#241a44] [&>svg]:w-4" type="button" onClick={() => cameraInput.current?.click()}>
                   <Camera /> Take a photo
                 </button>
               </div>
-              <small className="mt-5 text-[11px] text-[#746983]">JPEG, PNG or WebP · 10 MB max</small>
+              <small className="mt-5 text-[11px] text-[#746983]">JPEG, PNG, WebP · 10 MB</small>
             </>
           )}
         </div>

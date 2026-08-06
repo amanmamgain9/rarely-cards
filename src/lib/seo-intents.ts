@@ -27,16 +27,16 @@ export const talkingPetVideo: SeoIntent = {
   description:
     "Turn one pet photo and a line you choose into an eight-second AI talking-pet video with sound. Three videos for $10, with no subscription.",
   eyebrow: "AI TALKING PET VIDEO GENERATOR",
-  headline: "Their face already said it.",
-  accent: "Now give it a voice.",
+  headline: "AI Talking Pet Video Generator",
+  accent: "",
   intro:
     "Upload one clear cat or dog photo, choose a line inspired by the look—or write your own—and Rarely turns it into a vertical talking-pet video made to save, send, or post.",
   image: "/pets/window-cat.jpg",
   imageAlt: "Cat looking through a window, ready to become a talking-pet video",
   quote: "I was watching the sunset. You interrupted.",
-  proofTitle: "A tiny performance, not a generic animation.",
+  proofTitle: "How does an AI talking pet video work?",
   proofCopy:
-    "Rarely starts with the expression, posture, and scene in your photo. You stay in control of the words; the finished clip gives that familiar look a voice.",
+    "Upload one clear cat or dog photo, choose a short line, and Rarely creates an eight-second vertical MP4 with synchronized speech and sound.",
   steps: [
     { title: "Choose their photo", copy: "Use a clear photo where their face and expression feel unmistakably like them." },
     { title: "Pick their line", copy: "Choose a photo-specific suggestion or type your own line, up to 120 characters." },
@@ -71,16 +71,16 @@ export const makeDogTalk: SeoIntent = {
   description:
     "Make your dog talk from one photo. Choose the words and get an eight-second vertical talking-dog video with sound from Rarely.",
   eyebrow: "MAKE YOUR DOG TALK",
-  headline: "That look has a line.",
-  accent: "Let the dog deliver it.",
+  headline: "Make Your Dog Talk With AI",
+  accent: "",
   intro:
     "Choose the grin, guilty stare, dramatic nap, or dinner-time face everyone recognizes. Add the words, and Rarely turns that one dog photo into a short talking video.",
   image: "/pets/quiet-dog.jpg",
   imageAlt: "Beagle looking at the camera for a talking-dog video",
   quote: "I heard the rule. I simply rejected it.",
-  proofTitle: "Start with the dog everyone already knows.",
+  proofTitle: "How do I make my dog talk in a video?",
   proofCopy:
-    "The funniest result is rarely the fanciest photo. It is the familiar one: the couch claim, the treat negotiation, or the face they make when you spell W-A-L-K.",
+    "Choose a clear dog photo, select a suggested line or write your own, and generate an eight-second talking-dog video with sound.",
   steps: [
     { title: "Find the doggiest photo", copy: "Pick a clear expression, with the eyes and muzzle visible and as little blur as possible." },
     { title: "Write their side of it", copy: "Use a suggested line or write the sentence your dog would absolutely say." },
@@ -115,16 +115,16 @@ export const makeCatTalk: SeoIntent = {
   description:
     "Turn one cat photo into a talking-cat video. Pick the perfect line and get an eight-second vertical MP4 with sound from Rarely.",
   eyebrow: "MAKE YOUR CAT TALK",
-  headline: "The judgment was silent.",
-  accent: "Until now.",
+  headline: "Make Your Cat Talk With AI",
+  accent: "",
   intro:
     "Upload the stare, loaf, window watch, or carefully staged act of indifference. Choose what your cat says and turn the photo into a tiny talking-cat video.",
   image: "/pets/window-cat.jpg",
   imageAlt: "Cat watching the sunset for a talking-cat video",
   quote: "This meeting could have been an open can.",
-  proofTitle: "Built for the expression behind the expression.",
+  proofTitle: "How do I make my cat talk in a video?",
   proofCopy:
-    "Cat photos are full of unfinished sentences. Rarely suggests lines from the visible mood and scene, while leaving the final words entirely up to you.",
+    "Upload a clear cat photo, choose the words, and generate an eight-second talking-cat video with synchronized speech and sound.",
   steps: [
     { title: "Choose the stare", copy: "Pick a clear photo with visible eyes and face—side-eye and dramatic lighting are welcome." },
     { title: "Approve the statement", copy: "Choose a suggestion or enter the exact complaint, demand, or observation you hear." },
@@ -157,22 +157,22 @@ export const petBirthdayVideo: SeoIntent = {
   path: "/pet-birthday-video",
   title: "Personalized Pet Birthday Video",
   description:
-    "Create a personalized birthday video from a cat or dog photo. Let your pet deliver a funny birthday line in an eight-second video with sound.",
+    "Turn one to six real pet photos into a personalized birthday video. One pet delivers your message and the whole crew finishes with natural celebratory meows.",
   eyebrow: "PERSONALIZED PET BIRTHDAY VIDEO",
-  headline: "Skip the ordinary card.",
-  accent: "Let the pet make the toast.",
+  headline: "Personalized Pet Birthday Video",
+  accent: "",
   intro:
-    "Turn a favorite cat or dog photo into a short birthday greeting with a line only they would deliver. It is ready to send, post, or play when the cake appears.",
+    "Bring one to six familiar pets into a single candid birthday scene. One delivers your exact greeting while the others stay naturally themselves—and the whole crew joins the finish.",
   image: "/pets/golden-dog.jpg",
   imageAlt: "Golden dog in flowers for a personalized pet birthday video",
   quote: "Happy birthday. I got you the gift of my presence.",
-  proofTitle: "Personal enough for the person who knows the voice.",
+  proofTitle: "How does a personalized pet birthday video work?",
   proofCopy:
-    "Use the recipient's pet, your own pet, or the household celebrity. You choose the exact birthday line, so the joke can belong to the people receiving it.",
+    "Add one to six cat or dog photos, enter the recipient's name and greeting, approve the group portrait, and generate the birthday video.",
   steps: [
-    { title: "Pick the guest of honor", copy: "Choose a favorite pet photo the recipient will recognize immediately." },
-    { title: "Write the birthday line", copy: "Add their name, an inside joke, a sweet message, or a suspicious demand for cake." },
-    { title: "Deliver the surprise", copy: "Download the eight-second clip and send it on the birthday or share it with the party." },
+    { title: "Add the whole cast", copy: "Choose one to six clear pet photos the recipient will recognize immediately." },
+    { title: "Approve the birthday scene", copy: "Rarely brings them together with different poses and eyelines in one candid portrait." },
+    { title: "Write the birthday line", copy: "One pet speaks your exact message; the others finish with an untidy celebratory reaction." },
   ],
   notesTitle: "Build the birthday message around the recipient",
   notesIntro:
@@ -180,7 +180,7 @@ export const petBirthdayVideo: SeoIntent = {
   notes: [
     { title: "Name the recipient", copy: "Put the person's name near the beginning of the line so the greeting feels direct immediately. Keep the rest short enough to sound like a toast rather than a speech." },
     { title: "Use a real household joke", copy: "Reference walks, breakfast, lap access, stolen pillows, or another harmless ritual the recipient will recognize. Specificity makes a simple eight-second clip feel personal." },
-    { title: "Choose a clean photo", copy: "Use one clearly visible cat or dog, ideally facing the camera or turned slightly. A familiar everyday photo often works better than a crowded party image." },
+    { title: "Choose clear source photos", copy: "Use one photo per pet with the face and markings easy to see. The sources can be ordinary—the generated scene supplies the party." },
   ],
   ideasTitle: "Birthday lines with more personality",
   ideasIntro: "Keep it short enough to land like a toast, not a speech.",
@@ -191,7 +191,8 @@ export const petBirthdayVideo: SeoIntent = {
   ],
   faqs: [
     { question: "Can I put the person's name in the birthday video?", answer: "Yes. Write your own line with the recipient's name, as long as the complete line is no more than 120 characters." },
-    { question: "How long is the pet birthday video?", answer: "Rarely creates an eight-second vertical video with sound." },
+    { question: "How many pets can appear?", answer: "Add one to six cats or dogs. Rarely preserves each pet as a separate member of one shared birthday scene." },
+    { question: "Do all the pets talk together?", answer: "No. One pet delivers the greeting so the speech stays natural. The group joins only for a short, loosely overlapping celebratory reaction." },
     { question: "Can I send the finished video as a gift?", answer: "Yes. Download the MP4 and send it directly, post it, or include it in a larger birthday message." },
     { question: "How many birthday videos are included?", answer: "The $10 one-time pack includes three video credits, so you can try multiple lines or make videos for more than one pet." },
   ],
@@ -203,16 +204,16 @@ export const personalizedPetVideo: SeoIntent = {
   description:
     "Create a personalized pet video from one cat or dog photo and your own short line. Download an eight-second vertical MP4 with sound.",
   eyebrow: "PERSONALIZED PET VIDEO",
-  headline: "Not any pet.",
-  accent: "Unmistakably yours.",
+  headline: "Personalized Pet Video From a Photo",
+  accent: "",
   intro:
     "Use the photograph, expression, and private voice everyone around your pet already knows. Rarely turns them into a short video that feels made for one camera roll, one household, and one group chat.",
   image: "/pets/quiet-dog.jpg",
   imageAlt: "Beagle portrait used to create a personalized pet video",
   quote: "I do not follow you everywhere. I supervise locally.",
-  proofTitle: "Personalized means you choose the final words.",
+  proofTitle: "What makes the pet video personalized?",
   proofCopy:
-    "Rarely can suggest a starting line from the photo, but you decide what gets made. Add their name, their habits, or the joke nobody outside the household would understand.",
+    "The video uses your pet's real photo and a line you approve. You can download the finished vertical MP4 and decide where to share it.",
   steps: [
     { title: "Use their real photo", copy: "Start with the cat or dog you know, not a stock character or a generic avatar." },
     { title: "Make the line specific", copy: "Use their nickname, favorite demand, sworn enemy, or particular household jurisdiction." },

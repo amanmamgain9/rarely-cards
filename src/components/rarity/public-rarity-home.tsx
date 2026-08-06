@@ -18,10 +18,12 @@ async function getSupabaseClient() {
 
 export function PublicRarityHome({
   supabaseConfigured,
+  returnTo,
   openSignIn,
   authError,
 }: {
   supabaseConfigured: boolean;
+  returnTo: string;
   openSignIn: boolean;
   authError: string | null;
 }) {
@@ -91,11 +93,11 @@ export function PublicRarityHome({
     setSignInMethod("google");
     try {
       const supabase = await getSupabaseClient();
-      const nextPath = photo ? "/studio/generate?resume=1" : "/studio";
+      const nextPath = photo ? "/studio/generate?resume=1" : returnTo;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${nextPath}`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
         },
       });
       if (error) {
@@ -115,11 +117,11 @@ export function PublicRarityHome({
     setSignInMethod("email");
     try {
       const supabase = await getSupabaseClient();
-      const nextPath = photo ? "/studio/generate?resume=1" : "/studio";
+      const nextPath = photo ? "/studio/generate?resume=1" : returnTo;
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${nextPath}`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
         },
       });
       if (error) throw error;
@@ -178,8 +180,8 @@ export function PublicRarityHome({
             </h2>
             <p className="mx-auto mb-5 max-w-sm font-extrabold leading-relaxed text-ink-muted">
               {photo
-                ? "Your selected photo will be waiting in the app. If you already have a video credit, you’ll go straight to choosing the line."
-                : "Sign in to open your video booth and keep your talking-pet videos together."}
+                ? "Your photo is saved. Sign in to choose the line."
+                : "Sign in to make and save your videos."}
             </p>
             <button
               type="button"

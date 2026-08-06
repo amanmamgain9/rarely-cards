@@ -10,11 +10,11 @@ export default function PrivacyPage() {
   return (
     <LegalShell>
       <LegalArticle>
-        <LegalEyebrow>EFFECTIVE AUGUST 4, 2026</LegalEyebrow>
+        <LegalEyebrow>EFFECTIVE AUGUST 5, 2026</LegalEyebrow>
         <LegalTitle>Privacy, without the fog.</LegalTitle>
         <p>
-          Rarely turns one photograph of a cat or dog and a short line you
-          choose into an entertainment-only talking-pet video. We do not use the photo for
+          Rarely turns pet photographs and a short line you choose into
+          entertainment-only talking-pet videos and birthday greetings. We do not use the photos for
           identity verification, biometric identification, veterinary or
           medical analysis, breed certification, or model training.
         </p>
@@ -25,7 +25,9 @@ export default function PrivacyPage() {
           and line you provide, our suggested lines, payment status, generation
           status, provider token usage, and the creative analysis used to make the video.
           Google Play or Paddle handles payment details; Rarely does not store
-          full payment card data.
+          full payment card data. If you choose to send product feedback, we
+          store your rating or feature idea and associate it with your account
+          and, when relevant, the video page where you sent it.
         </p>
 
         <LegalHeading>Photo handling</LegalHeading>
@@ -38,10 +40,18 @@ export default function PrivacyPage() {
           account deletion. Files that are malformed or cannot be stored safely
           may be discarded.
         </p>
+        <p>
+          In Birthday Studio, Rarely sends the 1–6 pet photos and recipient
+          name you provide to Google Gemini to synthesize one group birthday
+          portrait. The source photos are processed for that request but are
+          not saved to your Rarely account. If you approve the generated
+          portrait, Rarely stores that portrait as the private source image for
+          your birthday-video draft.
+        </p>
 
         <LegalHeading>Talking-pet videos</LegalHeading>
         <p>
-          When you choose “Make my pet talk,” Rarely sends the saved pet photo,
+          When you choose “Make my pet talk” or “Make birthday video,” Rarely sends the saved pet photo or approved birthday portrait,
           selected pet details, and your chosen line to BytePlus ModelArk
           so its Seedance model can generate a short video. Rarely also sends a
           one-way account identifier used for provider safety controls. BytePlus

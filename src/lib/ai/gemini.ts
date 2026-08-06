@@ -1,6 +1,6 @@
 import "server-only";
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality, type Part } from "@google/genai";
 import { geminiEnv } from "@/lib/env";
 import {
   buildDialogueSuggestionPrompt,
@@ -14,6 +14,49 @@ let geminiClient: GoogleGenAI | null = null;
 function getGemini() {
   geminiClient ??= new GoogleGenAI({ apiKey: geminiEnv().geminiApiKey });
   return geminiClient;
+}
+
+export async function generateBirthdayScene({
+  images,
+  prompt,
+}: {
+  images: Buffer[];
+  prompt: string;
+}) {
+  const env = geminiEnv();
+  const parts: Part[] = [{ text: prompt }];
+  images.forEach((image, index) => {
+    parts.push({ text: `Reference ${index + 1}: a separate pet.` });
+    parts.push({
+      inlineData: {
+        mimeType: "image/jpeg",
+        data: image.toString("base64"),
+      },
+    });
+  });
+  const response = await getGemini().models.generateContent({
+    model: env.geminiImageModel,
+    contents: [{ role: "user", parts }],
+    config: {
+      responseModalities: [Modality.IMAGE],
+      imageConfig: { aspectRatio: "9:16", imageSize: "2K" },
+    },
+  });
+  const imagePart = response.candidates
+    ?.flatMap((candidate) => candidate.content?.parts ?? [])
+    .find(
+      (part) =>
+        part.inlineData?.data &&
+        part.inlineData.mimeType?.startsWith("image/"),
+    );
+  if (!imagePart?.inlineData?.data) {
+    throw new Error(
+      response.promptFeedback?.blockReason
+        ? "birthday_scene_blocked"
+        : "birthday_scene_missing_image",
+    );
+  }
+  return Buffer.from(imagePart.inlineData.data, "base64");
 }
 
 export async function suggestPetDialogue(

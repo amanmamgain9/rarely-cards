@@ -25,7 +25,7 @@ export async function deleteDraft(userId: string, analysisId: string) {
     .delete()
     .eq("id", analysisId)
     .eq("user_id", userId)
-    .eq("experience_kind", "talking_video")
+    .in("experience_kind", ["talking_video", "birthday_video"])
     .in("status", [...DRAFT_ANALYSIS_STATUSES])
     .not("object_path", "is", null)
     .select("card_photo_path, object_path")

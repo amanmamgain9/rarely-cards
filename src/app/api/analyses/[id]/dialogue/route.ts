@@ -47,12 +47,18 @@ export async function POST(request: Request, context: RouteContext) {
   const admin = createAdminClient();
   const { data: analysis } = await admin
     .from("analysis_requests")
-    .select("id, user_id, status, object_path, dialogue_suggestions")
+    .select("id, user_id, status, object_path, dialogue_suggestions, experience_kind")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
   if (!analysis?.object_path) {
     return Response.json({ error: "Pet photo not found." }, { status: 404 });
+  }
+  if (analysis.experience_kind !== "talking_video") {
+    return Response.json(
+      { error: "This draft belongs to a different studio." },
+      { status: 409 },
+    );
   }
   const existing = petDialogueSuggestionsSchema.safeParse(
     analysis.dialogue_suggestions,

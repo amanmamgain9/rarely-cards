@@ -6,9 +6,10 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const createAnalysisSchema = z.object({
   cardStyle: z.literal("pet"),
-  experienceKind: z.literal("talking_video"),
+  experienceKind: z.enum(["talking_video", "birthday_video"]),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
   size: z.number().int().positive().max(MAX_IMAGE_BYTES),
+  petName: z.string().trim().min(1).max(40).optional(),
 });
 
 const extensionForMime = {
@@ -42,6 +43,10 @@ export async function POST(request: Request) {
       user_id: user.id,
       card_style: parsed.data.cardStyle,
       experience_kind: parsed.data.experienceKind,
+      pet_name:
+        parsed.data.experienceKind === "birthday_video"
+          ? parsed.data.petName ?? null
+          : null,
       status: "awaiting_upload",
     })
     .select("id")

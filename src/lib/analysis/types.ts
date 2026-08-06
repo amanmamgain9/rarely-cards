@@ -6,6 +6,12 @@ export type CardStyle = z.infer<typeof cardStyleSchema>;
 export const petNameSchema = z.string().trim().min(1).max(30);
 export const petPronounsSchema = z.enum(["he", "she", "they"]);
 export type PetPronouns = z.infer<typeof petPronounsSchema>;
+export const experienceKindSchema = z.enum([
+  "card",
+  "talking_video",
+  "birthday_video",
+]);
+export type ExperienceKind = z.infer<typeof experienceKindSchema>;
 export const petEnergySchema = z.enum([
   "regal",
   "goofy",
@@ -101,7 +107,7 @@ export type PublicAnalysis = {
   petName: string | null;
   petPronouns: PetPronouns | null;
   cardStyle: CardStyle;
-  experienceKind: "card" | "talking_video";
+  experienceKind: ExperienceKind;
   status: AnalysisStatus;
   result: AcceptedAnalysis | null;
   rejectionMessage: string | null;

@@ -49,23 +49,22 @@ export function StudioHeader({ creditBalance }: { creditBalance: number }) {
 
   return (
     <header className="relative z-20 border-b border-ink/15 bg-cream/90 backdrop-blur-xl">
-      <div className="mx-auto flex min-h-16 w-[calc(100%-2.5rem)] max-w-[1120px] items-center justify-between gap-5 max-sm:w-[calc(100%-1.75rem)]">
-        <div className="flex items-center gap-8 max-sm:gap-4">
-          <Link
-            className="inline-flex items-center gap-2 font-display text-xl tracking-tight text-pink"
-            href="/studio"
-          >
-            RARELY
-            <span className="grid size-5 place-items-center rounded-full border-2 border-ink bg-yellow text-pink [&>svg]:w-2.5">
-              <Star />
-            </span>
-          </Link>
-          <nav className="flex items-center gap-4 text-xs font-black" aria-label="App navigation">
-            {navItem("/studio", "Videos")}
-            {navItem("/studio/generate", "Create")}
-          </nav>
-        </div>
-        <nav className="flex items-center gap-4 text-xs font-black" aria-label="Account navigation">
+      <div className="mx-auto flex min-h-16 w-[calc(100%-2.5rem)] max-w-[1120px] items-center gap-8 max-sm:w-[calc(100%-1.75rem)] max-sm:flex-wrap max-sm:gap-x-3 max-sm:gap-y-1 max-sm:py-2">
+        <Link
+          className="inline-flex items-center gap-2 font-display text-xl tracking-tight text-pink"
+          href="/studio"
+        >
+          RARELY
+          <span className="grid size-5 place-items-center rounded-full border-2 border-ink bg-yellow text-pink [&>svg]:w-2.5">
+            <Star />
+          </span>
+        </Link>
+        <nav className="flex items-center gap-4 text-xs font-black max-sm:order-3 max-sm:w-full max-sm:justify-center max-sm:border-t max-sm:border-ink/10 max-sm:pt-1" aria-label="App navigation">
+          {navItem("/studio", "Videos")}
+          {navItem("/studio/generate", "Create")}
+          {navItem("/studio/birthday", "Birthday")}
+        </nav>
+        <nav className="ml-auto flex items-center gap-4 text-xs font-black max-sm:gap-3" aria-label="Account navigation">
           <Link className="rounded-full border border-ink/20 bg-white px-3 py-2 font-mono text-[9px] font-medium hover:border-pink hover:text-pink max-sm:px-2" href="/studio/credits">
             {creditBalance} {creditBalance === 1 ? "credit" : "credits"}
           </Link>

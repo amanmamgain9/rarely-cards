@@ -41,7 +41,7 @@ export default async function GeneratePage({ searchParams }: GeneratePageProps) 
       .select("credits_remaining, credit_kind")
       .eq("status", "active"),
     draftId
-      ? getResumableAnalysisById(auth.user.id, draftId)
+      ? getResumableAnalysisById(auth.user.id, draftId, "talking_video")
       : Promise.resolve(null),
   ]);
   if (draftId && !initialAnalysis) redirect("/studio");

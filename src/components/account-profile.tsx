@@ -19,15 +19,9 @@ export function AccountProfile({ email }: { email: string | null }) {
   return (
     <section aria-labelledby="profile-heading" className="max-w-[700px]">
       <div className="mb-9">
-        <p className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-pink">
-          Your details
-        </p>
         <h1 id="profile-heading" className="font-display text-[clamp(2rem,5vw,3rem)] font-normal leading-none">
           Profile
         </h1>
-        <p className="mt-3 max-w-xl text-sm font-bold leading-relaxed text-ink-muted">
-          Manage how you access Rarely and find help when you need it.
-        </p>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-ink/10 bg-white">
@@ -48,7 +42,7 @@ export function AccountProfile({ email }: { email: string | null }) {
       </div>
 
       <section aria-labelledby="help-heading" className="mt-10 border-t border-ink/10 pt-8">
-        <h2 id="help-heading" className="text-lg font-black">Help and policies</h2>
+        <h2 id="help-heading" className="text-lg font-black">Help</h2>
         <nav aria-label="Help and policies" className="mt-4 flex flex-wrap gap-x-6 gap-y-3 text-sm font-extrabold text-pink">
           <Link href="/contact">Contact support</Link>
           <Link href="/refund-policy">Refund policy</Link>

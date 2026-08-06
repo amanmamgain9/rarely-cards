@@ -10,6 +10,7 @@ import {
   toPublicVideoGeneration,
 } from "@/lib/video/generation";
 import { buildPetVideoPrompt } from "@/lib/video/prompt";
+import { buildBirthdayVideoPrompt } from "@/lib/birthday/prompt";
 import { petDialogueSchema } from "@/lib/video/dialogue";
 import {
   DEFAULT_PET_VOICE_ACCENT,
@@ -27,12 +28,20 @@ const AMBIGUOUS_SUBMISSION_TTL_MS = 65 * 60_000;
 
 const VIDEO_SELECT =
   "id, analysis_id, user_id, status, provider_task_id, output_path, error_code, discard_requested_at, attempt_count, created_at, updated_at";
-const createVideoSchema = z.object({
+const petVideoSchema = z.object({
+  mode: z.literal("pet").optional(),
   dialogue: petDialogueSchema.optional(),
   petName: z.string().trim().min(1).max(30).optional(),
   petPronouns: petPronounsSchema.exclude(["they"]),
   voiceAccent: petVoiceAccentSchema.default(DEFAULT_PET_VOICE_ACCENT),
 });
+const birthdayVideoSchema = z.object({
+  mode: z.literal("birthday"),
+  dialogue: petDialogueSchema,
+  recipientName: z.string().trim().min(1).max(40),
+  voiceAccent: petVoiceAccentSchema.default(DEFAULT_PET_VOICE_ACCENT),
+});
+const createVideoSchema = z.union([birthdayVideoSchema, petVideoSchema]);
 
 export async function GET(request: Request, context: RouteContext) {
   const { user } = await requireUser();
@@ -142,7 +151,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
   const { data: analysis } = await admin
     .from("analysis_requests")
-    .select("id, user_id, status, card_photo_path, object_path, selected_dialogue, pet_name, pet_pronouns")
+    .select("id, user_id, status, card_photo_path, object_path, selected_dialogue, pet_name, pet_pronouns, experience_kind")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -159,6 +168,13 @@ export async function POST(request: Request, context: RouteContext) {
   const dialogue = body.data.dialogue ?? analysis.selected_dialogue;
   if (!dialogue || !petDialogueSchema.safeParse(dialogue).success) {
     return Response.json({ error: "Choose what your pet should say first." }, { status: 400 });
+  }
+  const birthdayMode = body.data.mode === "birthday";
+  if (
+    (birthdayMode && analysis.experience_kind !== "birthday_video") ||
+    (!birthdayMode && analysis.experience_kind === "birthday_video")
+  ) {
+    return Response.json({ error: "This draft belongs to a different studio." }, { status: 409 });
   }
 
   let { data: row } = await admin
@@ -179,25 +195,36 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  const petName = body.data.petName ?? analysis.pet_name ?? "My pet";
-  const petPronouns = body.data.petPronouns;
-  const { data: genderSaved, error: genderSaveError } = await admin
-    .from("analysis_requests")
-    .update({ pet_pronouns: petPronouns })
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .in("status", ["awaiting_name", "paid", "processing", "completed"])
-    .select("id")
-    .maybeSingle();
-  if (genderSaveError || !genderSaved) {
-    return Response.json({ error: "This pet is no longer ready for a video." }, { status: 409 });
+  let petName: string;
+  let prompt: string;
+  if (body.data.mode === "birthday") {
+    petName = `Birthday for ${body.data.recipientName}`.slice(0, 30);
+    prompt = buildBirthdayVideoPrompt({
+      recipientName: body.data.recipientName,
+      dialogue,
+      voiceAccent: body.data.voiceAccent,
+    });
+  } else {
+    petName = body.data.petName ?? analysis.pet_name ?? "My pet";
+    const petPronouns = body.data.petPronouns;
+    const { data: genderSaved, error: genderSaveError } = await admin
+      .from("analysis_requests")
+      .update({ pet_pronouns: petPronouns })
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .in("status", ["awaiting_name", "paid", "processing", "completed"])
+      .select("id")
+      .maybeSingle();
+    if (genderSaveError || !genderSaved) {
+      return Response.json({ error: "This pet is no longer ready for a video." }, { status: 409 });
+    }
+    prompt = buildPetVideoPrompt({
+      petName,
+      dialogue,
+      petPronouns,
+      voiceAccent: body.data.voiceAccent,
+    });
   }
-  const prompt = buildPetVideoPrompt({
-    petName,
-    dialogue,
-    petPronouns,
-    voiceAccent: body.data.voiceAccent,
-  });
   const providerConfig = seedanceEnv();
   const { data: reservation, error: reservationError } = await admin.rpc(
     "reserve_and_create_talking_video",
@@ -247,6 +274,7 @@ export async function POST(request: Request, context: RouteContext) {
       userId: user.id,
       photoPath,
       prompt,
+      birthdayMode,
     }),
   );
   return Response.json(await toPublicVideoGeneration(row), {

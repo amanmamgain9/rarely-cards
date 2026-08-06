@@ -10,7 +10,7 @@ export default function TermsPage() {
   return (
     <LegalShell>
       <LegalArticle>
-        <LegalEyebrow>EFFECTIVE JULY 30, 2026</LegalEyebrow>
+        <LegalEyebrow>EFFECTIVE AUGUST 5, 2026</LegalEyebrow>
         <LegalTitle>The deal, without the fine-print theatre.</LegalTitle>
         <p>
           Rarely is operated by Aman Mamgain, sole proprietor. Rarely is a
@@ -28,11 +28,18 @@ export default function TermsPage() {
           entertainment output, not a faithful record of an event. Availability,
           duration, and provider may change as the service develops.
         </p>
+        <p>
+          Birthday Studio may use 1–6 pet photos to generate one new birthday
+          portrait with Google Gemini before video generation. AI can omit,
+          duplicate, combine, or alter visible pet details. You must review and
+          approve the portrait before using it as the video frame.
+        </p>
 
         <LegalHeading>Your upload</LegalHeading>
         <p>
           You must be at least 18 and own the photo or have permission to use
-          it. Submit one clearly visible cat or dog and avoid identifiable
+          it. The standard studio accepts one clearly visible cat or dog;
+          Birthday Studio accepts 1–6 clearly visible cats or dogs. Avoid identifiable
           people who have not agreed to appear. Do not upload illegal,
           exploitative, impersonating, or privacy-invasive material. Rarely
           infers cat or dog from the image and uses the pronouns you select; it

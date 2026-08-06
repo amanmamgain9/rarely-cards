@@ -1,6 +1,12 @@
 import Link from "next/link";
 
-export function PublicHeader() {
+export function PublicHeader({
+  ctaHref = "/#maker",
+  ctaLabel = "Make my pet talk →",
+}: {
+  ctaHref?: string;
+  ctaLabel?: string;
+} = {}) {
   return (
     <header className="mx-auto grid min-h-20 w-[calc(100%-2.5rem)] max-w-[1180px] grid-cols-[auto_1fr_auto] items-center gap-7 rounded-2xl border-[3px] border-ink bg-cream/95 px-5 py-3 shadow-[6px_7px_0_#241a44] max-[900px]:grid-cols-[1fr_auto] max-[600px]:w-[calc(100%-1.75rem)] max-[600px]:gap-3 max-[600px]:px-3">
       <Link className="font-display text-2xl leading-none text-pink [text-shadow:2px_2px_0_#ffe36e] max-[600px]:text-xl" href="/">RARELY <span className="text-yellow">★</span></Link>
@@ -12,7 +18,7 @@ export function PublicHeader() {
         <Link href="/terms">Terms</Link>
         <Link href="/contact">Contact</Link>
       </nav>
-      <Link className="hidden min-h-10 items-center justify-center rounded-xl border-2 border-ink bg-yellow px-4 font-mono text-[10px] font-bold text-ink shadow-[3px_3px_0_#241a44] sm:inline-flex" href="/#maker">Make my pet talk →</Link>
+      <Link className="hidden min-h-10 items-center justify-center rounded-xl border-2 border-ink bg-yellow px-4 font-mono text-[10px] font-bold text-ink shadow-[3px_3px_0_#241a44] sm:inline-flex" href={ctaHref}>{ctaLabel}</Link>
     </header>
   );
 }
@@ -33,7 +39,7 @@ export function PublicFooter() {
       <div className="grid gap-9 border-b border-white/20 pb-9 md:grid-cols-[0.8fr_1.2fr]">
         <div>
           <Link className="font-display text-2xl leading-none text-pink [text-shadow:2px_2px_0_#ffe36e]" href="/">RARELY <span className="text-yellow">★</span></Link>
-          <p className="mt-3 max-w-sm text-sm font-bold leading-relaxed text-[#cdbfe0]">One pet photo. One perfect line. One tiny talking-pet video.</p>
+          <p className="mt-3 max-w-sm text-sm font-bold leading-relaxed text-[#cdbfe0]">Create talking-pet and pet birthday videos.</p>
         </div>
         <nav className="grid grid-cols-1 gap-x-6 gap-y-3 font-mono text-[9px] font-bold uppercase text-yellow sm:grid-cols-2" aria-label="Talking-pet video guides">
           {creationLinks.map(([label, href]) => <Link href={href} key={href}>{label}</Link>)}

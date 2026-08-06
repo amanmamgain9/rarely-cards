@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { StudioHeader } from "@/components/studio-header";
 import { StudioVideoActions } from "@/components/studio-video-actions";
+import { StudioVideoFeedback } from "@/components/studio-video-feedback";
 import { StudioVideoPending } from "@/components/studio-video-pending";
 import { requireUser } from "@/lib/auth";
 import { ensureDevelopmentVideoCredits } from "@/lib/payments/development-credits";
@@ -41,8 +42,8 @@ export default async function StudioVideoPage({
     <main className="min-h-svh bg-background text-ink">
       <StudioHeader creditBalance={creditBalance} />
       <section className="mx-auto w-[calc(100%-2.5rem)] max-w-[1120px] pb-20 pt-8 max-sm:w-[calc(100%-1.75rem)] max-sm:pb-12 max-sm:pt-6">
-        <Link className="inline-flex min-h-10 items-center gap-2 text-sm font-black text-ink-muted hover:text-pink" href="/studio">
-          <span aria-hidden="true">←</span> Back to videos
+        <Link aria-label="Back to videos" className="inline-flex min-h-10 items-center gap-2 text-sm font-black text-ink-muted hover:text-pink" href="/studio">
+          <span aria-hidden="true">←</span> Videos
         </Link>
 
         <div className="mt-6 grid items-start gap-12 lg:grid-cols-[minmax(320px,480px)_minmax(0,1fr)] max-lg:gap-8">
@@ -94,24 +95,23 @@ export default async function StudioVideoPage({
             {ready ? (
               <>
                 <StudioVideoActions petName={video.petName} videoUrl={video.videoUrl!} />
-                <p className="mt-5 max-w-md text-sm font-bold leading-relaxed text-ink-muted">
-                  Sharing sends the video file. The original photo remains private to your account.
-                </p>
+                <p className="mt-5 max-w-md text-sm font-bold text-ink-muted">Your photo stays private.</p>
+                <StudioVideoFeedback videoId={video.id} />
               </>
             ) : failed ? (
               <p className="max-w-md rounded-xl border-2 border-pink/30 bg-white p-4 text-sm font-bold leading-relaxed text-ink-muted">
-                This video could not be generated.
+                Your credit was returned. Try another photo.
               </p>
             ) : (
               <p className="max-w-md rounded-xl border-2 border-ink/15 bg-white p-4 text-sm font-bold leading-relaxed text-ink-muted">
-                Generation usually takes a few minutes. You can leave this page and check your videos later.
+                Usually ready in a few minutes. You can leave this page.
               </p>
             )}
             <Link
               className="mt-9 inline-flex min-h-11 items-center font-mono text-[9px] font-bold uppercase tracking-wider text-pink underline decoration-2 underline-offset-4"
               href="/studio/generate"
             >
-              Make another video →
+              New video →
             </Link>
           </div>
         </div>

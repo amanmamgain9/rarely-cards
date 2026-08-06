@@ -155,15 +155,9 @@ export function AccountBilling({
   return (
     <section aria-labelledby="billing-heading">
       <div className="mb-9">
-        <p className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-pink">
-          Credits and payments
-        </p>
         <h1 id="billing-heading" className="font-display text-[clamp(2rem,5vw,3rem)] font-normal leading-none">
           Billing
         </h1>
-        <p className="mt-3 max-w-xl text-sm font-bold leading-relaxed text-ink-muted">
-          Buy video credits, check your balance, and manage past purchases.
-        </p>
       </div>
 
       {message && (
@@ -175,7 +169,7 @@ export function AccountBilling({
       <section className="relative overflow-hidden rounded-2xl border-2 border-ink bg-yellow shadow-[5px_5px_0_#241a44]" aria-labelledby="balance-heading">
         <div className="grid gap-6 p-6 sm:grid-cols-[1fr_auto] sm:items-center">
           <div>
-            <p className="font-mono text-[10px] font-medium uppercase tracking-[0.16em]">Available now</p>
+            <p className="font-mono text-[10px] font-medium uppercase tracking-[0.16em]">Balance</p>
             <div className="mt-2 flex items-end gap-3">
               <strong id="balance-heading" className="font-display text-6xl font-normal leading-[0.9]">
                 {loading ? "—" : account?.developmentMode ? "∞" : account?.creditBalance ?? 0}
@@ -187,7 +181,7 @@ export function AccountBilling({
             <p className="mt-3 text-sm font-bold text-ink-muted">
               {account?.developmentMode
                 ? "Video creation is free locally. Checkout is disabled."
-                : "One credit creates one talking-pet video."}
+                : "1 credit = 1 video"}
             </p>
           </div>
 
@@ -234,7 +228,6 @@ export function AccountBilling({
         ) : (
           <div className="rounded-2xl border border-dashed border-ink/20 bg-white/60 px-6 py-9 text-center">
             <strong className="block">No purchases yet</strong>
-            <p className="mt-1 text-sm font-bold text-ink-muted">Your credit purchases will appear here.</p>
           </div>
         )}
       </section>

@@ -16,7 +16,7 @@ const resumeAnalysisSelection =
 type ResumableAnalysisRow = {
   id: string;
   card_style: string;
-  experience_kind: "card" | "talking_video";
+  experience_kind: "card" | "talking_video" | "birthday_video";
   pet_name: string | null;
   pet_pronouns: "he" | "she" | "they" | null;
   status: string;
@@ -69,16 +69,19 @@ async function toResumableAnalysis(
 export async function getResumableAnalysisById(
   userId: string,
   analysisId: string,
+  experienceKind?: "talking_video" | "birthday_video",
 ): Promise<PublicAnalysis | null> {
   const admin = createAdminClient();
-  const { data, error } = await admin
+  let query = admin
     .from("analysis_requests")
     .select(resumeAnalysisSelection)
     .eq("id", analysisId)
     .eq("user_id", userId)
-    .eq("experience_kind", "talking_video")
-    .not("photo_uploaded_at", "is", null)
-    .maybeSingle();
+    .not("photo_uploaded_at", "is", null);
+  query = experienceKind
+    ? query.eq("experience_kind", experienceKind)
+    : query.in("experience_kind", ["talking_video", "birthday_video"]);
+  const { data, error } = await query.maybeSingle();
 
   if (error) throw new Error(`resume_analysis_unavailable:${error.code}`);
   return toResumableAnalysis(userId, data as ResumableAnalysisRow | null);

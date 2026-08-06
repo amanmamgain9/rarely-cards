@@ -25,6 +25,7 @@ export type StudioDraft = {
   createdAt: string;
   updatedAt: string;
   photoUrl: string;
+  experienceKind: "talking_video" | "birthday_video";
 };
 
 type VideoRow = {
@@ -101,9 +102,9 @@ export async function getStudioDrafts(userId: string): Promise<StudioDraft[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("analysis_requests")
-    .select("id, status, pet_name, selected_dialogue, created_at, updated_at")
+    .select("id, status, pet_name, selected_dialogue, created_at, updated_at, experience_kind")
     .eq("user_id", userId)
-    .eq("experience_kind", "talking_video")
+    .in("experience_kind", ["talking_video", "birthday_video"])
     .in("status", [...DRAFT_ANALYSIS_STATUSES])
     .not("object_path", "is", null)
     .order("updated_at", { ascending: false });
@@ -117,6 +118,7 @@ export async function getStudioDrafts(userId: string): Promise<StudioDraft[]> {
     createdAt: draft.created_at,
     updatedAt: draft.updated_at,
     photoUrl: `/api/analyses/${draft.id}/photo`,
+    experienceKind: draft.experience_kind as StudioDraft["experienceKind"],
   }));
 }
 

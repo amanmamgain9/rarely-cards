@@ -29,6 +29,7 @@ describe("payment catalog entitlement kinds", () => {
 
   it("maps an analysis experience to its matching credit kind", () => {
     expect(analysisCreditKind("talking_video")).toBe("talking_video");
+    expect(analysisCreditKind("birthday_video")).toBe("talking_video");
     expect(analysisCreditKind("card")).toBe("card");
   });
 });

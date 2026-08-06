@@ -54,6 +54,7 @@ export async function createSeedanceVideo(input: {
   prompt: string;
   userId: string;
   generationId: string;
+  durationSeconds?: 8 | 10;
 }) {
   const env = seedanceEnv();
   const safetyIdentifier = createHash("sha256")
@@ -81,7 +82,7 @@ export async function createSeedanceVideo(input: {
       generate_audio: true,
       resolution: "720p",
       ratio: "9:16",
-      duration: 8,
+      duration: input.durationSeconds ?? 8,
       watermark: false,
       callback_url: `${env.appUrl}/api/webhooks/seedance?generationId=${encodeURIComponent(input.generationId)}&token=${callbackToken}`,
       safety_identifier: safetyIdentifier,

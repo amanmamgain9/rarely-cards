@@ -9,6 +9,7 @@ import { hasSeedanceEnv } from "@/lib/env";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncSeedanceVideo } from "@/lib/video/generation";
+import { analysisCreditKind } from "@/lib/payments/catalog";
 import {
   developmentVideoCreditBalance,
   ensureDevelopmentVideoCredits,
@@ -206,9 +207,10 @@ export async function GET(request: Request) {
             ["reserved", "consumed"].includes(row.credit_state || ""),
         ),
         creditKind:
-          row.experience_kind ??
-          creditKindByPurchase.get(row.credit_purchase_id || "") ??
-          "talking_video",
+          row.experience_kind
+            ? analysisCreditKind(row.experience_kind)
+            : creditKindByPurchase.get(row.credit_purchase_id || "") ??
+              "talking_video",
         rejectionMessage: row.rejection_message,
         creditState: row.credit_state,
         createdAt: row.created_at,

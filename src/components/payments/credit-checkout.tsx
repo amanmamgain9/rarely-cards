@@ -54,13 +54,13 @@ export function CreditCheckout({
   }
 
   async function finishPurchase(transactionId?: string) {
-    setMessage("Payment complete. Adding your video credits…");
+    setMessage("Payment complete. Adding credits…");
     for (let attempt = 0; attempt < 20; attempt += 1) {
       if (await creditPurchaseIsReady(transactionId).catch(() => false)) {
         await onConfirmed?.();
         if (redirectTo) window.location.assign(redirectTo);
         else {
-          setMessage("Three new video credits are ready.");
+          setMessage("3 credits added.");
           setBusy(false);
           setRestoring(false);
         }
@@ -68,7 +68,7 @@ export function CreditCheckout({
       }
       await new Promise((resolve) => window.setTimeout(resolve, 1_500));
     }
-    setMessage("Payment is complete. Your credits are still being confirmed; refresh shortly.");
+    setMessage("Payment complete. Refresh soon to see your credits.");
     setBusy(false);
     setRestoring(false);
   }
@@ -154,7 +154,7 @@ export function CreditCheckout({
     try {
       const restored = await restoreGooglePlayPurchases(analysisId);
       if (restored.length === 0) {
-        setMessage("No Rarely purchases were found to restore.");
+        setMessage("No purchases found.");
         setRestoring(false);
         return;
       }
@@ -176,7 +176,7 @@ export function CreditCheckout({
       : channel === "play_unavailable"
         ? "Google Play unavailable"
         : !available
-          ? "Checkout temporarily unavailable"
+          ? "Checkout unavailable"
           : `Get 3 videos${price ? ` — ${price}` : ""}`;
 
   return (
