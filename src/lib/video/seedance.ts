@@ -54,7 +54,7 @@ export async function createSeedanceVideo(input: {
   prompt: string;
   userId: string;
   generationId: string;
-  durationSeconds?: 8 | 10;
+  durationSeconds?: 8 | 10 | 12;
 }) {
   const env = seedanceEnv();
   const safetyIdentifier = createHash("sha256")

@@ -1,7 +1,7 @@
 import "server-only";
 
 import {
-  prepareBirthdayImageForSeedance,
+  prepareGeneratedSceneForSeedance,
   prepareImageForSeedance,
 } from "@/lib/analysis/image";
 import { reportServerError } from "@/lib/observability";
@@ -10,6 +10,7 @@ import {
   cancelOrDeleteSeedanceVideo,
   createSeedanceVideo,
 } from "@/lib/video/seedance";
+import { MOVIE_TRAILER_DURATION_SECONDS } from "@/lib/movie/scenes";
 
 type Submission = {
   generationId: string;
@@ -17,7 +18,7 @@ type Submission = {
   userId: string;
   photoPath: string;
   prompt: string;
-  birthdayMode: boolean;
+  mode: "pet" | "birthday" | "movie";
 };
 
 export async function submitSeedanceVideo({
@@ -26,7 +27,7 @@ export async function submitSeedanceVideo({
   userId,
   photoPath,
   prompt,
-  birthdayMode,
+  mode,
 }: Submission) {
   const admin = createAdminClient();
   let taskId: string | null = null;
@@ -39,9 +40,9 @@ export async function submitSeedanceVideo({
     if (photoError || !object) throw new Error("seedance_photo_download_failed");
 
     const sourceImage = Buffer.from(await object.arrayBuffer());
-    const image = birthdayMode
-      ? await prepareBirthdayImageForSeedance(sourceImage)
-      : await prepareImageForSeedance(sourceImage);
+    const image = mode === "pet"
+      ? await prepareImageForSeedance(sourceImage)
+      : await prepareGeneratedSceneForSeedance(sourceImage);
     const { data: claim } = await admin
       .from("video_generations")
       .update({ updated_at: new Date().toISOString() })
@@ -58,7 +59,11 @@ export async function submitSeedanceVideo({
       prompt,
       userId,
       generationId,
-      durationSeconds: birthdayMode ? 10 : 8,
+      durationSeconds: mode === "pet"
+        ? 8
+        : mode === "movie"
+          ? MOVIE_TRAILER_DURATION_SECONDS
+          : 10,
     });
     const now = new Date().toISOString();
     const { data: started, error: startError } = await admin

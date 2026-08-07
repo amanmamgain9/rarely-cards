@@ -14,7 +14,7 @@ async function responsePayload(response: Response) {
 export async function createAnalysisFromPhoto(input: {
   file: File;
   cardStyle: CardStyle;
-  experienceKind?: "talking_video" | "birthday_video";
+  experienceKind?: "talking_video" | "birthday_video" | "movie_scene";
   petName?: string;
 }) {
   const response = await fetch("/api/analyses", {

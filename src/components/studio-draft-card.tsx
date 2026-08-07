@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import type { StudioDraft } from "@/lib/studio/videos";
+import { studioPath } from "@/lib/experiences";
 
 function draftStep(status: StudioDraft["status"]) {
   switch (status) {
@@ -20,10 +21,7 @@ function draftStep(status: StudioDraft["status"]) {
 export function StudioDraftCard({ draft }: { draft: StudioDraft }) {
   const [deleted, setDeleted] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const continueHref =
-    draft.experienceKind === "birthday_video"
-      ? `/studio/birthday?draft=${draft.id}`
-      : `/studio/generate?draft=${draft.id}`;
+  const continueHref = studioPath(draft.experienceKind, draft.id);
 
   async function deleteDraft() {
     if (!window.confirm("Delete this draft and its saved photo?")) return;

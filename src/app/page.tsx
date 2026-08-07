@@ -6,9 +6,9 @@ import { requireUser } from "@/lib/auth";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "AI Talking Pet & Birthday Video Maker — Rarely",
+  title: "AI Pet Video Maker — Rarely",
   description:
-    "Make AI talking-pet and personalized pet birthday videos from your photos. Download short MP4 videos with sound.",
+    "Make AI talking-pet, birthday, and famous movie-scene videos from your photos. Download short MP4 videos with sound.",
   alternates: { canonical: "/" },
 };
 

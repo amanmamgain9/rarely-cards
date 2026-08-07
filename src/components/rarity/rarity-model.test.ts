@@ -19,6 +19,7 @@ function analysis(status: PublicAnalysis["status"]): PublicAnalysis {
     refundState: "none",
     dialogueSuggestions: [],
     selectedDialogue: null,
+    draftData: {},
   };
 }
 

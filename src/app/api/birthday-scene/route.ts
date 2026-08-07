@@ -5,6 +5,7 @@ import {
   prepareBirthdaySceneForUpload,
   prepareImageForGemini,
 } from "@/lib/analysis/image";
+import { storeGeneratedScene } from "@/lib/analysis/generated-scene";
 import { generateBirthdayScene } from "@/lib/ai/gemini";
 import {
   buildBirthdayScenePrompt,
@@ -12,13 +13,21 @@ import {
   MIN_BIRTHDAY_PETS,
 } from "@/lib/birthday/prompt";
 import { reportServerError } from "@/lib/observability";
-import { getStudioCreditBalance } from "@/lib/studio/videos";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { petVoiceAccentSchema } from "@/lib/video/accent";
+import { petDialogueSchema } from "@/lib/video/dialogue";
 
 export const maxDuration = 60;
 
 const recipientSchema = z.string().trim().min(1).max(40);
 const draftIdSchema = z.string().uuid();
+const saveSchema = z.object({
+  analysisId: z.string().uuid(),
+  recipientName: recipientSchema,
+  greeting: petDialogueSchema,
+  voiceAccent: petVoiceAccentSchema,
+});
 
 export async function POST(request: Request) {
   const startedAt = Date.now();
@@ -31,13 +40,14 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
-
-  if ((await getStudioCreditBalance(user.id)) < 1) {
-    return Response.json(
-      { error: "Add video credits before creating a birthday portrait.", needsCredits: true },
-      { status: 402 },
-    );
-  }
+  const limit = await checkRateLimit({
+    request,
+    scope: "birthday-scene-create",
+    userId: user.id,
+    limit: 10,
+    windowSeconds: 60 * 60,
+  });
+  if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds);
 
   const form = await request.formData().catch(() => null);
   const recipientName = recipientSchema.safeParse(form?.get("recipientName"));
@@ -45,6 +55,8 @@ export async function POST(request: Request) {
     ? "stored-preview-v1"
     : "legacy";
   const requestedDraftId = form?.get("draftId");
+  const greeting = petDialogueSchema.safeParse(form?.get("greeting")).data ?? null;
+  const voiceAccent = petVoiceAccentSchema.safeParse(form?.get("voiceAccent")).data ?? "english";
   const draftId = requestedDraftId
     ? draftIdSchema.safeParse(requestedDraftId)
     : null;
@@ -119,56 +131,22 @@ export async function POST(request: Request) {
     }
 
     const objectPath = `${user.id}/${analysisId}/portrait-${requestId}.jpg`;
-    // Pass an exact ArrayBuffer to Storage. A Node Buffer was observed being
-    // UTF-8 encoded in production, which changed valid JPEG bytes before save.
-    const uploadBody = Uint8Array.from(jpeg).buffer;
     const storage = admin.storage.from("analysis-photos");
-    const { error: uploadError } = await storage.upload(objectPath, uploadBody, {
-      contentType: "image/jpeg",
-      upsert: false,
-    });
-    if (uploadError) {
+    try {
+      await storeGeneratedScene(objectPath, jpeg);
+    } catch (error) {
       if (createdDraft) {
         await admin.from("analysis_requests").delete().eq("id", analysisId);
       }
-      throw new Error(`birthday_portrait_upload_failed:${uploadError.message}`);
-    }
-
-    const { data: storedPhoto, error: verifyDownloadError } =
-      await storage.download(objectPath);
-    const storedBytes = storedPhoto
-      ? Buffer.from(await storedPhoto.arrayBuffer())
-      : null;
-    if (
-      verifyDownloadError ||
-      !storedBytes ||
-      storedBytes.byteLength !== jpeg.byteLength ||
-      !storedBytes.equals(jpeg)
-    ) {
-      console.error(
-        JSON.stringify({
-          event: "birthday_portrait_storage_verification_failed",
-          requestId,
-          analysisId,
-          expectedBytes: jpeg.byteLength,
-          storedBytes: storedBytes?.byteLength ?? null,
-          storedPrefix: storedBytes
-            ? Array.from(storedBytes.subarray(0, 3))
-            : null,
-          storageCode: verifyDownloadError?.name ?? null,
-        }),
-      );
-      await storage.remove([objectPath]);
-      if (createdDraft) {
-        await admin.from("analysis_requests").delete().eq("id", analysisId);
-      }
-      throw new Error("birthday_portrait_storage_verification_failed");
+      throw error;
     }
 
     const { error: updateError } = await admin
       .from("analysis_requests")
       .update({
         pet_name: recipientName.data,
+        selected_dialogue: greeting,
+        draft_data: { voiceAccent },
         status: "awaiting_name",
         object_path: objectPath,
         image_mime_type: "image/jpeg",
@@ -213,7 +191,6 @@ export async function POST(request: Request) {
         analysisId,
         petCount: images.length,
         outputBytes: jpeg.byteLength,
-        storedBytes: storedBytes.byteLength,
         durationMs: Date.now() - startedAt,
         clientFlow,
       }),
@@ -242,4 +219,27 @@ export async function POST(request: Request) {
       { status: invalidImage ? 422 : 502 },
     );
   }
+}
+
+export async function PATCH(request: Request) {
+  const { user } = await requireUser();
+  if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
+  const body = saveSchema.safeParse(await request.json().catch(() => null));
+  if (!body.success) return Response.json({ error: "Birthday draft details are invalid." }, { status: 400 });
+  const { data, error } = await createAdminClient()
+    .from("analysis_requests")
+    .update({
+      pet_name: body.data.recipientName,
+      selected_dialogue: body.data.greeting,
+      draft_data: { voiceAccent: body.data.voiceAccent },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", body.data.analysisId)
+    .eq("user_id", user.id)
+    .eq("experience_kind", "birthday_video")
+    .in("status", ["awaiting_name", "awaiting_payment"])
+    .select("id")
+    .maybeSingle();
+  if (error || !data) return Response.json({ error: "Birthday draft could not be saved." }, { status: 409 });
+  return Response.json({ saved: true });
 }

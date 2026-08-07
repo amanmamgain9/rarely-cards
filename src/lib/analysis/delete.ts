@@ -25,10 +25,10 @@ export async function deleteDraft(userId: string, analysisId: string) {
     .delete()
     .eq("id", analysisId)
     .eq("user_id", userId)
-    .in("experience_kind", ["talking_video", "birthday_video"])
+    .in("experience_kind", ["talking_video", "birthday_video", "movie_scene"])
     .in("status", [...DRAFT_ANALYSIS_STATUSES])
     .not("object_path", "is", null)
-    .select("card_photo_path, object_path")
+    .select("card_photo_path, object_path, draft_data")
     .maybeSingle();
 
   if (error) throw new AnalysisDeleteError("The draft could not be deleted.", 502);
@@ -38,14 +38,23 @@ export async function deleteDraft(userId: string, analysisId: string) {
       409,
     );
   }
-  return uniquePaths([draft.card_photo_path, draft.object_path]);
+  const voicePath =
+    draft.draft_data && typeof draft.draft_data === "object" && !Array.isArray(draft.draft_data)
+      ? draft.draft_data.voiceRecordingPath
+      : null;
+  return {
+    photoPaths: uniquePaths([draft.card_photo_path, draft.object_path]),
+    voicePath: typeof voicePath === "string" ? voicePath : null,
+  };
 }
 
-export async function deleteDraftPhotos(
+export async function deleteDraftAssets(
   analysisId: string,
   photoPaths: string[],
+  voicePath: string | null,
 ) {
-  const { error } = await createAdminClient().storage
+  const admin = createAdminClient();
+  const { error } = await admin.storage
     .from("analysis-photos")
     .remove(photoPaths);
   if (error) {
@@ -54,13 +63,24 @@ export async function deleteDraftPhotos(
       analysisId,
     });
   }
+  if (voicePath) {
+    const { error: voiceError } = await admin.storage
+      .from("movie-voice-recordings")
+      .remove([voicePath]);
+    if (voiceError) {
+      reportServerError(voiceError, {
+        operation: "draft_voice_cleanup",
+        analysisId,
+      });
+    }
+  }
 }
 
 export async function deleteSavedAnalysis(userId: string, analysisId: string) {
   const admin = createAdminClient();
   const { data: analysis } = await admin
     .from("analysis_requests")
-    .select("id, card_photo_path, object_path")
+    .select("id, card_photo_path, object_path, draft_data")
     .eq("id", analysisId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -132,6 +152,18 @@ export async function deleteSavedAnalysis(userId: string, analysisId: string) {
     .remove(photoPaths);
   if (photoStorageError) {
     throw new AnalysisDeleteError("Photo could not be deleted.", 502);
+  }
+  const voicePath =
+    analysis.draft_data && typeof analysis.draft_data === "object" && !Array.isArray(analysis.draft_data)
+      ? analysis.draft_data.voiceRecordingPath
+      : null;
+  if (typeof voicePath === "string") {
+    const { error: voiceStorageError } = await admin.storage
+      .from("movie-voice-recordings")
+      .remove([voicePath]);
+    if (voiceStorageError) {
+      throw new AnalysisDeleteError("Voice recording could not be deleted.", 502);
+    }
   }
 
   await admin

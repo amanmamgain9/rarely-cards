@@ -85,20 +85,6 @@ export const HERO_CARD_DEMOS = [
   result: AcceptedAnalysis;
 }[];
 
-export const PENDING_CARD_RESULT: AcceptedAnalysis = {
-  status: "accepted",
-  petName: "Your pet",
-  cardTitle: "Their Story Starts Here",
-  rarityScore: 80,
-  signatureRead: {
-    title: "The Look You Know",
-    score: 80,
-    thought:
-      "You already know what this face means. Their card will put it into words.",
-  },
-  ratings: PET_DEMO_RESULT.ratings.map((rating) => ({ ...rating })),
-};
-
 export function readPhoto(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();

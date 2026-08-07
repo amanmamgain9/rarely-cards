@@ -15,6 +15,8 @@ export type StudioVideo = {
   completedAt: string | null;
   photoUrl: string;
   videoUrl: string | null;
+  experienceKind: "talking_video" | "birthday_video" | "movie_scene";
+  canRetry: boolean;
 };
 
 export type StudioDraft = {
@@ -25,7 +27,7 @@ export type StudioDraft = {
   createdAt: string;
   updatedAt: string;
   photoUrl: string;
-  experienceKind: "talking_video" | "birthday_video";
+  experienceKind: "talking_video" | "birthday_video" | "movie_scene";
 };
 
 type VideoRow = {
@@ -36,6 +38,7 @@ type VideoRow = {
   created_at: string;
   completed_at: string | null;
   discard_requested_at: string | null;
+  attempt_count: number;
 };
 
 type AnalysisRow = {
@@ -43,6 +46,7 @@ type AnalysisRow = {
   pet_name: string | null;
   selected_dialogue: string | null;
   object_path: string | null;
+  experience_kind: "card" | "talking_video" | "birthday_video" | "movie_scene";
 };
 
 function toStudioVideo(
@@ -62,6 +66,14 @@ function toStudioVideo(
       row.status === "succeeded" && row.output_path
         ? `/api/analyses/${row.analysis_id}/video/file`
         : null,
+    experienceKind:
+      analysis?.experience_kind && analysis.experience_kind !== "card"
+        ? analysis.experience_kind
+        : "talking_video",
+    canRetry:
+      row.status === "failed" &&
+      row.attempt_count < 3 &&
+      !row.discard_requested_at,
   };
 }
 
@@ -70,7 +82,7 @@ async function analysesById(userId: string, analysisIds: string[]) {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("analysis_requests")
-    .select("id, pet_name, selected_dialogue, object_path")
+    .select("id, pet_name, selected_dialogue, object_path, experience_kind")
     .eq("user_id", userId)
     .in("id", analysisIds);
   if (error) throw new Error(`studio_analyses_unavailable:${error.code}`);
@@ -82,7 +94,7 @@ export async function getStudioVideos(userId: string): Promise<StudioVideo[]> {
   const { data, error } = await admin
     .from("video_generations")
     .select(
-      "id, analysis_id, status, output_path, created_at, completed_at, discard_requested_at",
+      "id, analysis_id, status, output_path, created_at, completed_at, discard_requested_at, attempt_count",
     )
     .eq("user_id", userId)
     .in("status", ["submitting", "running", "succeeded", "failed"])
@@ -104,7 +116,7 @@ export async function getStudioDrafts(userId: string): Promise<StudioDraft[]> {
     .from("analysis_requests")
     .select("id, status, pet_name, selected_dialogue, created_at, updated_at, experience_kind")
     .eq("user_id", userId)
-    .in("experience_kind", ["talking_video", "birthday_video"])
+    .in("experience_kind", ["talking_video", "birthday_video", "movie_scene"])
     .in("status", [...DRAFT_ANALYSIS_STATUSES])
     .not("object_path", "is", null)
     .order("updated_at", { ascending: false });
@@ -130,7 +142,7 @@ export async function getStudioVideo(
   const { data, error } = await admin
     .from("video_generations")
     .select(
-      "id, analysis_id, status, output_path, created_at, completed_at, discard_requested_at",
+      "id, analysis_id, status, output_path, created_at, completed_at, discard_requested_at, attempt_count",
     )
     .eq("id", videoId)
     .eq("user_id", userId)

@@ -31,7 +31,13 @@ export function StudioHeader({ creditBalance }: { creditBalance: number }) {
   }
 
   const navItem = (href: string, label: string) => {
-    const active = href === "/studio" ? pathname === href : pathname.startsWith(href);
+    const active = href === "/studio"
+      ? pathname === href
+      : href === "/studio/create"
+        ? ["/studio/create", "/studio/talking-pet", "/studio/birthday", "/studio/movie"].some(
+            (path) => pathname.startsWith(path),
+          )
+        : pathname.startsWith(href);
     return (
       <Link
         aria-current={active ? "page" : undefined}
@@ -61,8 +67,7 @@ export function StudioHeader({ creditBalance }: { creditBalance: number }) {
         </Link>
         <nav className="flex items-center gap-4 text-xs font-black max-sm:order-3 max-sm:w-full max-sm:justify-center max-sm:border-t max-sm:border-ink/10 max-sm:pt-1" aria-label="App navigation">
           {navItem("/studio", "Videos")}
-          {navItem("/studio/generate", "Create")}
-          {navItem("/studio/birthday", "Birthday")}
+          {navItem("/studio/create", "Create")}
         </nav>
         <nav className="ml-auto flex items-center gap-4 text-xs font-black max-sm:gap-3" aria-label="Account navigation">
           <Link className="rounded-full border border-ink/20 bg-white px-3 py-2 font-mono text-[9px] font-medium hover:border-pink hover:text-pink max-sm:px-2" href="/studio/credits">

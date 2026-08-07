@@ -37,7 +37,7 @@ type AnalysisRequestRow = {
   id: string;
   user_id: string;
   card_style: CardStyle;
-  experience_kind: "card" | "talking_video" | "birthday_video";
+  experience_kind: "card" | "talking_video" | "birthday_video" | "movie_scene";
   pet_name: string | null;
   pet_pronouns: "he" | "she" | "they" | null;
   status: AnalysisStatus;
@@ -80,13 +80,14 @@ type AnalysisRequestRow = {
   expires_at: string | null;
   dialogue_suggestions: Json | null;
   selected_dialogue: string | null;
+  draft_data: Json;
 };
 
 type AnalysisRequestInsert = {
   id?: string;
   user_id: string;
   card_style: CardStyle;
-  experience_kind?: "card" | "talking_video" | "birthday_video";
+  experience_kind?: "card" | "talking_video" | "birthday_video" | "movie_scene";
   pet_name?: string | null;
   pet_pronouns?: "he" | "she" | "they" | null;
   status?: AnalysisStatus;
@@ -129,6 +130,7 @@ type AnalysisRequestInsert = {
   expires_at?: string | null;
   dialogue_suggestions?: Json | null;
   selected_dialogue?: string | null;
+  draft_data?: Json;
 };
 
 type AnalysisRequestUpdate = Partial<AnalysisRequestInsert>;

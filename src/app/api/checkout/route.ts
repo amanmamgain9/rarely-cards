@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Analysis not found." }, { status: 404 });
     }
     if (
-      !["talking_video", "birthday_video"].includes(analysis.experience_kind) ||
+      !["talking_video", "birthday_video", "movie_scene"].includes(analysis.experience_kind) ||
       !["awaiting_payment", "awaiting_name"].includes(analysis.status)
     ) {
       return Response.json(

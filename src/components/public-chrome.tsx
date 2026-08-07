@@ -39,7 +39,7 @@ export function PublicFooter() {
       <div className="grid gap-9 border-b border-white/20 pb-9 md:grid-cols-[0.8fr_1.2fr]">
         <div>
           <Link className="font-display text-2xl leading-none text-pink [text-shadow:2px_2px_0_#ffe36e]" href="/">RARELY <span className="text-yellow">★</span></Link>
-          <p className="mt-3 max-w-sm text-sm font-bold leading-relaxed text-[#cdbfe0]">Create talking-pet and pet birthday videos.</p>
+          <p className="mt-3 max-w-sm text-sm font-bold leading-relaxed text-[#cdbfe0]">Create talking-pet, birthday, and movie-scene videos.</p>
         </div>
         <nav className="grid grid-cols-1 gap-x-6 gap-y-3 font-mono text-[9px] font-bold uppercase text-yellow sm:grid-cols-2" aria-label="Talking-pet video guides">
           {creationLinks.map(([label, href]) => <Link href={href} key={href}>{label}</Link>)}
