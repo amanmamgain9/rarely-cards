@@ -6,7 +6,7 @@ import {
 } from "@/lib/analysis/payment-state";
 import { purchaseAdjustmentDecision } from "@/lib/analysis/credit-state";
 import { paddleEnv } from "@/lib/env";
-import { getPaddle } from "@/lib/paddle";
+import { getPaddle } from "@/lib/payments/paddle";
 import { grantCreditPurchase } from "@/lib/payments/credit-purchases";
 import { createAdminClient } from "@/lib/supabase/admin";
 

@@ -4,7 +4,7 @@ import {
   PaymentProcessorCopy,
   PricingIntroPaymentCopy,
   PricingTicketPrice,
-} from "@/components/pricing-payment-copy";
+} from "@/components/payments/pricing-payment-copy";
 import { PublicFooter, PublicHeader } from "@/components/public-chrome";
 
 export const metadata: Metadata = {

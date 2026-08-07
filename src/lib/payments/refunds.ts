@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { getPaddle } from "@/lib/paddle";
+import { getPaddle } from "@/lib/payments/paddle";
 import {
   getGooglePlayOrder,
   refundGooglePlayOrder,

@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import {
   clearPendingPhoto,
   savePendingPhoto,
-} from "@/lib/pending-photo";
+} from "@/lib/analysis/pending-photo";
 import {
   createAnalysisFromPhoto,
 } from "@/lib/analysis/client";
@@ -21,7 +21,7 @@ import {
   DEFAULT_PET_VOICE_ACCENT,
   type PetVoiceAccent,
 } from "@/lib/video/accent";
-import { StudioHeader } from "@/components/studio-header";
+import { StudioHeader } from "@/components/studio/studio-header";
 import { RarityFlowLayers } from "@/components/rarity/rarity-flow-layers";
 import { VideoWorkspace } from "@/components/rarity/video-workspace";
 import { VoiceWorkspace } from "@/components/rarity/voice-workspace";

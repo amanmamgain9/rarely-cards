@@ -6,7 +6,7 @@ import {
   clearPendingPhoto,
   loadPendingPhoto,
   type PendingPhoto,
-} from "@/lib/pending-photo";
+} from "@/lib/analysis/pending-photo";
 import { clearResumeQuery, setPendingPhotoHint } from "@/components/rarity/rarity-model";
 
 export function PendingPhotoResume({

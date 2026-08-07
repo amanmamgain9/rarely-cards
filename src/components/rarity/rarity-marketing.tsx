@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PublicFooter } from "@/components/public-chrome";
-import { CreationCards } from "@/components/creation-cards";
+import { CreationCards } from "@/components/studio/creation-cards";
 
 const examples = [
   {

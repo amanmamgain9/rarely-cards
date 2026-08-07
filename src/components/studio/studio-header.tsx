@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { clearPendingPhoto } from "@/lib/pending-photo";
+import { clearPendingPhoto } from "@/lib/analysis/pending-photo";
 import { setPendingPhotoHint } from "@/components/rarity/rarity-model";
 import { Star } from "@/components/rarity/rarity-icons";
 

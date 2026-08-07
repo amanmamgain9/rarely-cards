@@ -18,7 +18,7 @@ import {
   type PublicAnalysis,
 } from "@/lib/analysis/types";
 import { reportServerError } from "@/lib/observability";
-import { startFullRefund } from "@/lib/paddle";
+import { startFullRefund } from "@/lib/payments/paddle";
 import { resumeAnalysisAfterGrantedPurchase } from "@/lib/payments/credit-purchases";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";

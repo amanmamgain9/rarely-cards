@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { clearPendingPhoto } from "@/lib/pending-photo";
+import { clearPendingPhoto } from "@/lib/analysis/pending-photo";
 
 export function AccountProfile({ email }: { email: string | null }) {
   const [signingOut, setSigningOut] = useState(false);

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { CreditCheckout } from "@/components/payments/credit-checkout";
-import { StudioHeader } from "@/components/studio-header";
+import { StudioHeader } from "@/components/studio/studio-header";
 import { requireUser } from "@/lib/auth";
 import { getResumableAnalysisById } from "@/lib/analysis/resume-server";
 import { isDraftAnalysisStatus } from "@/lib/analysis/resume";

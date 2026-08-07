@@ -1,4 +1,4 @@
-import { AccountBilling } from "@/components/account-billing";
+import { AccountBilling } from "@/components/account/account-billing";
 import { hasGooglePlayEnv, hasPaddleEnv, hasSeedanceEnv } from "@/lib/env";
 
 export default async function AccountPage() {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { startFullRefund } from "@/lib/paddle";
+import { startFullRefund } from "@/lib/payments/paddle";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -62,4 +62,3 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 }
-

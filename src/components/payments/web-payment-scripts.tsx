@@ -1,6 +1,6 @@
 "use client";
 
-import { PaddleDefaultCheckout } from "@/components/paddle-default-checkout";
+import { PaddleDefaultCheckout } from "@/components/payments/paddle-default-checkout";
 import { usePaymentChannel } from "@/lib/payments/use-payment-channel";
 
 export function WebPaymentScripts({

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { StudioHeader } from "@/components/studio-header";
+import { StudioHeader } from "@/components/studio/studio-header";
 import { PetVoiceAccentPicker } from "@/components/rarity/pet-voice-accent-picker";
 import {
   DEFAULT_PET_VOICE_ACCENT,

@@ -4,7 +4,7 @@ import { ChangeEvent, DragEvent, FormEvent, useEffect, useRef, useState } from "
 import { RarityMaker } from "@/components/rarity/rarity-maker";
 import { RarityMarketing } from "@/components/rarity/rarity-marketing";
 import { useHeroDemo } from "@/components/rarity/hero-demo-store";
-import { savePendingPhoto } from "@/lib/pending-photo";
+import { savePendingPhoto } from "@/lib/analysis/pending-photo";
 import {
   AUTOMATIC_CARD_STYLE,
   readPhoto,

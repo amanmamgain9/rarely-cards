@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/paddle", () => ({ getPaddle: mocks.getPaddle }));
+vi.mock("@/lib/payments/paddle", () => ({ getPaddle: mocks.getPaddle }));
 vi.mock("@/lib/payments/google-play", () => ({
   getGooglePlayOrder: mocks.getGooglePlayOrder,
   refundGooglePlayOrder: mocks.refundGooglePlayOrder,

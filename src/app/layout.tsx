@@ -4,7 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { AppProviders } from "@/components/app-providers";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
-import { WebPaymentScripts } from "@/components/web-payment-scripts";
+import { WebPaymentScripts } from "@/components/payments/web-payment-scripts";
 import { SITE_URL } from "@/lib/site";
 
 const nunito = Nunito({

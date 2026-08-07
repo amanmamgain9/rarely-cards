@@ -6,7 +6,7 @@ import {
   hasSeedanceEnv,
   paddleEnv,
 } from "@/lib/env";
-import { getOrCreatePaddleCustomerId, getPaddle } from "@/lib/paddle";
+import { getOrCreatePaddleCustomerId, getPaddle } from "@/lib/payments/paddle";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 

@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { StudioHeader } from "@/components/studio-header";
+import { StudioHeader } from "@/components/studio/studio-header";
 import { VoiceRecorder } from "@/components/movie/voice-recorder";
 import { createAnalysisFromPhoto } from "@/lib/analysis/client";
 import { movieCatalog, movieDefaults, movieMoments } from "@/lib/movie/scenes";

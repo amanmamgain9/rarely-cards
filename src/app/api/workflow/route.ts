@@ -9,7 +9,7 @@ import {
 } from "@/lib/analysis/types";
 import { petDialogueSuggestionsSchema } from "@/lib/video/dialogue";
 import { reportServerError } from "@/lib/observability";
-import { startFullRefund } from "@/lib/paddle";
+import { startFullRefund } from "@/lib/payments/paddle";
 import { resumeAnalysisAfterGrantedPurchase } from "@/lib/payments/credit-purchases";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";

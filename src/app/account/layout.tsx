@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { AccountShell } from "@/components/account-shell";
+import { AccountShell } from "@/components/account/account-shell";
 import { requireUser } from "@/lib/auth";
 
 export const metadata: Metadata = {

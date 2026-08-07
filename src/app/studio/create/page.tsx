@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { CreationCards } from "@/components/creation-cards";
-import { StudioHeader } from "@/components/studio-header";
+import { CreationCards } from "@/components/studio/creation-cards";
+import { StudioHeader } from "@/components/studio/studio-header";
 import { requireUser } from "@/lib/auth";
 import { ensureDevelopmentVideoCredits } from "@/lib/payments/development-credits";
 import { getStudioCreditBalance } from "@/lib/studio/videos";
