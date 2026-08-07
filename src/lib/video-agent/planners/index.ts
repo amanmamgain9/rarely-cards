@@ -1,19 +1,12 @@
-import type { CharacterProfile } from "../identity.ts";
-import { GenericVideoPlanner } from "./generic.ts";
-import { PetVideoPlanner } from "./pet.ts";
-import type { PlannerKind, VideoPlanner } from "./types.ts";
+import type { CharacterProfile } from "../tools/set-identity.ts";
+import { PetVideoSpecialist } from "./pet.ts";
 
-const planners: Record<PlannerKind, VideoPlanner> = {
-  pet: new PetVideoPlanner(),
-  generic: new GenericVideoPlanner(),
-};
+const specialists = [new PetVideoSpecialist()];
 
-export function selectVideoPlanner(characters: CharacterProfile[]) {
-  return planners[characters[0]?.subjectKind === "pet" ? "pet" : "generic"];
+export function selectVideoSpecialist(characters: CharacterProfile[]) {
+  return specialists.find((specialist) => specialist.supports(characters));
 }
 
-export function getVideoPlanner(kind: PlannerKind) {
-  return planners[kind];
+export function getVideoSpecialist(kind?: string) {
+  return specialists.find((specialist) => specialist.kind === kind);
 }
-
-export type { PlannerKind, VideoPlanner } from "./types.ts";

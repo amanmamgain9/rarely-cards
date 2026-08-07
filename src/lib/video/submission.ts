@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   cancelOrDeleteSeedanceVideo,
   createSeedanceVideo,
-} from "@/lib/video/seedance";
+} from "@/lib/video-agent/video_models/seedance";
 import { MOVIE_TRAILER_DURATION_SECONDS } from "@/lib/movie/scenes";
 
 type Submission = {
@@ -55,10 +55,14 @@ export async function submitSeedanceVideo({
 
     submissionAttempted = true;
     taskId = await createSeedanceVideo({
-      image,
+      firstFrame: image,
       prompt,
       userId,
       generationId,
+      generateAudio: true,
+      resolution: "720p",
+      ratio: "9:16",
+      watermark: false,
       durationSeconds: mode === "pet"
         ? 8
         : mode === "movie"

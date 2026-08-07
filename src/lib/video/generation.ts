@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import {
   cancelOrDeleteSeedanceVideo,
   getSeedanceVideo,
-} from "@/lib/video/seedance";
+} from "@/lib/video-agent/video_models/seedance";
 import { reportServerError } from "@/lib/observability";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PublicVideoGeneration } from "@/lib/video/types";

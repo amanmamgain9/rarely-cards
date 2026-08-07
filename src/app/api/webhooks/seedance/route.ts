@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { hasSeedanceEnv, seedanceEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncSeedanceVideo } from "@/lib/video/generation";
-import { seedanceCallbackToken } from "@/lib/video/seedance";
+import { seedanceCallbackToken } from "@/lib/video-agent/video_models/seedance";
 
 const callbackSchema = z.object({
   id: z.string().min(1).max(200),

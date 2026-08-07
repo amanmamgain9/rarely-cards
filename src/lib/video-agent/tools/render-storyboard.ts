@@ -2,10 +2,30 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
-import { describeCharacter, referenceAssetSchema, resolveSceneSubjects } from "../identity.ts";
-import { validateReferenceLineage } from "../identity-validation.ts";
-import { generateReferenceImage, preparedJpeg } from "../model.ts";
-import { publicProjectState, runTool, saveProject, type LocalVideoProject, type StoryboardArtifact } from "../project.ts";
+import { generateReferenceImage, preparedJpeg } from "../models/gemini.ts";
+import { publicProjectState, runTool, saveProject, type LocalVideoProject, type StoryboardArtifact } from "../state.ts";
+import { describeCharacter, referenceAssetSchema, resolveSceneSubjects, type ReferenceAsset } from "./set-identity.ts";
+
+export function validateReferenceLineage(referenceAssets: ReferenceAsset[]) {
+  const references = new Map(referenceAssets.map((reference) => [reference.id, reference]));
+  if (references.size !== referenceAssets.length) throw new Error("duplicate_reference_id");
+
+  for (const reference of referenceAssets) {
+    if (reference.kind === "upload" && reference.parentReferenceId) throw new Error(`upload_reference_has_parent:${reference.id}`);
+    if (reference.kind !== "upload" && reference.characterIds.length && !reference.parentReferenceId) {
+      throw new Error(`generated_reference_missing_parent:${reference.id}`);
+    }
+    const seen = new Set([reference.id]);
+    let parentId = reference.parentReferenceId;
+    while (parentId) {
+      if (seen.has(parentId)) throw new Error(`reference_cycle:${reference.id}`);
+      seen.add(parentId);
+      const parent = references.get(parentId);
+      if (!parent) throw new Error(`reference_parent_missing:${reference.id}`);
+      parentId = parent.parentReferenceId;
+    }
+  }
+}
 
 async function originalFrame(source: Buffer) {
   return sharp(source).rotate().resize(941, 1672, { fit: "cover", position: "attention" }).png().toBuffer();
@@ -46,12 +66,12 @@ export async function renderStoryboardTool(project: LocalVideoProject, ai: Googl
       const buffer = scene.reference.kind === "original"
         ? await originalFrame(source)
         : await generateReferenceImage({
-          ai, model, source,
+          ai, model, source: scene.subjects.length ? source : undefined,
           parent: parentArtifact ? await preparedJpeg(parentArtifact.path) : undefined,
           request: project.request,
           plan: project.plan!,
           scene,
-          identity: describeCharacter(primaryCharacter),
+          identity: scene.subjects.length ? describeCharacter(primaryCharacter) : "",
           subjects: resolveSceneSubjects(scene.subjects, project.characters),
         });
       await writeFile(outputPath, buffer);
@@ -66,7 +86,7 @@ export async function renderStoryboardTool(project: LocalVideoProject, ai: Googl
       if (scene.reference.kind !== "original") {
         const parentReferenceId = scene.reference.kind === "edit"
           ? artifacts.get(scene.reference.fromSceneId)?.referenceId
-          : scene.reference.identityReferenceId;
+          : scene.subjects.length ? scene.reference.identityReferenceId : undefined;
         project.referenceAssets = [
           ...project.referenceAssets.filter((reference) => reference.id !== referenceId),
           referenceAssetSchema.parse({

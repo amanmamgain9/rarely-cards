@@ -20,7 +20,7 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
           </Link>
           <Link
             className="inline-flex min-h-10 items-center rounded-xl border-2 border-ink bg-pink px-4 text-sm font-black text-white shadow-[3px_3px_0_#241a44] transition-transform hover:-translate-y-0.5"
-            href="/studio/talking-pet"
+            href="/studio/create"
           >
             New video <span aria-hidden="true">→</span>
           </Link>

@@ -14,7 +14,7 @@ const examples = [
   },
   {
     title: "Make a birthday video",
-    href: "/studio/birthday",
+    href: "/studio/create",
     cta: "Make a birthday video →",
     video: "/birthday/five-cats-demo.mp4",
     poster: "/birthday/five-cats-demo-poster.jpg",

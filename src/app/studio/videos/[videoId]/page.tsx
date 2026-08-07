@@ -111,7 +111,7 @@ export default async function StudioVideoPage({
             )}
             <Link
               className="mt-9 inline-flex min-h-11 items-center font-mono text-[9px] font-bold uppercase tracking-wider text-pink underline decoration-2 underline-offset-4"
-              href="/studio/talking-pet"
+              href="/studio/create"
             >
               New video →
             </Link>

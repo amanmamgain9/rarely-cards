@@ -3,7 +3,7 @@ import "server-only";
 import { DRAFT_ANALYSIS_STATUSES } from "@/lib/analysis/resume";
 import { reportServerError } from "@/lib/observability";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { cancelOrDeleteSeedanceVideo } from "@/lib/video/seedance";
+import { cancelOrDeleteSeedanceVideo } from "@/lib/video-agent/video_models/seedance";
 
 export class AnalysisDeleteError extends Error {
   constructor(

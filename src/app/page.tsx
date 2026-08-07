@@ -24,7 +24,7 @@ function safeNextPath(value: string | string[] | undefined) {
   const candidate = Array.isArray(value) ? value[0] : value;
   return candidate?.startsWith("/") && !candidate.startsWith("//")
     ? candidate
-    : "/studio";
+    : "/studio/create";
 }
 
 export default async function Home({ searchParams }: HomeProps) {

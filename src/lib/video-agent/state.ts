@@ -1,13 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { CharacterProfile, ReferenceAsset } from "./identity.ts";
-import type { Hook, VideoPlan, VideoTreatment } from "./schemas.ts";
-import type { PlanDiagnostic } from "./validation.ts";
-import type { PlannerKind } from "./planners/index.ts";
+import type { DeliveryDecision, HookCandidate, HookContinuation, HookDirection, HookEvaluation, PlanDiagnostic, VideoPlan, VideoTreatment } from "./tools/planning.ts";
+import type { CharacterProfile, ReferenceAsset } from "./tools/set-identity.ts";
 
-export type ProjectStage = "collecting" | "identity_ready" | "hook_ready" | "treatment_ready" | "planned" | "storyboard_rendering" | "review";
-export type AgentToolName = "get_project_state" | "set_identity" | "create_hook" | "write_video" | "design_video" | "render_storyboard";
+export type ProjectStage = "collecting" | "identity_ready" | "hook_ready" | "continuation_ready" | "delivery_ready" | "script_ready" | "planned" | "storyboard_rendering" | "review";
+export type AgentToolName = "get_project_state" | "set_identity" | "lock_hook" | "shape_continuation" | "choose_delivery" | "write_script" | "design_sequence" | "render_storyboard";
 export type VideoToolName = AgentToolName | "research_context";
 
 export type ResearchPacket = {
@@ -40,15 +38,19 @@ export type LocalVideoProject = {
   sourceSummary: string;
   outputDir: string;
   stage: ProjectStage;
-  versions: { identity?: number; hook?: number; treatment?: number; plan?: number };
+  versions: { identity?: number; hook?: number; continuation?: number; delivery?: number; script?: number; plan?: number };
   characters: CharacterProfile[];
   referenceAssets: ReferenceAsset[];
-  plannerKind?: PlannerKind;
-  hook?: Hook;
-  research?: ResearchPacket;
-  treatmentDraft?: VideoTreatment;
-  treatment?: VideoTreatment;
+  specialistKind?: string;
+  hookCandidates?: HookCandidate[];
+  hookEvaluations?: HookEvaluation[];
+  hook?: HookDirection;
+  hookPath?: string;
+  continuation?: HookContinuation;
+  delivery?: DeliveryDecision;
+  script?: VideoTreatment;
   plan?: VideoPlan;
+  seedanceInstructionPath?: string;
   planDiagnostics?: PlanDiagnostic[];
   storyboard: StoryboardArtifact[];
   runs: ToolRun[];
@@ -57,12 +59,14 @@ export type LocalVideoProject = {
 
 export function allowedActions(project: LocalVideoProject): AgentToolName[] {
   if (project.stage === "collecting") return ["set_identity"];
-  if (project.stage === "identity_ready") return ["create_hook"];
-  if (project.stage === "hook_ready") return ["write_video"];
-  if (project.stage === "treatment_ready") return ["design_video"];
+  if (project.stage === "identity_ready") return ["lock_hook"];
+  if (project.stage === "hook_ready") return ["shape_continuation"];
+  if (project.stage === "continuation_ready") return ["choose_delivery"];
+  if (project.stage === "delivery_ready") return ["write_script"];
+  if (project.stage === "script_ready") return ["design_sequence"];
   if (project.stage === "planned") {
     return project.planDiagnostics?.length && (project.versions.plan ?? 0) < 2
-      ? ["design_video", "render_storyboard"]
+      ? ["design_sequence", "render_storyboard"]
       : ["render_storyboard"];
   }
   return [];
@@ -74,9 +78,11 @@ export function publicProjectState(project: LocalVideoProject) {
     request: project.request,
     stage: project.stage,
     sourceSummary: project.sourceSummary,
-    versions: project.versions,
-    plannerKind: project.plannerKind,
+    versions: { ...project.versions },
+    specialistKind: project.specialistKind,
+    hookPath: project.hookPath,
     planDiagnostics: project.planDiagnostics,
+    seedanceInstructionPath: project.seedanceInstructionPath,
     storyboard: project.storyboard.map((artifact) => ({ sceneId: artifact.sceneId, status: "ready", source: artifact.source })),
     activeRuns: project.runs.filter((run) => run.status === "running"),
     allowedActions: allowedActions(project),
