@@ -7,6 +7,7 @@ import { StudioHeader } from "@/components/studio-header";
 import { StudioVideoActions } from "@/components/studio-video-actions";
 import { StudioVideoFeedback } from "@/components/studio-video-feedback";
 import { StudioVideoPending } from "@/components/studio-video-pending";
+import { StudioVideoRetry } from "@/components/studio-video-retry";
 import { requireUser } from "@/lib/auth";
 import { ensureDevelopmentVideoCredits } from "@/lib/payments/development-credits";
 import { getStudioCreditBalance, getStudioVideo } from "@/lib/studio/videos";
@@ -99,9 +100,10 @@ export default async function StudioVideoPage({
                 <StudioVideoFeedback videoId={video.id} />
               </>
             ) : failed ? (
-              <p className="max-w-md rounded-xl border-2 border-pink/30 bg-white p-4 text-sm font-bold leading-relaxed text-ink-muted">
-                Your credit was returned. Try another photo.
-              </p>
+              <div className="max-w-md rounded-xl border-2 border-pink/30 bg-white p-4 text-sm font-bold leading-relaxed text-ink-muted">
+                <p>{video.canRetry ? "Generation failed. Retry the same video without using another credit." : "Generation failed after all retry attempts."}</p>
+                {video.canRetry && <StudioVideoRetry analysisId={video.analysisId} />}
+              </div>
             ) : (
               <p className="max-w-md rounded-xl border-2 border-ink/15 bg-white p-4 text-sm font-bold leading-relaxed text-ink-muted">
                 Usually ready in a few minutes. You can leave this page.
@@ -109,7 +111,7 @@ export default async function StudioVideoPage({
             )}
             <Link
               className="mt-9 inline-flex min-h-11 items-center font-mono text-[9px] font-bold uppercase tracking-wider text-pink underline decoration-2 underline-offset-4"
-              href="/studio/generate"
+              href="/studio/talking-pet"
             >
               New video →
             </Link>

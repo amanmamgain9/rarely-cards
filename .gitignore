@@ -3,6 +3,8 @@
 # dependencies
 /node_modules
 /scripts/.video-deps/
+/scripts/
+/marketing/
 /marketing/campaigns/.storyboard-review/
 /marketing/campaigns/mother/google-services.json
 __pycache__/

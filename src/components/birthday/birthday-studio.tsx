@@ -18,6 +18,7 @@ type BirthdayDraft = {
   photoUrl: string;
   recipientName: string;
   dialogue: string | null;
+  voiceAccent: PetVoiceAccent;
 };
 
 function defaultGreeting(name: string, petCount?: number) {
@@ -63,7 +64,7 @@ export function BirthdayStudio({
         : ""),
   );
   const [voiceAccent, setVoiceAccent] = useState<PetVoiceAccent>(
-    DEFAULT_PET_VOICE_ACCENT,
+    initialDraft?.voiceAccent ?? DEFAULT_PET_VOICE_ACCENT,
   );
   const [busy, setBusy] = useState(false);
   const [generatingPortrait, setGeneratingPortrait] = useState(false);
@@ -85,6 +86,23 @@ export function BirthdayStudio({
       URL.revokeObjectURL(cleanupRef.current.sceneUrl);
     }
   }, []);
+
+  useEffect(() => {
+    if (!analysisId || !recipientName.trim() || !greeting.trim()) return;
+    const timer = window.setTimeout(() => {
+      void fetch("/api/birthday-scene", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          analysisId,
+          recipientName,
+          greeting,
+          voiceAccent,
+        }),
+      });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [analysisId, greeting, recipientName, voiceAccent]);
 
   function addPhotos(event: ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(event.target.files ?? []);
@@ -126,6 +144,8 @@ export function BirthdayStudio({
       const form = new FormData();
       form.set("recipientName", name);
       form.set("clientFlow", "stored-preview-v1");
+      if (greeting.trim()) form.set("greeting", greeting.trim());
+      form.set("voiceAccent", voiceAccent);
       if (analysisId) form.set("draftId", analysisId);
       photos.forEach(({ file }) => form.append("pets", file));
       const response = await fetch("/api/birthday-scene", {
@@ -228,7 +248,7 @@ export function BirthdayStudio({
               Make a pet birthday video.
             </h1>
           </div>
-          <Link className="shrink-0 text-xs font-black text-ink-muted underline decoration-2 underline-offset-4 hover:text-pink" href="/studio/generate">
+          <Link className="shrink-0 text-xs font-black text-ink-muted underline decoration-2 underline-offset-4 hover:text-pink" href="/studio/talking-pet">
             Make a one-pet video
           </Link>
         </div>
@@ -252,7 +272,7 @@ export function BirthdayStudio({
                     <figure className="relative m-0 aspect-[4/3] overflow-hidden rounded-xl border-2 border-ink bg-purple" key={photo.url}>
                       {/* Local previews intentionally render directly. */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img className="size-full object-cover" src={photo.url} alt={`Pet ${index + 1}`} />
+                      <img className="size-full object-contain" src={photo.url} alt={`Pet ${index + 1}`} />
                       <figcaption className="absolute bottom-2 left-2 rounded-md border border-ink bg-yellow px-2 py-1 font-mono text-[8px] font-bold uppercase">
                         Pet {index + 1}
                       </figcaption>
@@ -363,7 +383,7 @@ export function BirthdayStudio({
               // Generated and resumed portraits load from the authenticated photo route.
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                className="absolute inset-0 size-full bg-ink object-contain"
+                className="absolute inset-0 size-full bg-ink object-cover"
                 src={sceneUrl}
                 alt={`Birthday portrait for ${recipientName || "your person"}`}
                 onError={() => setMessage("The portrait preview could not be loaded. Create another version.")}

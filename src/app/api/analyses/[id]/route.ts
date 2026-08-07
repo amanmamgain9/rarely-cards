@@ -8,7 +8,7 @@ import {
 import {
   AnalysisDeleteError,
   deleteDraft,
-  deleteDraftPhotos,
+  deleteDraftAssets,
   deleteSavedAnalysis,
 } from "@/lib/analysis/delete";
 import {
@@ -52,7 +52,7 @@ export async function GET(request: Request, context: RouteContext) {
   const { data, error } = await supabase
     .from("analysis_requests")
     .select(
-      "id, card_style, experience_kind, pet_name, pet_pronouns, status, result_json, rejection_message, replacement_count, created_at, updated_at, processing_started_at, refund_attempted_at, card_photo_path, object_path, dialogue_suggestions, selected_dialogue",
+      "id, card_style, experience_kind, pet_name, pet_pronouns, status, result_json, rejection_message, replacement_count, created_at, updated_at, processing_started_at, refund_attempted_at, card_photo_path, object_path, dialogue_suggestions, selected_dialogue, draft_data",
     )
     .eq("id", id)
     .single();
@@ -107,6 +107,10 @@ export async function GET(request: Request, context: RouteContext) {
     dialogueSuggestions:
       petDialogueSuggestionsSchema.safeParse(data.dialogue_suggestions).data ?? [],
     selectedDialogue: data.selected_dialogue,
+    draftData:
+      data.draft_data && typeof data.draft_data === "object" && !Array.isArray(data.draft_data)
+        ? data.draft_data as Record<string, unknown>
+        : {},
   };
 
   if (status === "photo_rejected") {
@@ -187,8 +191,8 @@ export async function DELETE(request: Request, context: RouteContext) {
     new URL(request.url).searchParams.get("draft") === "1";
   try {
     if (draftDeleteRequested) {
-      const photoPaths = await deleteDraft(user.id, id);
-      after(() => deleteDraftPhotos(id, photoPaths));
+      const assets = await deleteDraft(user.id, id);
+      after(() => deleteDraftAssets(id, assets.photoPaths, assets.voicePath));
     } else {
       await deleteSavedAnalysis(user.id, id);
     }

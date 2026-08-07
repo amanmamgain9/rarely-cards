@@ -6,7 +6,7 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const createAnalysisSchema = z.object({
   cardStyle: z.literal("pet"),
-  experienceKind: z.enum(["talking_video", "birthday_video"]),
+  experienceKind: z.enum(["talking_video", "birthday_video", "movie_scene"]),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
   size: z.number().int().positive().max(MAX_IMAGE_BYTES),
   petName: z.string().trim().min(1).max(40).optional(),
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       card_style: parsed.data.cardStyle,
       experience_kind: parsed.data.experienceKind,
       pet_name:
-        parsed.data.experienceKind === "birthday_video"
+        parsed.data.experienceKind !== "talking_video"
           ? parsed.data.petName ?? null
           : null,
       status: "awaiting_upload",

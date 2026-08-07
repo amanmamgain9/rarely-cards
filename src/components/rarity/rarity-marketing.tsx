@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PublicFooter } from "@/components/public-chrome";
+import { CreationCards } from "@/components/creation-cards";
 
 const examples = [
   {
@@ -25,6 +26,10 @@ const examples = [
 export function RarityMarketing() {
   return (
     <>
+      <section className="border-t-[3px] border-ink bg-workspace px-[max(1.5rem,calc((100vw-1120px)/2))] py-14 text-ink sm:py-20" aria-labelledby="create-title">
+        <h2 className="mb-8 max-w-3xl font-display text-[clamp(2.35rem,6vw,4.5rem)] font-normal leading-none" id="create-title">Choose their next role.</h2>
+        <CreationCards signedIn={false} />
+      </section>
       <section
         className="border-y-[3px] border-ink bg-cream px-[max(1.5rem,calc((100vw-1120px)/2))] py-14 text-ink sm:py-20"
         id="example"

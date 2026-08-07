@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { StudioHeader } from "@/components/studio-header";
 import { StudioDraftCard } from "@/components/studio-draft-card";
+import { CreationCards } from "@/components/creation-cards";
 import { Film } from "@/components/rarity/rarity-icons";
 import { requireUser } from "@/lib/auth";
 import { ensureDevelopmentVideoCredits } from "@/lib/payments/development-credits";
@@ -29,6 +30,10 @@ function statusLabel(status: "submitting" | "running" | "succeeded" | "failed") 
   return status === "succeeded" ? "Ready" : status === "failed" ? "Failed" : "Generating";
 }
 
+function experienceLabel(kind: "talking_video" | "birthday_video" | "movie_scene") {
+  return kind === "birthday_video" ? "Birthday" : kind === "movie_scene" ? "Movie" : "Talking";
+}
+
 export default async function StudioPage() {
   const { user } = await requireUser();
   if (!user) redirect("/?signin=1");
@@ -41,15 +46,21 @@ export default async function StudioPage() {
   ]);
   const videoAnalysisIds = new Set(videos.map((video) => video.analysisId));
   const drafts = allDrafts.filter((draft) => !videoAnalysisIds.has(draft.id));
-  if (videos.length === 0 && drafts.length === 0) {
-    redirect("/studio/generate");
-  }
-
   return (
     <main className="min-h-svh bg-background text-ink">
       <StudioHeader creditBalance={creditBalance} />
       <section className="mx-auto w-[calc(100%-2.5rem)] max-w-[1120px] pb-20 pt-12 max-sm:w-[calc(100%-1.75rem)] max-sm:pb-12 max-sm:pt-8">
-        <h1 className="sr-only">Studio</h1>
+        <div className="mb-9 flex items-center justify-between gap-4">
+          <h1 className="font-display text-[clamp(2.25rem,5vw,3.5rem)] font-normal">Your studio</h1>
+          <Link className="inline-flex min-h-11 items-center rounded-xl border-2 border-ink bg-pink px-5 text-sm font-black text-white shadow-[3px_3px_0_#241a44]" href="/studio/create">Create new</Link>
+        </div>
+
+        {videos.length === 0 && drafts.length === 0 && (
+          <section aria-labelledby="empty-studio-heading">
+            <h2 className="sr-only" id="empty-studio-heading">Choose what to create</h2>
+            <CreationCards />
+          </section>
+        )}
 
         {drafts.length > 0 && (
           <section aria-labelledby="drafts-heading">
@@ -95,7 +106,7 @@ export default async function StudioPage() {
                 <div className="p-5">
                   <div className="flex items-center justify-between gap-3">
                     <span className={`rounded-full px-2.5 py-1 font-mono text-[8px] font-bold uppercase tracking-wider ${video.status === "succeeded" ? "bg-purple/20 text-ink" : video.status === "failed" ? "bg-pink/20 text-ink" : "bg-yellow text-ink"}`}>
-                      {statusLabel(video.status)}
+                      {experienceLabel(video.experienceKind)} · {statusLabel(video.status)}
                     </span>
                     <time className="font-mono text-[8px] text-ink-muted" dateTime={video.createdAt}>
                       {dateFormatter.format(new Date(video.createdAt))}

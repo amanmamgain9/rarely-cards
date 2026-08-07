@@ -11,6 +11,7 @@ import {
 } from "@/lib/video/generation";
 import { buildPetVideoPrompt } from "@/lib/video/prompt";
 import { buildBirthdayVideoPrompt } from "@/lib/birthday/prompt";
+import { buildMovieDirection, buildMovieVideoPrompt, movieSceneSchema, movieStoryboardSchema, movieTitleSchema } from "@/lib/movie/scenes";
 import { petDialogueSchema } from "@/lib/video/dialogue";
 import {
   DEFAULT_PET_VOICE_ACCENT,
@@ -41,7 +42,14 @@ const birthdayVideoSchema = z.object({
   recipientName: z.string().trim().min(1).max(40),
   voiceAccent: petVoiceAccentSchema.default(DEFAULT_PET_VOICE_ACCENT),
 });
-const createVideoSchema = z.union([birthdayVideoSchema, petVideoSchema]);
+const movieVideoSchema = z.object({
+  mode: z.literal("movie"),
+  dialogue: petDialogueSchema,
+  movie: movieTitleSchema,
+  scene: movieSceneSchema,
+  voiceInstruction: z.string().trim().max(160),
+});
+const createVideoSchema = z.union([birthdayVideoSchema, movieVideoSchema, petVideoSchema]);
 
 export async function GET(request: Request, context: RouteContext) {
   const { user } = await requireUser();
@@ -151,7 +159,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
   const { data: analysis } = await admin
     .from("analysis_requests")
-    .select("id, user_id, status, card_photo_path, object_path, selected_dialogue, pet_name, pet_pronouns, experience_kind")
+    .select("id, user_id, status, card_photo_path, object_path, selected_dialogue, pet_name, pet_pronouns, experience_kind, draft_data")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -169,11 +177,13 @@ export async function POST(request: Request, context: RouteContext) {
   if (!dialogue || !petDialogueSchema.safeParse(dialogue).success) {
     return Response.json({ error: "Choose what your pet should say first." }, { status: 400 });
   }
-  const birthdayMode = body.data.mode === "birthday";
-  if (
-    (birthdayMode && analysis.experience_kind !== "birthday_video") ||
-    (!birthdayMode && analysis.experience_kind === "birthday_video")
-  ) {
+  const mode = body.data.mode ?? "pet";
+  const expectedKind = mode === "birthday"
+    ? "birthday_video"
+    : mode === "movie"
+      ? "movie_scene"
+      : "talking_video";
+  if (analysis.experience_kind !== expectedKind) {
     return Response.json({ error: "This draft belongs to a different studio." }, { status: 409 });
   }
 
@@ -203,6 +213,31 @@ export async function POST(request: Request, context: RouteContext) {
       recipientName: body.data.recipientName,
       dialogue,
       voiceAccent: body.data.voiceAccent,
+    });
+  } else if (body.data.mode === "movie") {
+    petName = "Movie star";
+    const draftData = analysis.draft_data && typeof analysis.draft_data === "object" && !Array.isArray(analysis.draft_data)
+      ? analysis.draft_data as Record<string, unknown>
+      : {};
+    const storyboard = movieStoryboardSchema.safeParse(draftData.movieStoryboard).data;
+    if (
+      draftData.sceneReady !== true ||
+      draftData.movie !== body.data.movie ||
+      draftData.scene !== body.data.scene ||
+      analysis.selected_dialogue !== dialogue ||
+      (draftData.voiceInstruction ?? "") !== body.data.voiceInstruction ||
+      !storyboard
+    ) {
+      return Response.json(
+        { error: "Create and approve the updated trailer scene first." },
+        { status: 409 },
+      );
+    }
+    prompt = buildMovieVideoPrompt({
+      scene: body.data.scene,
+      dialogue,
+      direction: buildMovieDirection(storyboard),
+      voiceInstruction: body.data.voiceInstruction,
     });
   } else {
     petName = body.data.petName ?? analysis.pet_name ?? "My pet";
@@ -252,7 +287,7 @@ export async function POST(request: Request, context: RouteContext) {
   const reserved = reservation?.[0];
   if (!reserved?.reserved || !reserved.video_id) {
     return Response.json(
-      { error: "Get three talking-pet videos to continue.", needsCredits: true },
+      { error: "Get 3 video credits to continue.", needsCredits: true },
       { status: 402 },
     );
   }
@@ -274,10 +309,118 @@ export async function POST(request: Request, context: RouteContext) {
       userId: user.id,
       photoPath,
       prompt,
-      birthdayMode,
+      mode,
     }),
   );
   return Response.json(await toPublicVideoGeneration(row), {
+    status: 202,
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
+
+export async function PATCH(request: Request, context: RouteContext) {
+  const { user } = await requireUser();
+  if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
+  if (!hasSeedanceEnv()) {
+    return Response.json({ error: "Pet videos are not enabled." }, { status: 503 });
+  }
+  const limit = await checkRateLimit({
+    request,
+    scope: "pet-video-retry",
+    userId: user.id,
+    limit: 3,
+    windowSeconds: 60 * 60,
+  });
+  if (!limit.allowed) return rateLimitResponse(limit.retryAfterSeconds);
+
+  const { id } = await context.params;
+  if (!routeIdSchema.safeParse(id).success) {
+    return Response.json({ error: "Invalid card." }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+  const [{ data: current }, { data: analysis }] = await Promise.all([
+    admin
+      .from("video_generations")
+      .select(`${VIDEO_SELECT}, prompt`)
+      .eq("analysis_id", id)
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    admin
+      .from("analysis_requests")
+      .select("id, card_photo_path, object_path, experience_kind")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
+  if (!current || !analysis) {
+    return Response.json({ error: "Failed video not found." }, { status: 404 });
+  }
+  if (current.status !== "failed") {
+    return Response.json(await toPublicVideoGeneration(current), {
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  }
+  if (current.attempt_count >= 3 || current.discard_requested_at) {
+    return Response.json({ error: "This video has used all retry attempts." }, { status: 409 });
+  }
+  const photoPath = analysis.card_photo_path ?? analysis.object_path;
+  const mode = analysis.experience_kind === "birthday_video"
+    ? "birthday"
+    : analysis.experience_kind === "movie_scene"
+      ? "movie"
+      : analysis.experience_kind === "talking_video"
+        ? "pet"
+        : null;
+  if (!photoPath || !mode) {
+    return Response.json({ error: "This video can no longer be retried." }, { status: 409 });
+  }
+
+  const now = new Date().toISOString();
+  const { data: retried } = await admin
+    .from("video_generations")
+    .update({
+      status: "submitting",
+      provider_task_id: null,
+      output_path: null,
+      error_code: null,
+      attempt_count: current.attempt_count + 1,
+      last_synced_at: null,
+      sync_token: null,
+      sync_started_at: null,
+      submitted_at: null,
+      completed_at: null,
+      updated_at: now,
+    })
+    .eq("id", current.id)
+    .eq("user_id", user.id)
+    .eq("status", "failed")
+    .eq("attempt_count", current.attempt_count)
+    .is("discard_requested_at", null)
+    .select(VIDEO_SELECT)
+    .maybeSingle();
+  if (!retried) {
+    const { data: raced } = await admin
+      .from("video_generations")
+      .select(VIDEO_SELECT)
+      .eq("id", current.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (raced) return Response.json(await toPublicVideoGeneration(raced));
+    return Response.json({ error: "Retry could not start." }, { status: 409 });
+  }
+
+  after(() =>
+    submitSeedanceVideo({
+      generationId: retried.id,
+      analysisId: id,
+      userId: user.id,
+      photoPath,
+      prompt: current.prompt,
+      mode,
+    }),
+  );
+  return Response.json(await toPublicVideoGeneration(retried), {
     status: 202,
     headers: { "Cache-Control": "private, no-store" },
   });

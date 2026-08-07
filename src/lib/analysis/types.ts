@@ -10,6 +10,7 @@ export const experienceKindSchema = z.enum([
   "card",
   "talking_video",
   "birthday_video",
+  "movie_scene",
 ]);
 export type ExperienceKind = z.infer<typeof experienceKindSchema>;
 export const petEnergySchema = z.enum([
@@ -22,7 +23,6 @@ export const petEnergySchema = z.enum([
   "playful",
   "sleepy",
 ]);
-export type PetEnergy = z.infer<typeof petEnergySchema>;
 
 export const analysisStatusSchema = z.enum([
   "awaiting_upload",
@@ -99,8 +99,6 @@ export const analysisResultSchema = z.discriminatedUnion("status", [
 ]);
 
 export type AcceptedAnalysis = z.infer<typeof acceptedAnalysisSchema>;
-export type RejectedAnalysis = z.infer<typeof rejectedAnalysisSchema>;
-export type AnalysisResult = z.infer<typeof analysisResultSchema>;
 
 export type PublicAnalysis = {
   id: string;
@@ -118,4 +116,5 @@ export type PublicAnalysis = {
   refundState: "none" | "pending" | "completed";
   dialogueSuggestions: PetDialogueSuggestion[];
   selectedDialogue: string | null;
+  draftData: Record<string, unknown>;
 };

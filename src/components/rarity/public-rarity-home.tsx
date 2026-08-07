@@ -93,7 +93,7 @@ export function PublicRarityHome({
     setSignInMethod("google");
     try {
       const supabase = await getSupabaseClient();
-      const nextPath = photo ? "/studio/generate?resume=1" : returnTo;
+      const nextPath = photo ? "/studio/talking-pet?resume=1" : returnTo;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -117,7 +117,7 @@ export function PublicRarityHome({
     setSignInMethod("email");
     try {
       const supabase = await getSupabaseClient();
-      const nextPath = photo ? "/studio/generate?resume=1" : returnTo;
+      const nextPath = photo ? "/studio/talking-pet?resume=1" : returnTo;
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {

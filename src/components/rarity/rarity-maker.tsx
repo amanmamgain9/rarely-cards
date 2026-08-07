@@ -103,7 +103,7 @@ export function RarityMaker({
             >
               <span className="grid size-10 shrink-0 place-items-center rounded-lg border-2 border-ink bg-yellow text-ink [&>svg]:w-5"><Camera /></span>
               <span>
-                <b>TAKE A PHOTO</b>
+                <b>TAKE YOUR PET&apos;S PHOTO</b>
               </span>
             </button>
             <span className="font-mono text-[9px] font-bold text-ink-muted">OR</span>
@@ -114,7 +114,7 @@ export function RarityMaker({
             >
               <span className="grid size-10 shrink-0 place-items-center rounded-lg border-2 border-ink bg-purple text-ink [&>svg]:w-5"><Upload /></span>
               <span>
-                <b>{selectedFile ? "CHANGE PHOTO" : "CHOOSE A PHOTO"}</b>
+                <b>{selectedFile ? "CHANGE YOUR PET'S PHOTO" : "CHOOSE YOUR PET'S PHOTO"}</b>
               </span>
             </button>
           </div>

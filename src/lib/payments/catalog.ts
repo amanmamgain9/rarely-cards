@@ -11,7 +11,7 @@ export function googlePlayCreditKind(
 }
 
 export function analysisCreditKind(
-  experienceKind: "card" | "talking_video" | "birthday_video",
+  experienceKind: "card" | "talking_video" | "birthday_video" | "movie_scene",
 ): CreditKind {
-  return experienceKind === "birthday_video" ? "talking_video" : experienceKind;
+  return experienceKind === "card" ? "card" : "talking_video";
 }

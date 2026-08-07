@@ -57,7 +57,7 @@ export function StudioVideoPending({
       </strong>
       <p className="mt-2 text-sm font-bold text-white/80">
         {failed
-          ? "Your credit was returned."
+          ? "Use the retry button below."
           : "You can leave—this updates automatically."}
       </p>
     </div>

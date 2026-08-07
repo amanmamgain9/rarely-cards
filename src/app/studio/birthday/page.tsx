@@ -7,6 +7,7 @@ import { getResumableAnalysisById } from "@/lib/analysis/resume-server";
 import { hasSeedanceEnv } from "@/lib/env";
 import { ensureDevelopmentVideoCredits } from "@/lib/payments/development-credits";
 import { getStudioCreditBalance } from "@/lib/studio/videos";
+import { DEFAULT_PET_VOICE_ACCENT, petVoiceAccentSchema } from "@/lib/video/accent";
 
 export const metadata: Metadata = {
   title: "Birthday Studio — Rarely",
@@ -43,10 +44,13 @@ export default async function BirthdayStudioPage({
       : Promise.resolve(null),
   ]);
   if (draftId && !draft) redirect("/studio");
-  if (draft?.status === "awaiting_payment" && creditBalance === 0) {
-    redirect(`/studio/credits?draft=${draft.id}`);
+  if (creditBalance === 0) {
+    redirect(
+      draft
+        ? `/studio/credits?draft=${draft.id}`
+        : `/studio/credits?next=${encodeURIComponent(returnPath)}`,
+    );
   }
-
   return (
     <BirthdayStudio
       creditBalance={creditBalance}
@@ -59,6 +63,9 @@ export default async function BirthdayStudioPage({
               photoUrl: draft.photoUrl,
               recipientName: draft.petName ?? "",
               dialogue: draft.selectedDialogue,
+              voiceAccent:
+                petVoiceAccentSchema.safeParse(draft.draftData.voiceAccent).data ??
+                DEFAULT_PET_VOICE_ACCENT,
             }
           : null
       }

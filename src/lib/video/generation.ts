@@ -92,6 +92,7 @@ type VideoRow = {
   status: "submitting" | "running" | "succeeded" | "failed";
   provider_task_id: string | null;
   output_path: string | null;
+  discard_requested_at?: string | null;
   attempt_count: number;
   created_at: string;
   updated_at: string;
@@ -108,7 +109,10 @@ export async function toPublicVideoGeneration(
       row.status === "succeeded" && row.output_path
         ? `/api/analyses/${row.analysis_id}/video/file`
         : null,
-    canRetry: false,
+    canRetry:
+      row.status === "failed" &&
+      row.attempt_count < 3 &&
+      !row.discard_requested_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

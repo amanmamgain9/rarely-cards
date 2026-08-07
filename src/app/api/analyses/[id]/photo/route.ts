@@ -27,7 +27,7 @@ function detectImageContentType(bytes: Uint8Array) {
   return null;
 }
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const { user } = await requireUser();
   if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
 
@@ -54,7 +54,11 @@ export async function GET(_request: Request, context: RouteContext) {
     return Response.json({ error: "Analysis not found." }, { status: 404 });
   }
 
-  const photoPaths = [analysis.card_photo_path, analysis.object_path].filter(
+  const sourceOnly = new URL(request.url).searchParams.get("source") === "1";
+  const candidates = sourceOnly
+    ? [analysis.object_path]
+    : [analysis.card_photo_path, analysis.object_path];
+  const photoPaths = candidates.filter(
     (path, index, paths): path is string =>
       Boolean(path) && paths.indexOf(path) === index,
   );

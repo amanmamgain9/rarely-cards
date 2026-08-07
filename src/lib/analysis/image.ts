@@ -96,7 +96,7 @@ export async function prepareImageForSeedance(buffer: Buffer) {
     .toBuffer();
 }
 
-export async function prepareBirthdayImageForSeedance(buffer: Buffer) {
+export async function prepareGeneratedSceneForSeedance(buffer: Buffer) {
   return sharp(buffer, {
     failOn: "error",
     limitInputPixels: MAX_IMAGE_PIXELS,

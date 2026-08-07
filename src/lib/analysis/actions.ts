@@ -42,25 +42,10 @@ export async function confirmAnalysisUpload(input: {
 
   try {
     const image = await inspectImage(Buffer.from(await object.arrayBuffer()));
-    const { data: purchases } = await admin
-      .from("credit_purchases")
-      .select("credits_remaining, credit_kind")
-      .eq("user_id", input.userId)
-      .eq("status", "active");
-    const hasVideoCredits =
-      (purchases ?? []).reduce(
-        (sum, purchase) =>
-          sum +
-          (purchase.credit_kind === "talking_video"
-            ? purchase.credits_remaining
-            : 0),
-        0,
-      ) > 0;
-    const nextStatus = hasVideoCredits ? "awaiting_name" : "awaiting_payment";
     const { data: updated, error: updateError } = await admin
       .from("analysis_requests")
       .update({
-        status: nextStatus,
+        status: "awaiting_name",
         image_mime_type: image.mimeType,
         image_bytes: image.bytes,
         image_width: image.width,
@@ -85,8 +70,7 @@ export async function confirmAnalysisUpload(input: {
       payload: {
         id: input.analysisId,
         status: updated.status,
-        needsCredits: updated.status === "awaiting_payment",
-        hasVideoCredits,
+        needsCredits: false,
       },
     };
   } catch (error) {
