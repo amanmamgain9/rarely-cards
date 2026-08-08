@@ -4,6 +4,7 @@ import {
   DEFAULT_GEMINI_IMAGE_MODEL,
   DEFAULT_GEMINI_MODEL,
 } from "@/lib/ai/gemini-config";
+import { seedanceEnv as seedanceProviderEnv } from "@/lib/video-agent/video_models/config";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -104,24 +105,7 @@ export function hasSeedanceEnv(): boolean {
 }
 
 export function seedanceEnv() {
-  const configuredTokenPrice = Number(
-    process.env.SEEDANCE_USD_PER_MILLION_TOKENS,
-  );
-  return {
-    apiKey: required("BYTEPLUS_ARK_API_KEY"),
-    appUrl: required("NEXT_PUBLIC_APP_URL").replace(/\/$/, ""),
-    webhookSecret: required("BYTEPLUS_WEBHOOK_SECRET"),
-    baseUrl:
-      process.env.BYTEPLUS_ARK_BASE_URL?.trim() ||
-      "https://ark.ap-southeast.bytepluses.com",
-    model:
-      process.env.SEEDANCE_MODEL?.trim() ||
-      "dreamina-seedance-2-0-260128",
-    pricingUsdPerMillionTokens:
-      Number.isFinite(configuredTokenPrice) && configuredTokenPrice > 0
-        ? configuredTokenPrice
-        : null,
-  };
+  return seedanceProviderEnv();
 }
 
 export function googlePlayEnv() {

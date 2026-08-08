@@ -1,7 +1,5 @@
-import "server-only";
-
 import { createHash, createHmac } from "node:crypto";
-import { seedanceEnv } from "@/lib/env";
+import { seedanceEnv } from "./config.ts";
 
 const TASKS_PATH = "/api/v3/contents/generations/tasks";
 

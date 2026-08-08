@@ -69,7 +69,7 @@ Existing strengths:
 - Remote outputs are size-, content-, redirect-, and host-validated before storage.
 - Discard requests survive provider cancellation limitations.
 
-Current limitation: [`createSeedanceVideo`](../src/lib/video/seedance.ts) accepts one first-frame image. The local multi-reference manifest is not wired into this production submission path.
+[`createSeedanceVideo`](../src/lib/video-agent/video_models/seedance.ts) supports Seedance 2.0 first/last-frame generation and multimodal image, video, and audio references. The current production submission still chooses first-frame mode; a future caller can supply reviewed references without changing the provider adapter.
 
 ### Local video-agent prototype
 

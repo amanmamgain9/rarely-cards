@@ -7,14 +7,12 @@ import { inspectImage, MAX_IMAGE_BYTES } from "@/lib/analysis/image";
 import { reportServerError } from "@/lib/observability";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { runLocalVideoAgent } from "@/lib/video-agent/agent";
-import { hookDirectionSchema } from "@/lib/video-agent/tools/planning";
 import { addReferenceLabels, buildReferenceSheet, MAX_AGENT_PICTURES } from "@/lib/studio/reference-sheet";
 
 export const maxDuration = 300;
 
 const requestSchema = z.string().trim().min(3).max(1000);
 const labelsSchema = z.array(z.string().trim().min(1).max(60)).min(1).max(MAX_AGENT_PICTURES);
-const hookFileSchema = z.object({ hook: hookDirectionSchema });
 
 export async function POST(request: Request) {
   const { user } = await requireUser();
@@ -52,9 +50,8 @@ export async function POST(request: Request) {
       stopAfter: "hook",
     });
     if (!result.hookPath) throw new Error("agent_hook_missing");
-    const { hook } = hookFileSchema.parse(JSON.parse(await readFile(result.hookPath, "utf8")));
-    const openingLine = hook.openingLine ? ` Opening line: “${hook.openingLine}”` : "";
-    return Response.json({ message: `Opening ready: ${hook.openingEvent}${openingLine}` });
+    const hook = (await readFile(result.hookPath, "utf8")).trim();
+    return Response.json({ message: `Opening ready:\n\n${hook}` });
   } catch (error) {
     reportServerError(error, { operation: "video_agent_create" });
     return Response.json({ error: "Agent could not build this direction. Try again." }, { status: 502 });
