@@ -2,94 +2,50 @@
 
 Status: **implemented**
 
-## One-breath summary
+## Summary
 
-Two agents. A pipeline of identical sessions, each turning artifacts into one new artifact. Pixel work only in the Visual Agent.
-
-## Core rules
-
-1. Context assembly and loop termination share one owner.
-2. Director-to-tool creative context crosses by artifact ID only. Retry focus is the sole text exception. Runtime resolves request and canon.
-3. Session context, drafts, alternatives, critiques, and rejected pixels are ephemeral.
-4. Text work belongs to sessions. Pixel generation, direction, revision, and acceptance belong to Visual Agent.
-5. Skills are owner-local data. Sessions own model calls and stop conditions.
-
-## Agents
-
-### Director
-
-Director owns conversation, sequencing, fitness judgment, coherence, retry routing, budgets, and escalation. It loads `director/SKILL.md`. It may inspect accepted board frames but never authors story, lines, poses, shots, or pixels.
-
-Every rejection names a rubric criterion and failing artifact section. Novelty is never a rejection ground. Two retries are allowed per stage; third concern returns to user.
-
-### Visual Agent
-
-Visual Agent owns canon setup, composition, blocking, performance, lighting, continuity, image generation, pixel inspection, revision, storyboard selection, and final Seedance-payload review. It always loads `visual/SKILL.md`.
-
-Rejected generations remain in memory and disappear with session. Only accepted frame media and concise verdicts persist.
-
-## Setup and pipeline
+Gemini reads supplied character references at setup. DeepSeek V4 Pro owns creative text sessions. Optional production references are prompted and inspected by Visual Agent after plan lock. Seedance receives final plan plus role-scoped references. No storyboard stage.
 
 ```text
-setup:    persist request + references | Visual Agent creates canon | Director starts
-pipeline: story | hook | delivery | plan | board | video
+setup:    character references | Gemini | canon
+text:     request | story | hook | delivery | plan       (DeepSeek V4 Pro)
+optional: plan + existing references | Visual Agent | zero or minimum production references
+video:    plan + delivery + references | Seedance
 ```
 
-Setup records are not creative artifacts. Six slots are versioned; one current version exists per slot.
+## Director and sessions
 
-| Stage | Reads | Writes | Owner skill |
+DeepSeek Director controls sequencing, artifact fitness, retries, and escalation through `director/SKILL.md`. It never authors specialist work.
+
+Each specialist call creates one private DeepSeek session:
+
+| Tool | Inputs | Skill | Output |
 |---|---|---|---|
-| `create_story` | runtime-resolved verbatim request | story | `tools/create-story/SKILL.md` |
-| `create_visual_hook` | story ID | hook | `tools/create-visual-hook/SKILL.md` |
-| `write_delivery` | story + hook IDs | delivery | `tools/write-delivery/SKILL.md` |
-| `compile_video` | story + hook + delivery IDs | plan | `tools/compile-video/SKILL.md` |
-| `create_storyboard` | plan + delivery IDs | board | Visual Agent |
-| `generate_video` | plan + board + delivery IDs + spend grant | video | Visual Agent preflight, then Seedance |
+| `create_story` | runtime request + canon | `create-story/SKILL.md` | Markdown story |
+| `create_visual_hook` | story ID + canon | `create-visual-hook/SKILL.md` | Markdown hook |
+| `write_delivery` | story + hook IDs + canon | `write-delivery/SKILL.md` | Markdown delivery |
+| `compile_video` | story + hook + delivery IDs + canon | `compile-video/SKILL.md` | provider-boundary JSON plan |
 
-Story, hook, and delivery are Markdown. Plan is provider-boundary JSON. Board is a JSON manifest referencing accepted frame media. Video is provider metadata and eventual media.
-
-## Session runtime
-
-```text
-session(skill, input artifact IDs) = one artifact
-```
-
-Runtime loads owner-local skill, resolves IDs, injects canon, exposes private tools, and lets controller decide when to call `finish_artifact`. Qwen is an optional drafting callee when configured; Gemini remains session controller. Hook session can sample hook territories and request a text verdict from Visual Agent.
+Sessions own context, private tool calls, judgment, and stop condition. Only final artifact survives. DeepSeek thinking-mode tool messages retain `reasoning_content` across calls.
 
 ## Canon
 
-Visual Agent creates canon once from reference pixels. Canon stores stable IDs, identity traits, voice identity, references, and continuity facts. Runtime injects it read-only into every session. It is data, not a skill and never appears in creative tool signatures.
+Project setup uses Gemini vision to extract stable identity, continuity, and voice facts into `canon.json`. All DeepSeek sessions receive canon as read-only text. Supplied pixels still reach Seedance; canon never replaces reference pixels.
 
-## Lineage and invalidation
+After plan lock, Visual Agent loads `reference-image-prompting/SKILL.md` and decides whether extra pixels help. Caller supplies no generated asset roles or prompts. Agent starts at zero, chooses smallest non-overlapping set, writes prompts, generates pixels, inspects whole set against existing references, and retries once. Coupled setting and UI use one `production` reference instead of redundant environment and interface images.
 
-Replacing an upstream current artifact invalidates all downstream current pointers while preserving old versions as history:
+## Lineage
 
-- story invalidates hook, delivery, plan, board, video;
-- hook invalidates delivery, plan, board, video;
-- delivery invalidates plan, board, video;
-- plan invalidates board and video;
-- board invalidates video.
+Current slots are `story`, `hook`, `delivery`, `plan`, and `video`. Replacing upstream artifact invalidates every downstream current pointer. Old versions remain for inspection.
 
-Tools reject stale input IDs. Paid generation requires current plan, board, and delivery.
+## Seedance boundary
 
-## Spend boundary
+`generate_video` requires current plan, current delivery, and one-use spend grant. It builds concise timed prompt, attaches role-scoped references, consumes grant immediately before submission, and stores task ID. No storyboard, Gemini payload review, or post-generation retry happens automatically.
 
-Director obtains explicit user confirmation above tool boundary. Store creates one-use Seedance spend grant. `generate_video` runs Visual Agent preflight first, consumes grant immediately before provider submission, then persists provider task ID. Rejected preflight leaves grant available. Every resubmission requires a fresh grant.
+## Providers
 
-## Packages
+- Gemini: canon extraction and optional Visual Agent reference prompting, generation, and inspection.
+- DeepSeek official API: Director and all text sessions.
+- Seedance: final video only.
 
-```text
-director | tools | runtime | visual | providers | store
-```
-
-- `director` imports tool surface only for creative work.
-- `tools` bind owner-local skills to runtime or delegate to Visual Agent.
-- `runtime` assembles private text sessions.
-- `visual` is only image-generation caller.
-- `providers` contain transport clients without creative ownership.
-- `store` owns setup records, artifacts, media, traces, lineage, and spend grants; no model calls.
-- `tools/generate-video` is sole video-agent Seedance submitter.
-
-## Deliberate omissions
-
-No editor stage, queue, database adapter, plugin framework, alternate video provider, persisted rejected draft, or global skills directory. Add an editor only after raw Seedance output proves insufficient; it belongs after video generation and requires another user-controlled spend path when regeneration is needed.
+Transport retries DeepSeek `429` and `5xx` twice. Creative artifacts stay Markdown; only production plan uses JSON because Seedance execution needs explicit timing.

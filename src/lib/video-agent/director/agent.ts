@@ -1,75 +1,74 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FunctionCallingConfigMode, Type, type FunctionDeclaration, type GoogleGenAI, type Part } from "@google/genai";
+import { deepSeekChat, toolArguments, type DeepSeekMessage, type DeepSeekTool } from "../providers/deepseek.ts";
 import { videoTools, type VideoProject } from "../tools/index.ts";
 
 const skillPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "SKILL.md");
-export type StopAfter = "story" | "hook" | "delivery" | "plan" | "board";
+export type StopAfter = "story" | "hook" | "delivery" | "plan";
 
-const declarations: FunctionDeclaration[] = [
-  { name: "read_artifact", description: "Read one artifact by ID. Board reads also show accepted frames.", parameters: { type: Type.OBJECT, properties: { artifactId: { type: Type.STRING } }, required: ["artifactId"] } },
-  { name: "create_story", description: "Run funny-cute story session. Request is runtime-resolved; pass only optional retry focus.", parameters: { type: Type.OBJECT, properties: { focus: { type: Type.STRING } } } },
-  { name: "create_visual_hook", description: "Run visual-hook session on current story.", parameters: { type: Type.OBJECT, properties: { storyId: { type: Type.STRING }, focus: { type: Type.STRING } }, required: ["storyId"] } },
-  { name: "write_delivery", description: "Run delivery session on current story and hook.", parameters: { type: Type.OBJECT, properties: { storyId: { type: Type.STRING }, hookId: { type: Type.STRING }, focus: { type: Type.STRING } }, required: ["storyId", "hookId"] } },
-  { name: "compile_video", description: "Run production-planning session on current story, hook, and delivery.", parameters: { type: Type.OBJECT, properties: { storyId: { type: Type.STRING }, hookId: { type: Type.STRING }, deliveryId: { type: Type.STRING }, focus: { type: Type.STRING } }, required: ["storyId", "hookId", "deliveryId"] } },
-  { name: "create_storyboard", description: "Delegate plan and delivery to Visual Agent; returns one board artifact.", parameters: { type: Type.OBJECT, properties: { planId: { type: Type.STRING }, deliveryId: { type: Type.STRING }, focus: { type: Type.STRING } }, required: ["planId", "deliveryId"] } },
-  { name: "finish_run", description: "Finish after reading and accepting target artifact.", parameters: { type: Type.OBJECT, properties: { artifactId: { type: Type.STRING }, summary: { type: Type.STRING } }, required: ["artifactId", "summary"] } },
+const declarations: DeepSeekTool[] = [
+  { name: "read_artifact", description: "Read one artifact by ID.", parameters: { type: "object", properties: { artifactId: { type: "string" } }, required: ["artifactId"], additionalProperties: false } },
+  { name: "create_story", description: "Run funny-cute story session. Request is runtime-resolved; pass only optional retry focus.", parameters: { type: "object", properties: { focus: { type: "string" } }, additionalProperties: false } },
+  { name: "create_visual_hook", description: "Run visual-hook session on current story.", parameters: { type: "object", properties: { storyId: { type: "string" }, focus: { type: "string" } }, required: ["storyId"], additionalProperties: false } },
+  { name: "write_delivery", description: "Run delivery session on current story and hook.", parameters: { type: "object", properties: { storyId: { type: "string" }, hookId: { type: "string" }, focus: { type: "string" } }, required: ["storyId", "hookId"], additionalProperties: false } },
+  { name: "compile_video", description: "Run production-planning session on current story, hook, and delivery.", parameters: { type: "object", properties: { storyId: { type: "string" }, hookId: { type: "string" }, deliveryId: { type: "string" }, focus: { type: "string" } }, required: ["storyId", "hookId", "deliveryId"], additionalProperties: false } },
 ];
 
-export async function runDirector({ project, ai, textModel, imageModel, stopAfter }: { project: VideoProject; ai: GoogleGenAI; textModel: string; imageModel: string; stopAfter: StopAfter }) {
+export async function runDirector({ project, stopAfter }: { project: VideoProject; stopAfter: StopAfter }) {
   const direction = await readFile(skillPath, "utf8");
-  const tools = videoTools({ project, ai, textModel, imageModel });
+  const tools = videoTools({ project });
   const readIds = new Set<string>();
-  const chat = ai.chats.create({
-    model: textModel,
-    config: {
-      systemInstruction: `${direction}\n\nExactly two agent roles exist: you are Director; Visual Agent owns pixels. Text tools birth private skill sessions. Tool arguments carry artifact IDs only, except retry focus. Choose one tool at a time. Stop at ${stopAfter}.`,
-      tools: [{ functionDeclarations: declarations }],
-      toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO } },
-      temperature: 0.15,
+  const messages: DeepSeekMessage[] = [
+    {
+      role: "system",
+      content: `${direction}\n\nYou are Director. Specialist text tools own authorship. Tool arguments carry artifact IDs only, except retry focus. Use tools while work remains. After reading and accepting the current ${stopAfter} artifact, stop calling tools and return one concise completion summary.`,
     },
-  });
-  let response = await chat.sendMessage({ message: `Verbatim creator request:\n${project.request.text}\n\nArtifact index:\n${JSON.stringify(tools.index())}\n\nBuild through ${stopAfter}.` });
+    {
+      role: "user",
+      content: `Verbatim creator request:\n${project.request.text}\n\nSubject canon:\n${JSON.stringify(project.canon)}\n\nArtifact index:\n${JSON.stringify(tools.index())}\n\nBuild through ${stopAfter}.`,
+    },
+  ];
   for (let turn = 0; turn < 30; turn += 1) {
-    const calls = response.functionCalls ?? [];
-    if (calls.length === 0 && response.text?.trim()) return { kind: "escalated" as const, escalation: response.text.trim() };
-    if (calls.length !== 1) throw new Error(calls.length ? "director_must_call_one_tool" : "director_stopped_without_finish");
-    const call = calls[0];
-    const args = (call.args ?? {}) as Record<string, unknown>;
-    let result: unknown;
-    const extra: Part[] = [];
-    try {
-      if (call.name === "read_artifact") {
-        const item = tools.readArtifact(String(args.artifactId));
-        readIds.add(item.id);
-        result = { id: item.id, slot: item.slot, version: item.version, inputArtifactIds: item.inputArtifactIds, content: item.content };
-        if (item.slot === "board") {
-          for (const frame of await tools.readBoardFrames(item.id)) {
-            extra.push({ text: `${frame.id}: accepted board frame.` }, { inlineData: { mimeType: "image/png", data: frame.data } });
-          }
-        }
-      } else if (call.name === "create_story") {
-        const item = await tools.createStory(String(args.focus ?? "")); result = { artifactId: item.id, slot: item.slot, current: tools.index().current };
-      } else if (call.name === "create_visual_hook") {
-        const item = await tools.createVisualHook(String(args.storyId), String(args.focus ?? "")); result = { artifactId: item.id, slot: item.slot, current: tools.index().current };
-      } else if (call.name === "write_delivery") {
-        const item = await tools.writeDelivery(String(args.storyId), String(args.hookId), String(args.focus ?? "")); result = { artifactId: item.id, slot: item.slot, current: tools.index().current };
-      } else if (call.name === "compile_video") {
-        const item = await tools.compileVideo(String(args.storyId), String(args.hookId), String(args.deliveryId), String(args.focus ?? "")); result = { artifactId: item.id, slot: item.slot, current: tools.index().current };
-      } else if (call.name === "create_storyboard") {
-        const item = await tools.createStoryboard(String(args.planId), String(args.deliveryId), String(args.focus ?? "")); result = { artifactId: item.id, slot: item.slot, current: tools.index().current };
-      } else if (call.name === "finish_run") {
-        const id = String(args.artifactId);
-        const target = tools.finishTarget(id, stopAfter, readIds);
-        return { kind: "accepted" as const, artifact: target, summary: String(args.summary) };
-      } else throw new Error(`unknown_director_tool:${call.name}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (call.name === "create_storyboard" && /^(visual_strategy_exhausted|image_budget_exhausted):?/.test(message)) return { kind: "escalated" as const, escalation: `Storyboard stopped before Seedance: ${message}` };
-      result = { error: message, current: tools.index().current };
+    const response = await deepSeekChat({ messages, tools: declarations, thinking: false });
+    messages.push(response);
+    const calls = response.tool_calls ?? [];
+    if (!calls.length) {
+      const summary = response.content?.trim();
+      const targetId = project.current[stopAfter];
+      try {
+        if (!summary) throw new Error("director_summary_empty");
+        if (summary.length > 800) throw new Error("director_summary_too_long");
+        if (!targetId) throw new Error(`current_artifact_missing:${stopAfter}`);
+        const target = tools.finishTarget(targetId, stopAfter, readIds);
+        return { kind: "accepted" as const, artifact: target, summary };
+      } catch (error) {
+        messages.push({ role: "user", content: `Cannot finish: ${error instanceof Error ? error.message : String(error)}. Continue with tools.` });
+        continue;
+      }
     }
-    response = await chat.sendMessage({ message: [{ functionResponse: { id: call.id, name: call.name!, response: { result } } }, ...extra] });
+    for (const call of calls) {
+      let result: unknown;
+      try {
+        const args = toolArguments(call);
+        if (call.function.name === "read_artifact") {
+          const item = tools.readArtifact(String(args.artifactId));
+          readIds.add(item.id);
+          result = { id: item.id, slot: item.slot, version: item.version, inputArtifactIds: item.inputArtifactIds, content: item.content };
+        } else if (call.function.name === "create_story") {
+          const item = await tools.createStory(String(args.focus ?? "")); result = { artifactId: item.id, slot: item.slot, current: tools.index().current };
+        } else if (call.function.name === "create_visual_hook") {
+          const item = await tools.createVisualHook(String(args.storyId), String(args.focus ?? "")); result = { artifactId: item.id, slot: item.slot, current: tools.index().current };
+        } else if (call.function.name === "write_delivery") {
+          const item = await tools.writeDelivery(String(args.storyId), String(args.hookId), String(args.focus ?? "")); result = { artifactId: item.id, slot: item.slot, current: tools.index().current };
+        } else if (call.function.name === "compile_video") {
+          const item = await tools.compileVideo(String(args.storyId), String(args.hookId), String(args.deliveryId), String(args.focus ?? "")); result = { artifactId: item.id, slot: item.slot, current: tools.index().current };
+        } else throw new Error(`unknown_director_tool:${call.function.name}`);
+      } catch (error) {
+        result = { error: error instanceof Error ? error.message : String(error), current: tools.index().current };
+      }
+      messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
+    }
   }
   throw new Error("director_turn_budget_exhausted");
 }

@@ -1,5 +1,13 @@
-export const ARTIFACT_SLOTS = ["story", "hook", "delivery", "plan", "board", "video"] as const;
+export const ARTIFACT_SLOTS = ["story", "hook", "delivery", "plan", "video"] as const;
 export type ArtifactSlot = typeof ARTIFACT_SLOTS[number];
+
+export type ReferenceRole = "character" | "environment" | "interface" | "production" | "style";
+
+export type ProjectReferenceInput = {
+  path: string;
+  role: ReferenceRole;
+  description: string;
+};
 
 export type CharacterCanon = {
   id: string;
@@ -13,6 +21,8 @@ export type CharacterCanon = {
 export type ReferenceCanon = {
   id: string;
   path: string;
+  role: ReferenceRole;
+  description: string;
   characterIds: string[];
 };
 
@@ -59,7 +69,7 @@ export type VideoArtifact = {
 
 export type MediaRecord = {
   id: string;
-  kind: "reference" | "frame" | "video";
+  kind: "reference" | "video";
   path: string;
   parentMediaId?: string;
   createdAt: string;
@@ -89,7 +99,7 @@ export type SpendGrant = {
 export type VideoProject = {
   id: string;
   outputDir: string;
-  sourcePath: string;
+  referenceInputs: ProjectReferenceInput[];
   request: { text: string; createdAt: string };
   canon?: SubjectCanon;
   artifacts: VideoArtifact[];
@@ -97,5 +107,4 @@ export type VideoProject = {
   media: MediaRecord[];
   traces: SessionTrace[];
   spendGrants: SpendGrant[];
-  imageBudget: { limit: number; used: number };
 };

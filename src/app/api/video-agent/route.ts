@@ -17,7 +17,7 @@ const labelsSchema = z.array(z.string().trim().min(1).max(60)).min(1).max(MAX_AG
 export async function POST(request: Request) {
   const { user } = await requireUser();
   if (!user) return Response.json({ error: "Sign in required." }, { status: 401 });
-  if (!process.env.GEMINI_API_KEY?.trim()) {
+  if (!process.env.GEMINI_API_KEY?.trim() || !process.env.DEEPSEEK_API_KEY?.trim()) {
     return Response.json({ error: "Agent is temporarily unavailable." }, { status: 503 });
   }
   const limit = await checkRateLimit({ request, scope: "video-agent-create", userId: user.id, limit: 3, windowSeconds: 60 * 60 });
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     const outputDir = path.join(workspace, "output");
     await writeFile(imagePath, image);
     const result = await runLocalVideoAgent({
-      imagePath,
+      references: [{ path: imagePath, role: "character", description: "primary subject" }],
       request: addReferenceLabels(creatorRequest.data, labels.data),
       outputDir,
       stopAfter: "hook",

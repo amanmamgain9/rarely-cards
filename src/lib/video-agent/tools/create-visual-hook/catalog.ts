@@ -20,7 +20,7 @@ export const VISUAL_HOOKS = {
   foreground_reveal: "A close foreground object moves, opens, tears, pours, or clears away to reveal an unexpected story state behind it.",
   camera_charge: "The subject or a story-critical object moves rapidly toward the lens and forces an immediate reaction or near-collision.",
   gravity_break: "A subject or object visibly falls upward, hangs sideways, floats, or otherwise violates gravity in a story-relevant way.",
-  frozen_world: "Everything visible is frozen mid-action except one moving subject or object whose goal becomes immediately clear.",
+  frozen_world: "Everything else is frozen mid-action while one story-critical subject or object moves immediately from frame one and makes its goal clear.",
   match_cut_swap: "One object, pose, or movement instantly match-cuts into a surprising counterpart with the same screen position and silhouette.",
   split_reality: "Two incompatible versions of the same place or moment coexist in one frame with the subject crossing or reacting across the boundary.",
   impossible_emergence: "The subject or key object emerges from a place visibly too small or physically impossible to contain it.",

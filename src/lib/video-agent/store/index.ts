@@ -1,25 +1,21 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { ARTIFACT_SLOTS, type ArtifactSlot, type MediaRecord, type ProductionPlan, type SessionTrace, type SpendGrant, type SubjectCanon, type VideoArtifact, type VideoProject } from "./types.ts";
+import { ARTIFACT_SLOTS, type ArtifactSlot, type MediaRecord, type ProductionPlan, type ProjectReferenceInput, type SessionTrace, type SpendGrant, type SubjectCanon, type VideoArtifact, type VideoProject } from "./types.ts";
 
 const downstream: Record<ArtifactSlot, ArtifactSlot[]> = {
-  story: ["hook", "delivery", "plan", "board", "video"],
-  hook: ["delivery", "plan", "board", "video"],
-  delivery: ["plan", "board", "video"],
-  plan: ["board", "video"],
-  board: ["video"],
+  story: ["hook", "delivery", "plan", "video"],
+  hook: ["delivery", "plan", "video"],
+  delivery: ["plan", "video"],
+  plan: ["video"],
   video: [],
 };
 
-export async function createProject({ outputDir, sourcePath, request }: { outputDir: string; sourcePath: string; request: string }) {
-  const configuredImageBudget = Number(process.env.VIDEO_AGENT_IMAGE_BUDGET || 12);
-  const imageBudget = Number.isInteger(configuredImageBudget) && configuredImageBudget > 0 ? configuredImageBudget : 12;
+export async function createProject({ outputDir, referenceInputs, request }: { outputDir: string; referenceInputs: ProjectReferenceInput[]; request: string }) {
   const project: VideoProject = {
-    id: randomUUID(), outputDir, sourcePath,
+    id: randomUUID(), outputDir, referenceInputs,
     request: { text: request.trim(), createdAt: new Date().toISOString() },
     artifacts: [], current: {}, media: [], traces: [], spendGrants: [],
-    imageBudget: { limit: imageBudget, used: 0 },
   };
   await mkdir(outputDir, { recursive: true });
   await saveProject(project);
@@ -27,7 +23,16 @@ export async function createProject({ outputDir, sourcePath, request }: { output
 }
 
 export async function loadProject(outputDir: string) {
-  return JSON.parse(await readFile(path.join(outputDir, "project.json"), "utf8")) as VideoProject;
+  const project = JSON.parse(await readFile(path.join(outputDir, "project.json"), "utf8")) as VideoProject & { sourcePath?: string };
+  if (!project.referenceInputs && project.sourcePath) {
+    project.referenceInputs = [{ path: project.sourcePath, role: "character", description: "primary subject" }];
+    delete project.sourcePath;
+  }
+  project.canon?.references.forEach((reference) => {
+    reference.role ??= reference.characterIds.length ? "character" : "style";
+    reference.description ??= reference.characterIds.length ? "identity reference" : "visual reference";
+  });
+  return project;
 }
 
 export async function saveProject(project: VideoProject) {
@@ -66,7 +71,7 @@ export function assertCurrentInputs(project: VideoProject, inputs: Array<[Artifa
 export async function saveArtifact(project: VideoProject, input: Omit<VideoArtifact, "id" | "version" | "path" | "createdAt"> & { extension?: "md" | "json" }) {
   const version = project.artifacts.filter((candidate) => candidate.slot === input.slot).length + 1;
   const id = `${input.slot}_v${version}`;
-  const extension = input.extension ?? (input.slot === "plan" || input.slot === "board" || input.slot === "video" ? "json" : "md");
+  const extension = input.extension ?? (input.slot === "plan" || input.slot === "video" ? "json" : "md");
   const directory = path.join(project.outputDir, "artifacts", input.slot);
   const artifactPath = path.join(directory, `${id}.${extension}`);
   await mkdir(directory, { recursive: true });
@@ -128,12 +133,6 @@ export async function consumeSpendGrant(project: VideoProject, id: string) {
   await saveProject(project);
 }
 
-export async function reserveImageGeneration(project: VideoProject) {
-  if (project.imageBudget.used >= project.imageBudget.limit) throw new Error("image_budget_exhausted");
-  project.imageBudget.used += 1;
-  await saveProject(project);
-}
-
 export function recoverInterruptedTraces(project: VideoProject) {
   const now = new Date().toISOString();
   for (const trace of project.traces.filter((candidate) => candidate.status === "running")) {
@@ -144,4 +143,4 @@ export function recoverInterruptedTraces(project: VideoProject) {
 }
 
 export { ARTIFACT_SLOTS };
-export type { ArtifactSlot, MediaRecord, ProductionPlan, SessionTrace, SpendGrant, SubjectCanon, VideoArtifact, VideoProject };
+export type { ArtifactSlot, MediaRecord, ProductionPlan, ProjectReferenceInput, SessionTrace, SpendGrant, SubjectCanon, VideoArtifact, VideoProject };

@@ -29,6 +29,8 @@ export const productionPlanSchema = z.object({
   plan.shots.forEach((item, index) => {
     if (item.endSeconds <= item.startSeconds || (index && item.startSeconds !== plan.shots[index - 1].endSeconds)) context.addIssue({ code: "custom", path: ["shots", index], message: "Shots must be positive and contiguous." });
   });
+  const spokenWords = plan.shots.flatMap((item) => item.spokenLines).flatMap(({ line }) => line.match(/[\p{L}\p{N}]+(?:[’'-][\p{L}\p{N}]+)*/gu) ?? []);
+  if (spokenWords.length > Math.floor(plan.durationSeconds * 2.5)) context.addIssue({ code: "custom", path: ["shots"], message: "Spoken words exceed executable duration." });
 });
 
 export type ProductionPlan = z.infer<typeof productionPlanSchema>;
@@ -56,11 +58,16 @@ export function validatePlanCanon(plan: ProductionPlan, canon: { characters: Arr
   const characters = new Set(canon.characters.map((character) => character.id));
   const references = new Map(canon.references.map((reference) => [reference.id, reference]));
   const voices = new Set(plan.voiceProfiles.map((profile) => profile.speaker));
+  const missingSubjectIds: string[] = [];
   for (const shot of plan.shots) {
     const subjectIds = shot.subjects.map((subject) => subject.characterId);
     if (subjectIds.some((id) => !characters.has(id))) throw new Error(`unknown_shot_character:${shot.id}`);
-    if (subjectIds.length && ![...references.values()].some((reference) => subjectIds.every((id) => reference.characterIds.includes(id)))) throw new Error(`identity_reference_mismatch:${shot.id}`);
+    if (subjectIds.some((id) => ![...references.values()].some((reference) => reference.characterIds.includes(id)))) throw new Error(`identity_reference_mismatch:${shot.id}`);
     if (shot.spokenLines.some((line) => !voices.has(line.speaker))) throw new Error(`voice_profile_missing:${shot.id}`);
+    for (const field of ["storyEvent", "frame", "action"] as const) {
+      if (subjectIds.some((id) => !shot[field].toLowerCase().includes(id.toLowerCase()))) missingSubjectIds.push(`${shot.id}.${field}`);
+    }
   }
+  if (missingSubjectIds.length) throw new Error(`subject_id_missing:${missingSubjectIds.join(",")}`);
   return plan;
 }

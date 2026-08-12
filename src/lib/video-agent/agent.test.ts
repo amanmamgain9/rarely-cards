@@ -4,14 +4,15 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { assertCurrentInputs, consumeSpendGrant, createProject, grantSeedanceSpend, saveArtifact } from "./store";
 import { sampleHookTerritories } from "./tools/create-visual-hook/catalog";
-import { productionPlanSchema } from "./tools/compile-video/schema";
+import { productionPlanSchema, validatePlanCanon } from "./tools/compile-video/schema";
+import { validateDelivery } from "./tools/write-delivery";
 
 const temporary: string[] = [];
 
 async function project() {
   const outputDir = await mkdtemp(path.join(tmpdir(), "video-agent-test-"));
   temporary.push(outputDir);
-  return createProject({ outputDir, sourcePath: path.join(outputDir, "source.jpg"), request: "Flaunting the new bathrobe" });
+  return createProject({ outputDir, referenceInputs: [{ path: path.join(outputDir, "source.jpg"), role: "character", description: "primary subject" }], request: "Flaunting the new bathrobe" });
 }
 
 afterEach(async () => {
@@ -55,5 +56,21 @@ describe("video agent V3 boundaries", () => {
       ],
     });
     expect(plan.shots.map((shot) => shot.id)).toEqual(["shot_1", "shot_2"]);
+  });
+
+  it("allows separate identity references in one shot", () => {
+    const plan = productionPlanSchema.parse({
+      title: "Fight", durationSeconds: 4, aspectRatio: "9:16", voiceProfiles: [], continuity: "locked", music: "",
+      shots: [{ id: "shot_1", startSeconds: 0, endSeconds: 4, storyEvent: "character_1 faces character_2", frame: "character_1 and character_2", action: "character_1 dodges character_2", camera: "wide", sound: "", spokenLines: [], onScreenText: "", subjects: [
+        { characterId: "character_1", wardrobe: "", pose: "ready", relation: "left" },
+        { characterId: "character_2", wardrobe: "", pose: "ready", relation: "right" },
+      ] }],
+    });
+    expect(validatePlanCanon(plan, { characters: [{ id: "character_1" }, { id: "character_2" }], references: [{ id: "identity_1", characterIds: ["character_1"] }, { id: "identity_2", characterIds: ["character_2"] }] })).toBe(plan);
+  });
+
+  it("rejects speech that cannot fit a short video", () => {
+    const words = Array.from({ length: 33 }, () => "word").join(" ");
+    expect(() => validateDelivery(`SPEECH: DOG | ${words} | fast`)).toThrow("delivery_speech_too_long:33");
   });
 });
