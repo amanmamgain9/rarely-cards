@@ -32,6 +32,7 @@ __pycache__/
 /rarity-tier-preview.png
 /supabase/.temp/
 /private-tax/
+/security-quarantine/
 
 # debug
 npm-debug.log*
@@ -49,4 +50,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-config.bat
