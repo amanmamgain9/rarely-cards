@@ -70,3 +70,7 @@ npm test
 npm run lint
 npm run build
 ```
+
+## License
+
+MIT
